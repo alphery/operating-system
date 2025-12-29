@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Qubo.in</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#00ffcc">
+  <style>
+    :root{--bg:#050507;--glass:rgba(255,255,255,0.04);--accent:#00ffcc;--muted:rgba(255,255,255,0.5)}
+    html,body{height:100%;margin:0}
+    body{
+      display:flex;align-items:center;justify-content:center;height:100vh;background:radial-gradient(1000px 600px at 10% 10%, #071017 0%, #030304 40%, var(--bg) 100%);
+      font-family:Inter, system-ui, Arial, sans-serif;color:var(--muted);
+    }
+
+    .glass{
+      width:min(820px,94%);
+      height:420px;
+      border-radius:18px;
+      padding:28px 22px;
+      background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
+      border:1px solid rgba(255,255,255,0.05);
+      box-shadow:0 10px 40px rgba(0,0,0,0.6);
+      backdrop-filter: blur(14px) saturate(120%);
+      -webkit-backdrop-filter: blur(14px) saturate(120%);
+      display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;position:relative;overflow:hidden
+    }
+
+    /* faint vignette lines as decoration */
+    .glass:before{
+      content:'';position:absolute;inset:0;border-radius:18px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.02);pointer-events:none
+    }
+
+    canvas{width:100%;max-width:760px;height:200px;border-radius:12px;display:block;background:linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.22));border:1px solid rgba(255,255,255,0.03)}
+
+    .label{font-size:28px;color:var(--accent);letter-spacing:1px;margin-top:6px;font-weight:700}
+    .by{font-size:12px;color:rgba(255,255,255,0.32);margin-top:2px}
+
+    .controls{display:flex;gap:12px;margin-top:6px}
+    .btn{padding:10px 18px;border-radius:10px;border:none;cursor:pointer;font-weight:700;color:#001;background:linear-gradient(90deg,var(--accent),#00ddb3);box-shadow:0 8px 24px rgba(0,255,204,0.06)}
+    .btn.secondary{background:transparent;color:var(--muted);border:1px solid rgba(255,255,255,0.04)}
+
+    /* small top-right timer */
+    #timer{
+      position:absolute;top:12px;right:16px;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.03);
+      color:var(--accent);font-weight:700;font-size:13px;border:1px solid rgba(255,255,255,0.04);backdrop-filter:blur(6px);
+    }
+
+    @media (max-width:600px){
+      .glass{height:360px;padding:18px}
+      canvas{height:160px}
+      .label{font-size:22px}
+    }
+  </style>
+</head>
+<body>
+  <div class="glass">
+    <canvas id="ecg" width="760" height="200" aria-hidden="true"></canvas>
+    <div id="timer">00:00</div>
+    <button id="installBtn" aria-hidden="true" title="Install app" style="position:absolute;top:12px;right:88px;display:none;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.03);color:var(--accent);border:1px solid rgba(255,255,255,0.04);font-weight:700;font-size:13px">Install</button>
+    <div class="label">No Sleep</div>
+    <div class="by">Powered by Qubo</div>
+
+    <div class="controls" style="position:relative;z-index:2">
+      <button id="activateBtn" class="btn">Activate</button>
+      <button id="releaseBtn" class="btn secondary">Release</button>
+    </div>
+  </div>
+
+  <script>
+    // Simple ECG line animation (P-QRS-T) with two modes: idle (straight) and ecg (animated)
+    const canvas = document.getElementById('ecg');
+    const ctx = canvas.getContext('2d');
+    const DPR = window.devicePixelRatio || 1;
+    // read accent color from CSS
+    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#00ffcc';
+    function hexToRgba(hex, alpha){
+      let h = hex.replace('#','');
+      if(h.length === 3) h = h.split('').map(c=>c+c).join('');
+      const r = parseInt(h.slice(0,2),16);
+      const g = parseInt(h.slice(2,4),16);
+      const b = parseInt(h.slice(4,6),16);
+      return `rgba(${r},${g},${b},${alpha})`;
+    }
+
+    // Timer variables and functions
+    let timerStart = 0, timerElapsed = 0, timerRunning = false, timerRaf = null;
+    const timerEl = document.getElementById('timer');
+    function formatTime(ms){ const s = Math.floor(ms/1000); const mm = Math.floor(s/60); const ss = s%60; return `${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`; }
+    function updateTimerFrame(){ const now = performance.now(); const elapsed = timerElapsed + (timerRunning ? now - timerStart : 0); if(timerEl) timerEl.textContent = formatTime(elapsed); if(timerRunning) timerRaf = requestAnimationFrame(updateTimerFrame); }
+    function startTimer(){ if(timerRunning) return; timerRunning = true; timerStart = performance.now(); updateTimerFrame(); }
+    function pauseTimer(){ if(!timerRunning) return; timerRunning = false; timerElapsed += performance.now() - timerStart; if(timerRaf) cancelAnimationFrame(timerRaf); }
+    function resetTimer(){ timerRunning = false; timerElapsed = 0; timerStart = 0; if(timerRaf) cancelAnimationFrame(timerRaf); if(timerEl) timerEl.textContent = '00:00'; }
+
+    // PWA install prompt handling
+    let deferredPrompt = null;
+    const installBtn = document.getElementById('installBtn');
+    function showInstallBtn(){ if(installBtn) { installBtn.style.display = 'inline-block'; installBtn.setAttribute('aria-hidden','false'); } }
+    function hideInstallBtn(){ if(installBtn) { installBtn.style.display = 'none'; installBtn.setAttribute('aria-hidden','true'); } }
+    window.addEventListener('beforeinstallprompt', (e)=>{
+      // Prevent automatic prompt and save event
+      e.preventDefault();
+      deferredPrompt = e;
+      showInstallBtn();
+    });
+    if(installBtn){
+      installBtn.addEventListener('click', async ()=>{
+        if(!deferredPrompt) return;
+        deferredPrompt.prompt();
+        const choice = await deferredPrompt.userChoice;
+        if(choice && choice.outcome === 'accepted') hideInstallBtn();
+        deferredPrompt = null;
+      });
+    }
+    window.addEventListener('appinstalled', ()=>{ hideInstallBtn(); deferredPrompt = null; });
+
+    let width = 0, height = 0, buffer = null;
+    let beatLen = 40;
+    function resize(){
+      width = canvas.clientWidth;
+      height = canvas.clientHeight;
+      canvas.width = Math.floor(width * DPR);
+      canvas.height = Math.floor(height * DPR);
+      canvas.style.width = width + 'px';
+      canvas.style.height = height + 'px';
+      ctx.setTransform(DPR,0,0,DPR,0,0);
+      buffer = new Float32Array(width).fill(height/2);
+      beatLen = Math.max(16, Math.round(width * 0.08));
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    // Beat generator (P-QRS-T) - returns array of y coordinates
+    function makeBeat(len){
+      const mid = height/2;
+      const arr = new Float32Array(len);
+      for(let i=0;i<len;i++){
+        const x = i / len;
+        let y = 0;
+        y += Math.exp(-Math.pow((x-0.12)/0.03,2)) * 4;      // P
+        y += -Math.exp(-Math.pow((x-0.20)/0.006,2)) * 7;    // Q
+        y += Math.exp(-Math.pow((x-0.235)/0.0028,2)) * 110; // R (sharp)
+        y += -Math.exp(-Math.pow((x-0.245)/0.005,2)) * 20;  // S
+        y += Math.exp(-Math.pow((x-0.45)/0.03,2)) * 8;      // T
+        arr[i] = mid - y;
+      }
+      return arr;
+    }
+
+    // modes: 'idle' = straight scrolling, 'ecg' = beat animation
+    let mode = 'idle';
+    let beatWave = null;
+    let beatPos = 0;
+    const bpm = 72;
+    const beatIntervalMs = 60000 / bpm;
+    let lastBeatTime = performance.now();
+
+    function pushSampleIdle(){
+      // straight scrolling: shift and add midline
+      buffer.copyWithin(0,1);
+      buffer[buffer.length-1] = height/2;
+    }
+
+    function pushSampleECG(){
+      buffer.copyWithin(0,1);
+      const now = performance.now();
+      if(!beatWave && (now - lastBeatTime) >= beatIntervalMs){
+        beatWave = makeBeat(Math.min(beatLen, 120));
+        beatPos = 0;
+        lastBeatTime = now;
+      }
+      let sample = height/2 + Math.sin(now*0.003)*0.8 + (Math.random()-0.5)*0.5;
+      if(beatWave){
+        sample = beatWave[Math.min(beatPos, beatWave.length-1)] + (Math.random()-0.5)*0.5;
+        beatPos++;
+        if(beatPos >= beatWave.length){ beatWave = null; beatPos = 0; }
+      }
+      buffer[buffer.length-1] = sample;
+    }
+
+    function draw(){
+      ctx.clearRect(0,0,width,height);
+      // midline
+      ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(0, height/2); ctx.lineTo(width, height/2); ctx.stroke();
+
+      ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      ctx.beginPath();
+      for(let i=0;i<buffer.length;i++){
+        const x = i; const y = buffer[i]; if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      // glow
+      ctx.strokeStyle = hexToRgba(accent, 0.14); ctx.lineWidth = 8; ctx.stroke();
+      // main
+      ctx.beginPath();
+      for(let i=0;i<buffer.length;i++){ const x=i; const y=buffer[i]; if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); }
+      ctx.strokeStyle = accent; ctx.lineWidth = 2.8; ctx.stroke();
+    }
+
+    let running = false; let raf = null;
+    function frame(){
+      if(mode === 'idle') pushSampleIdle(); else pushSampleECG();
+      draw();
+      if(running) raf = requestAnimationFrame(frame);
+    }
+
+    function startAnimation(){ if(running) return; running = true; lastBeatTime = performance.now(); frame(); }
+    function stopAnimation(){ if(!running) return; running = false; if(raf) cancelAnimationFrame(raf); }
+
+    function setModeEcg(){ mode = 'ecg'; lastBeatTime = performance.now(); }
+    function setModeIdle(){ mode = 'idle'; beatWave = null; beatPos = 0; // flatten buffer to midline for straight look
+      buffer.fill(height/2);
+    }
+
+    // start in idle straight-scrolling
+    startAnimation();
+
+    // Wake Lock
+    let wakeLock = null;
+    async function requestWakeLock(){ try{ if('wakeLock' in navigator){ wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', ()=>{ wakeLock = null; }); } }catch(e){ console.warn('wake lock failed', e); } }
+    async function releaseWakeLock(){ if(wakeLock){ try{ await wakeLock.release(); wakeLock = null; }catch(e){} } }
+
+    // Controls now toggle modes and control timer
+    document.getElementById('activateBtn').addEventListener('click', async (evt)=>{
+      // if PWA install prompt is waiting, trigger it as part of this user gesture
+      if(deferredPrompt){
+        deferredPrompt.prompt();
+        try{
+          const choice = await deferredPrompt.userChoice;
+          if(choice && choice.outcome === 'accepted') hideInstallBtn();
+        }catch(e){ /* ignore */ }
+        deferredPrompt = null;
+      }
+      await requestWakeLock();
+      setModeEcg();
+      startTimer();
+    });
+    document.getElementById('releaseBtn').addEventListener('click', async ()=>{ setModeIdle(); pauseTimer(); await releaseWakeLock(); });
+
+    // register service worker for PWA
+    if('serviceWorker' in navigator){
+      navigator.serviceWorker.register('sw.js').catch(e=>console.warn('sw register failed', e));
+    }
+
+    // re-acquire wake lock on visibility
+    document.addEventListener('visibilitychange', async ()=>{ if(document.visibilityState === 'visible'){ if(mode === 'ecg') try{ await requestWakeLock(); }catch(e){} } });
+
+  </script>
+</body>
+</html>

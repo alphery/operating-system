@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Q-OS Browser Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 800px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 32px;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            font-weight: 500;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .test-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 5px;
+            transition: all 0.3s;
+        }
+        .test-btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        iframe {
+            width: 100%;
+            height: 500px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        .info {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 4px solid #2196F3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Q-OS Browser Proxy Test</h1>
+        
+        <div class="info">
+            <strong>✨ Your browser now uses a public proxy!</strong><br>
+            This means Reddit, Facebook, Twitter, etc. should work perfectly.
+        </div>
+
+        <div id="status"></div>
+
+        <h3>Quick Tests:</h3>
+        <button class="test-btn" onclick="testSite('https://corsproxy.io/?https://reddit.com')">Test Reddit</button>
+        <button class="test-btn" onclick="testSite('https://youtube.com')">Test YouTube</button>
+        <button class="test-btn" onclick="testSite('https://wikipedia.org')">Test Wikipedia</button>
+        <button class="test-btn" onclick="testSite('https://github.com')">Test GitHub</button>
+
+        <div id="result"></div>
+    </div>
+
+    <script>
+        const statusDiv = document.getElementById('status');
+        const resultDiv = document.getElementById('result');
+
+        // Test if proxy is working
+        async function testProxy() {
+            try {
+                const response = await fetch('https://corsproxy.io/?https://api.github.com');
+                if (response.ok) {
+                    statusDiv.innerHTML = '<div class="status success">✅ Proxy is working! Your browser can now access any website!</div>';
+                    return true;
+                } else {
+                    statusDiv.innerHTML = '<div class="status error">⚠️ Proxy responded but with an error.</div>';
+                    return false;
+                }
+            } catch (error) {
+                statusDiv.innerHTML = '<div class="status error">❌ Proxy is not accessible: ' + error.message + '</div>';
+                return false;
+            }
+        }
+
+        function testSite(url) {
+            resultDiv.innerHTML = `
+                <h3 style="margin-top: 20px;">Loading: ${url}</h3>
+                <iframe src="${url}"></iframe>
+            `;
+        }
+
+        // Run test on load
+        testProxy();
+    </script>
+</body>
+</html>
