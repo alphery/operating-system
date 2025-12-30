@@ -1,173 +1,321 @@
 import React, { Component } from 'react';
-import ERPDatabase from '../util components/database';
+import { db } from '../../config/firebase';
+import { collection, onSnapshot, updateDoc, doc, deleteDoc } from 'firebase/firestore';
+import { useAuth } from '../../context/AuthContext';
 
-export class UserManager extends Component {
+// Wrapper to use hooks
+function UserManagerWithAuth(props) {
+    const { user, userData } = useAuth();
+    return <UserManager user={user} userData={userData} {...props} />;
+}
+
+class UserManager extends Component {
     constructor() {
         super();
         this.state = {
             users: [],
-            showModal: false,
-            activeUser: null,
-            newUser: { username: '', password: '', displayName: '', permissions: 'restricted' } // simple permission selector
-        }
+            filter: 'all', // all, pending, approved, rejected
+            loading: true
+        };
+        this.unsubscribe = null;
     }
 
     componentDidMount() {
-        this.refreshData();
+        this.loadUsers();
     }
 
-    refreshData = () => {
-        this.setState({ users: ERPDatabase.getSystemUsers() });
+    componentWillUnmount() {
+        if (this.unsubscribe) {
+            this.unsubscribe();
+        }
     }
 
-    handleInputChange = (e) => {
-        this.setState({
-            newUser: { ...this.state.newUser, [e.target.name]: e.target.value }
+    loadUsers = () => {
+        const usersRef = collection(db, 'users');
+
+        this.unsubscribe = onSnapshot(usersRef, (snapshot) => {
+            const users = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+
+            // Sort: pending first, then by creation date
+            users.sort((a, b) => {
+                if (a.approvalStatus === 'pending' && b.approvalStatus !== 'pending') return -1;
+                if (a.approvalStatus !== 'pending' && b.approvalStatus === 'pending') return 1;
+                return new Date(b.createdAt) - new Date(a.createdAt);
+            });
+
+            this.setState({ users, loading: false });
+        }, (error) => {
+            console.error('Error loading users:', error);
+            this.setState({ loading: false });
         });
     }
 
-    saveUser = () => {
-        const u = this.state.newUser;
-        if (!u.username || !u.password) return;
-
-        // Map simple permission selection to actual array
-        let perms = [];
-        if (u.permissions === 'admin') {
-            perms = ["all_apps"];
-        } else if (u.permissions === 'employee') {
-            perms = ["dashboard", "mail", "projects", "crm", "people", "chrome", "settings", "trash", "users"];
-        } else {
-            // Guest/Restricted
-            perms = ["dashboard", "projects", "chrome", "finance", "settings", "trash"];
+    approveUser = async (userId) => {
+        try {
+            await updateDoc(doc(db, 'users', userId), {
+                approvalStatus: 'approved'
+            });
+        } catch (error) {
+            console.error('Error approving user:', error);
+            alert('Failed to approve user');
         }
-
-        const userObj = {
-            username: u.username,
-            password: u.password,
-            displayName: u.displayName || u.username,
-            permissions: perms,
-            image: "./themes/Yaru/system/user-home.png"
-        };
-
-        if (this.state.activeUser) {
-            ERPDatabase.updateSystemUser({ ...this.state.activeUser, ...userObj });
-        } else {
-            ERPDatabase.addSystemUser(userObj);
-        }
-
-        this.setState({ showModal: false, activeUser: null, newUser: { username: '', password: '', displayName: '', permissions: 'restricted' } });
-        this.refreshData();
     }
 
-    openEdit = (user) => {
-        // Determine permission type for UI
-        let permType = 'restricted';
-        if (user.permissions.includes('all_apps')) permType = 'admin';
-        else if (user.permissions.includes('mail')) permType = 'employee';
+    rejectUser = async (userId) => {
+        if (!window.confirm('Are you sure you want to reject this user?')) return;
 
-        this.setState({
-            activeUser: user,
-            newUser: {
-                username: user.username,
-                password: user.password,
-                displayName: user.displayName,
-                permissions: permType
-            },
-            showModal: true
-        });
+        try {
+            await updateDoc(doc(db, 'users', userId), {
+                approvalStatus: 'rejected'
+            });
+        } catch (error) {
+            console.error('Error rejecting user:', error);
+            alert('Failed to reject user');
+        }
     }
 
-    deleteUser = (id) => {
-        if (window.confirm("Are you sure you want to delete this user?")) {
-            ERPDatabase.deleteSystemUser(id);
-            this.refreshData();
+    deleteUser = async (userId) => {
+        if (!window.confirm('Are you sure you want to permanently delete this user?')) return;
+
+        try {
+            await deleteDoc(doc(db, 'users', userId));
+        } catch (error) {
+            console.error('Error deleting user:', error);
+            alert('Failed to delete user');
         }
+    }
+
+    getFilteredUsers = () => {
+        const { users, filter } = this.state;
+        if (filter === 'all') return users;
+        return users.filter(u => u.approvalStatus === filter);
     }
 
     render() {
-        const { users, showModal, newUser } = this.state;
+        const { loading, filter } = this.state;
+        const { userData } = this.props;
+
+        // Check if super admin
+        if (!userData || userData.role !== 'super_admin') {
+            return (
+                <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                    <div className="text-center">
+                        <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <svg className="w-10 h-10 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                            </svg>
+                        </div>
+                        <h3 className="text-lg font-semibold text-gray-700 mb-2">Access Denied</h3>
+                        <p className="text-sm text-gray-500">This panel is only accessible to administrators</p>
+                    </div>
+                </div>
+            );
+        }
+
+        if (loading) {
+            return (
+                <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                    <div className="text-center">
+                        <div className="animate-spin w-12 h-12 border-4 border-pink-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+                        <p className="text-gray-600">Loading users...</p>
+                    </div>
+                </div>
+            );
+        }
+
+        const filteredUsers = this.getFilteredUsers();
+        const pendingCount = this.state.users.filter(u => u.approvalStatus === 'pending').length;
+        const approvedCount = this.state.users.filter(u => u.approvalStatus === 'approved').length;
+        const rejectedCount = this.state.users.filter(u => u.approvalStatus === 'rejected').length;
 
         return (
-            <div className="w-full h-full flex flex-col bg-gray-100 font-sans text-gray-800">
+            <div className="w-full h-full flex flex-col bg-gray-50 text-gray-800 font-sans">
                 {/* Header */}
                 <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 shadow-sm">
                     <div className="flex items-center gap-3">
-                        <div className="bg-pink-600 text-white p-2 rounded-full">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                        <div className="bg-pink-600 text-white p-2 rounded-lg shadow">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                            </svg>
                         </div>
-                        <h1 className="font-bold text-xl">User Management</h1>
+                        <div>
+                            <h1 className="font-bold text-xl text-gray-800">User Management</h1>
+                            <p className="text-xs text-gray-500">Admin Panel</p>
+                        </div>
                     </div>
-                    <button onClick={() => this.setState({ showModal: true, activeUser: null, newUser: { username: '', password: '', displayName: '', permissions: 'restricted' } })}
-                        className="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded shadow transition flex items-center gap-2">
-                        <span>+ Add User</span>
-                    </button>
+                    <div className="flex items-center gap-2 text-sm">
+                        <span className="bg-pink-100 text-pink-700 px-3 py-1 rounded-full font-semibold">
+                            Super Admin
+                        </span>
+                    </div>
                 </div>
 
-                {/* List */}
-                <div className="p-8 overflow-y-auto flex-1">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {users.map(user => (
-                            <div key={user.id} className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition border border-gray-200 flex flex-col items-center text-center relative group">
-                                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition space-x-2">
-                                    <button onClick={() => this.openEdit(user)} className="text-blue-500 hover:bg-blue-50 p-1 rounded">Edit</button>
-                                    {user.username !== 'admin' && (
-                                        <button onClick={() => this.deleteUser(user.id)} className="text-red-500 hover:bg-red-50 p-1 rounded">Delete</button>
-                                    )}
-                                </div>
-                                <img src={user.image} alt="Avatar" className="w-20 h-20 rounded-full mb-4 border-4 border-gray-100" />
-                                <h3 className="font-bold text-lg text-gray-800">{user.displayName}</h3>
-                                <p className="text-sm text-gray-500 mb-2">@{user.username}</p>
-                                <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide
-                                    ${user.permissions.includes('all_apps') ? 'bg-pink-100 text-pink-700' :
-                                        user.permissions.includes('mail') ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-600'}`}>
-                                    {user.permissions.includes('all_apps') ? 'Administrator' :
-                                        user.permissions.includes('mail') ? 'Employee Team' : 'Guest Access'}
-                                </span>
-                                <div className="mt-4 text-xs text-gray-400 font-mono bg-gray-50 px-2 py-1 rounded">
-                                    Pass: {user.password}
-                                </div>
+                {/* Stats */}
+                <div className="grid grid-cols-4 gap-4 p-6">
+                    <div className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <p className="text-xs text-gray-500 font-semibold uppercase">Total Users</p>
+                                <p className="text-2xl font-bold text-gray-800 mt-1">{this.state.users.length}</p>
                             </div>
+                            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <p className="text-xs text-gray-500 font-semibold uppercase">Pending</p>
+                                <p className="text-2xl font-bold text-gray-800 mt-1">{pendingCount}</p>
+                            </div>
+                            <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
+                                <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <p className="text-xs text-gray-500 font-semibold uppercase">Approved</p>
+                                <p className="text-2xl font-bold text-gray-800 mt-1">{approvedCount}</p>
+                            </div>
+                            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <p className="text-xs text-gray-500 font-semibold uppercase">Rejected</p>
+                                <p className="text-2xl font-bold text-gray-800 mt-1">{rejectedCount}</p>
+                            </div>
+                            <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                                <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Filters */}
+                <div className="px-6 pb-4">
+                    <div className="bg-white rounded-lg shadow p-2 flex gap-2">
+                        {['all', 'pending', 'approved', 'rejected'].map(f => (
+                            <button
+                                key={f}
+                                onClick={() => this.setState({ filter: f })}
+                                className={`px-4 py-2 rounded-lg font-medium text-sm transition capitalize
+                                    ${filter === f ? 'bg-pink-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'}`}
+                            >
+                                {f}
+                            </button>
                         ))}
                     </div>
                 </div>
 
-                {/* Modal */}
-                {showModal && (
-                    <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 backdrop-blur-sm">
-                        <div className="bg-white rounded-xl shadow-2xl w-96 p-6 animate-in zoom-in duration-200">
-                            <h3 className="text-xl font-bold mb-4 text-gray-800">{this.state.activeUser ? 'Edit User' : 'Create New User'}</h3>
-                            <div className="space-y-3">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Display Name</label>
-                                    <input name="displayName" value={newUser.displayName} onChange={this.handleInputChange} className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-pink-500 outline-none" placeholder="e.g. John Doe" />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Username (Login ID)</label>
-                                    <input name="username" value={newUser.username} onChange={this.handleInputChange} className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-pink-500 outline-none" placeholder="e.g. johnd" disabled={!!this.state.activeUser} />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                                    <input name="password" value={newUser.password} onChange={this.handleInputChange} className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-pink-500 outline-none" placeholder="secret123" />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Role / Access Level</label>
-                                    <select name="permissions" value={newUser.permissions} onChange={this.handleInputChange} className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-pink-500 outline-none bg-white">
-                                        <option value="restricted">Guest (Restricted)</option>
-                                        <option value="employee">Employee (Standard)</option>
-                                        <option value="admin">Administrator (Full Access)</option>
-                                    </select>
-                                </div>
+                {/* Users List */}
+                <div className="flex-1 overflow-y-auto px-6 pb-6">
+                    <div className="bg-white rounded-lg shadow overflow-hidden">
+                        <table className="w-full">
+                            <thead className="bg-gray-50 border-b border-gray-200">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">User</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Email</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Role</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Created</th>
+                                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                                {filteredUsers.map(user => (
+                                    <tr key={user.id} className="hover:bg-gray-50">
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-400 to-purple-500 overflow-hidden flex items-center justify-center">
+                                                    {user.photoURL ? (
+                                                        <img src={user.photoURL} alt="" className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <span className="text-white font-bold">{(user.displayName || user.email)[0].toUpperCase()}</span>
+                                                    )}
+                                                </div>
+                                                <span className="font-medium text-gray-900">{user.displayName || 'Anonymous'}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-gray-600">{user.email}</td>
+                                        <td className="px-6 py-4">
+                                            <span className={`px-2 py-1 rounded-full text-xs font-semibold
+                                                ${user.role === 'super_admin' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>
+                                                {user.role === 'super_admin' ? 'Super Admin' : 'User'}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className={`px-2 py-1 rounded-full text-xs font-semibold
+                                                ${user.approvalStatus === 'approved' ? 'bg-green-100 text-green-700' :
+                                                    user.approvalStatus === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                                        'bg-red-100 text-red-700'}`}>
+                                                {user.approvalStatus}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-xs text-gray-500">
+                                            {new Date(user.createdAt).toLocaleDateString()}
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <div className="flex items-center justify-end gap-2">
+                                                {user.approvalStatus === 'pending' && (
+                                                    <>
+                                                        <button
+                                                            onClick={() => this.approveUser(user.id)}
+                                                            className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition"
+                                                        >
+                                                            Approve
+                                                        </button>
+                                                        <button
+                                                            onClick={() => this.rejectUser(user.id)}
+                                                            className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition"
+                                                        >
+                                                            Reject
+                                                        </button>
+                                                    </>
+                                                )}
+                                                {user.approvalStatus === 'rejected' && user.role !== 'super_admin' && (
+                                                    <button
+                                                        onClick={() => this.deleteUser(user.id)}
+                                                        className="px-3 py-1 bg-gray-500 hover:bg-gray-600 text-white rounded-lg text-sm font-medium transition"
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        {filteredUsers.length === 0 && (
+                            <div className="py-12 text-center">
+                                <p className="text-gray-400">No users found</p>
                             </div>
-                            <div className="flex justify-end gap-3 mt-6">
-                                <button onClick={() => this.setState({ showModal: false })} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
-                                <button onClick={this.saveUser} className="px-5 py-2 bg-pink-600 text-white rounded hover:bg-pink-700 font-medium">Save User</button>
-                            </div>
-                        </div>
+                        )}
                     </div>
-                )}
+                </div>
             </div>
         );
     }
 }
 
-export const displayUserManager = () => <UserManager />;
+export const displayUserManager = () => {
+    return <UserManagerWithAuth />;
+};

@@ -28,9 +28,9 @@ const apps = [
         id: "users",
         title: "Alphery Users",
         icon: './themes/Yaru/apps/users.png',
-        disabled: true, // Disabled: Conflicts with Firebase Auth
-        favourite: false,
-        desktop_shortcut: false,
+        disabled: false, // Re-enabled for Admin Panel
+        favourite: true,
+        desktop_shortcut: true,
         screen: displayUserManager,
     },
     {

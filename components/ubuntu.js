@@ -4,6 +4,7 @@ import BootingScreen from './screen/booting_screen';
 import Desktop from './screen/desktop';
 import LockScreen from './screen/lock_screen';
 import FirebaseAuthScreen from './screen/firebase_auth_screen';
+import PendingApprovalScreen from './screen/pending_approval_screen';
 import Navbar from './screen/navbar';
 import ReactGA from 'react-ga';
 import SessionManager from './util components/session';
@@ -24,6 +25,15 @@ export default function Ubuntu() {
 	// Update currentUser when Firebase user changes
 	useEffect(() => {
 		if (user && userData) {
+			// Check approval status
+			if (userData.approvalStatus !== 'approved') {
+				// User not approved - don't show desktop
+				setShowFirebaseAuth(false);
+				setCurrentUser(null);
+				return;
+			}
+
+			// User is approved - proceed normally
 			const firebaseUser = {
 				username: user.email,
 				displayName: userData.displayName || user.displayName,
@@ -141,13 +151,18 @@ export default function Ubuntu() {
 
 	return (
 		<div className="w-screen h-screen overflow-hidden" id="monitor-screen">
+			{/* Pending Approval Screen - shows if user is logged in but not approved */}
+			{user && userData && userData.approvalStatus !== 'approved' && (
+				<PendingApprovalScreen />
+			)}
+
 			{/* Firebase Auth Screen - shows if user not authenticated */}
-			{showFirebaseAuth && !user && (
+			{!user && showFirebaseAuth && (
 				<FirebaseAuthScreen onAuthSuccess={handleFirebaseAuthSuccess} />
 			)}
 
 			{/* Lock Screen - for local users or locked Firebase users */}
-			{!showFirebaseAuth && (
+			{!showFirebaseAuth && user && userData && userData.approvalStatus === 'approved' && (
 				<LockScreen
 					isLocked={screenLocked}
 					bgImgName={bgImageName}

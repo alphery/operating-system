@@ -47,6 +47,8 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    const SUPER_ADMIN_EMAIL = 'alpherymail@gmail.com';
+
     const signup = async (email, password, displayName) => {
         try {
             const credential = await createUserWithEmailAndPassword(auth, email, password);
@@ -57,12 +59,18 @@ export const AuthProvider = ({ children }) => {
                 photoURL: './images/logos/boy.png' // Default avatar
             });
 
+            // Determine role and approval status
+            const isSuperAdmin = email.toLowerCase() === SUPER_ADMIN_EMAIL;
+            const approvalStatus = isSuperAdmin ? 'approved' : 'pending';
+
             // Create user document in Firestore
             await setDoc(doc(db, 'users', credential.user.uid), {
                 uid: credential.user.uid,
                 email: email,
                 displayName: displayName || 'User',
                 photoURL: './images/logos/boy.png',
+                role: isSuperAdmin ? 'super_admin' : 'user',
+                approvalStatus: approvalStatus,
                 createdAt: new Date().toISOString(),
                 settings: {
                     wallpaper: 'wall-1',
@@ -96,12 +104,19 @@ export const AuthProvider = ({ children }) => {
 
             // Check if user document exists, if not create it
             const userDoc = await getDoc(doc(db, 'users', credential.user.uid));
+
             if (!userDoc.exists()) {
+                // Determine role and approval status
+                const isSuperAdmin = credential.user.email.toLowerCase() === SUPER_ADMIN_EMAIL;
+                const approvalStatus = isSuperAdmin ? 'approved' : 'pending';
+
                 await setDoc(doc(db, 'users', credential.user.uid), {
                     uid: credential.user.uid,
                     email: credential.user.email,
                     displayName: credential.user.displayName || 'User',
                     photoURL: credential.user.photoURL || './images/logos/boy.png',
+                    role: isSuperAdmin ? 'super_admin' : 'user',
+                    approvalStatus: approvalStatus,
                     createdAt: new Date().toISOString(),
                     settings: {
                         wallpaper: 'wall-1',
