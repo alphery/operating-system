@@ -264,9 +264,9 @@ class UserManager extends Component {
                                         <td className="px-6 py-4">
                                             <span className={`px-2 py-1 rounded-full text-xs font-semibold
                                                 ${user.approvalStatus === 'approved' ? 'bg-green-100 text-green-700' :
-                                                    user.approvalStatus === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                                                        'bg-red-100 text-red-700'}`}>
-                                                {user.approvalStatus}
+                                                    user.approvalStatus === 'rejected' ? 'bg-red-100 text-red-700' :
+                                                        'bg-yellow-100 text-yellow-700'}`}>
+                                                {user.approvalStatus || 'pending'}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-xs text-gray-500">
@@ -274,7 +274,8 @@ class UserManager extends Component {
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end gap-2">
-                                                {user.approvalStatus === 'pending' && (
+                                                {/* Show approve/reject for pending users OR users without status (old accounts) */}
+                                                {(!user.approvalStatus || user.approvalStatus === 'pending') && user.role !== 'super_admin' && (
                                                     <>
                                                         <button
                                                             onClick={() => this.approveUser(user.id)}
