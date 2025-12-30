@@ -12,8 +12,18 @@ import { displayMail } from './components/apps/mail';
 import { displayHRM } from './components/apps/hrm';
 import { displayProject } from './components/apps/projects';
 import { displayUserManager } from './components/apps/user_manager';
+import { displayMessenger } from './components/apps/messenger';
 
 const apps = [
+    {
+        id: "messenger",
+        title: "Messenger",
+        icon: './themes/Yaru/apps/messenger.png',
+        disabled: false,
+        favourite: true,
+        desktop_shortcut: true,
+        screen: displayMessenger,
+    },
     {
         id: "users",
         title: "Alphery Users",

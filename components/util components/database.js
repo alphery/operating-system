@@ -217,4 +217,29 @@ export default class ERPDatabase {
         this.saveCollection('system_users', users);
         return users;
     }
+
+    // --- Chat / Messenger ---
+    static getChatHistory(user1, user2) {
+        const allMessages = this.getCollection('chat_messages') || [];
+        // Filter messages where (from=u1 AND to=u2) OR (from=u2 AND to=u1)
+        return allMessages.filter(m =>
+            (m.from === user1 && m.to === user2) ||
+            (m.from === user2 && m.to === user1)
+        ).sort((a, b) => new Date(a.date) - new Date(b.date));
+    }
+
+    static saveMessage(from, to, text) {
+        const allMessages = this.getCollection('chat_messages') || [];
+        const newMessage = {
+            id: Date.now(),
+            from,
+            to,
+            text,
+            date: new Date().toISOString(),
+            read: false
+        };
+        allMessages.push(newMessage);
+        this.saveCollection('chat_messages', allMessages);
+        return newMessage;
+    }
 }

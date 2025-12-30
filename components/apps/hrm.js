@@ -148,12 +148,31 @@ export class HRM extends Component {
                                         <div className="w-full h-full flex items-center justify-center text-3xl font-bold text-slate-400 bg-slate-100 uppercase">{emp.name.charAt(0)}</div>
                                     )}
                                 </div>
-                                <h3 className="font-bold text-slate-800 text-lg">{emp.name}</h3>
-                                <div className="bg-purple-50 text-purple-700 text-xs px-2 py-0.5 rounded-full font-medium mb-1 mt-1">{emp.role}</div>
-                                <p className="text-xs text-slate-500 uppercase tracking-widest mt-1">{emp.dept}</p>
+                                <div className="ml-3">
+                                    <h3 className="font-bold text-slate-800 text-lg">{emp.name}</h3>
+                                    <p className="text-[10px] text-slate-400 font-mono mb-1">ID: {emp.id}</p>
+                                    <div className="bg-purple-50 text-purple-700 text-xs px-2 py-0.5 rounded-full font-medium inline-block mb-1">{emp.role}</div>
+                                    <p className="text-xs text-slate-500 uppercase tracking-widest mt-1">{emp.dept}</p>
+                                </div>
 
                                 <div className="mt-5 w-full">
-                                    <button className="w-full text-sm bg-white border border-slate-300 py-1.5 rounded hover:bg-slate-50 text-slate-600 shadow-sm transition">
+                                    <button
+                                        onClick={() => {
+                                            const sysUsers = ERPDatabase.getSystemUsers();
+                                            // Try to match Employee to System User by Name or generated username
+                                            const targetUser = sysUsers.find(u => u.displayName === emp.name || u.username === emp.name.toLowerCase().replace(/\s/g, ''));
+
+                                            if (targetUser) {
+                                                SessionManager.setItem('messenger_target_user', targetUser.username);
+                                                if (this.props.openApp) this.props.openApp('messenger');
+                                            } else {
+                                                // Fallback if no account found (simulated)
+                                                console.warn("No system user found for employee:", emp.name);
+                                                if (this.props.openApp) this.props.openApp('messenger');
+                                            }
+                                        }}
+                                        className="w-full text-sm bg-white border border-slate-300 py-1.5 rounded hover:bg-slate-50 text-slate-600 shadow-sm transition flex items-center justify-center gap-2">
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
                                         Message
                                     </button>
                                 </div>
@@ -168,6 +187,12 @@ export class HRM extends Component {
                         <div className="bg-white rounded-xl shadow-2xl w-96 p-6 animate-in fade-in zoom-in duration-200">
                             <h3 className="text-xl font-bold mb-4 text-gray-800 border-b pb-2">{this.state.activeEmp ? 'Edit Employee' : 'Add New Employee'}</h3>
                             <div className="space-y-4">
+                                {this.state.activeEmp && (
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Employee ID</label>
+                                        <input disabled value={this.state.activeEmp.id} className="w-full px-3 py-2 border rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed" />
+                                    </div>
+                                )}
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Full Name</label>
                                     <input name="name" value={this.state.newEmp.name} onChange={this.handleInputChange} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="e.g. Jane Doe" />
@@ -200,6 +225,6 @@ export class HRM extends Component {
     }
 }
 
-export const displayHRM = () => {
-    return <HRM />;
+export const displayHRM = (openApp) => {
+    return <HRM openApp={openApp} />;
 };

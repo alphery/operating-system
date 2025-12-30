@@ -12,14 +12,12 @@ import ReactGA from 'react-ga';
 import SessionManager from '../util components/session';
 
 // App Context Menu Component
-function AppContextMenu({ active, appId, isOnDesktop, addToDesktop, removeFromDesktop }) {
-    const handleAddToDesktop = () => {
-        if (appId) addToDesktop(appId);
-    };
-
-    const handleRemoveFromDesktop = () => {
-        if (appId) removeFromDesktop(appId);
-    };
+// App Context Menu Component
+function AppContextMenu({ active, appId, isFavourite, isOnDesktop, addToDesktop, removeFromDesktop, addToDock, removeFromDock }) {
+    const handleAddToDesktop = (e) => { e.stopPropagation(); if (appId) addToDesktop(appId); };
+    const handleRemoveFromDesktop = (e) => { e.stopPropagation(); if (appId) removeFromDesktop(appId); };
+    const handleAddToDock = (e) => { e.stopPropagation(); if (appId) addToDock(appId); };
+    const handleRemoveFromDock = (e) => { e.stopPropagation(); if (appId) removeFromDock(appId); };
 
     return (
         <div id="app-menu" className={(active ? " block " : " hidden ") + " cursor-default w-52 context-menu-bg border text-left font-light border-gray-900 rounded text-white py-2 absolute z-50 text-sm"}>
@@ -30,6 +28,16 @@ function AppContextMenu({ active, appId, isOnDesktop, addToDesktop, removeFromDe
             ) : (
                 <div onClick={handleRemoveFromDesktop} className="w-full py-1.5 px-4 hover:bg-ub-warm-grey hover:bg-opacity-20">
                     <span>Remove from Desktop</span>
+                </div>
+            )}
+
+            {!isFavourite ? (
+                <div onClick={handleAddToDock} className="w-full py-1.5 px-4 hover:bg-ub-warm-grey hover:bg-opacity-20">
+                    <span>Add to Dock</span>
+                </div>
+            ) : (
+                <div onClick={handleRemoveFromDock} className="w-full py-1.5 px-4 hover:bg-ub-warm-grey hover:bg-opacity-20">
+                    <span>Remove from Dock</span>
                 </div>
             )}
         </div>
@@ -592,6 +600,41 @@ export class Desktop extends Component {
         this.setState({ showNameBar: true });
     }
 
+    addAppToDesktop = (appId) => {
+        let desktop_apps = this.state.desktop_apps;
+        if (!desktop_apps.includes(appId)) {
+            desktop_apps.push(appId);
+            this.setState({ desktop_apps });
+            // Save to Session
+            SessionManager.setItem('desktop_apps', JSON.stringify(desktop_apps));
+        }
+    }
+
+    removeAppFromDesktop = (appId) => {
+        let desktop_apps = this.state.desktop_apps;
+        desktop_apps = desktop_apps.filter(id => id !== appId);
+        this.setState({ desktop_apps });
+        // Save to Session
+        SessionManager.setItem('desktop_apps', JSON.stringify(desktop_apps));
+    }
+
+    addAppToDock = (appId) => {
+        let favourite_apps = this.state.favourite_apps;
+        favourite_apps[appId] = true;
+        this.setState({ favourite_apps });
+        // Persist logic (using SessionManager or modify the global config if we want defaults?)
+        // Since favourite_apps is state initialized from config + storage, we should persist overrides.
+        // For simple usage:
+        localStorage.setItem('favourite_apps_state', JSON.stringify(favourite_apps));
+    }
+
+    removeAppFromDock = (appId) => {
+        let favourite_apps = this.state.favourite_apps;
+        favourite_apps[appId] = false;
+        this.setState({ favourite_apps });
+        localStorage.setItem('favourite_apps_state', JSON.stringify(favourite_apps));
+    }
+
     addToDesktop = (folder_name) => {
         folder_name = folder_name.trim();
         let folder_id = folder_name.replace(/\s+/g, '-').toLowerCase();
@@ -660,7 +703,8 @@ export class Desktop extends Component {
                     closed_windows={this.state.closed_windows}
                     focused_windows={this.state.focused_windows}
                     isMinimized={this.state.minimized_windows}
-                    openAppByAppId={this.openApp} />
+                    openAppByAppId={this.openApp}
+                    openContextMenu={this.handleAppContextMenu} />
 
                 {/* Desktop Apps */}
                 {this.renderDesktopApps()}
@@ -671,9 +715,12 @@ export class Desktop extends Component {
                 <AppContextMenu
                     active={this.state.context_menus.app}
                     appId={this.state.selectedAppId}
+                    isFavourite={this.state.selectedAppId && this.state.favourite_apps[this.state.selectedAppId]}
                     isOnDesktop={this.state.selectedAppId && this.state.desktop_apps.includes(this.state.selectedAppId)}
                     addToDesktop={this.addAppToDesktop}
                     removeFromDesktop={this.removeAppFromDesktop}
+                    addToDock={this.addAppToDock}
+                    removeFromDock={this.removeAppFromDock}
                 />
 
                 {/* Folder Input Name Bar */}

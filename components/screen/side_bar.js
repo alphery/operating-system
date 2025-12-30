@@ -47,6 +47,7 @@ export default function SideBar(props) {
                     dockScale={scale}
                     onHover={() => setHoveredIndex(index)}
                     onLeave={() => setHoveredIndex(null)}
+                    openContextMenu={props.openContextMenu}
                 />
             );
         });

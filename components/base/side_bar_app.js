@@ -42,6 +42,11 @@ export class SideBarApp extends Component {
                     this.setState({ showTitle: true });
                     if (this.props.onHover) this.props.onHover();
                 }}
+                onContextMenu={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (this.props.openContextMenu) this.props.openContextMenu(e, this.props.id);
+                }}
                 onMouseLeave={() => {
                     this.setState({ showTitle: false });
                     // Optional: trigger onLeave() if you want snap-back behavior immediately
