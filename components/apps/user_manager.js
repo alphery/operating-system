@@ -77,6 +77,19 @@ class UserManager extends Component {
         }
     }
 
+    revokeUser = async (userId) => {
+        if (!window.confirm('Are you sure you want to revoke access? User will lose access to the OS immediately.')) return;
+
+        try {
+            await updateDoc(doc(db, 'users', userId), {
+                approvalStatus: 'pending'
+            });
+        } catch (error) {
+            console.error('Error revoking user:', error);
+            alert('Failed to revoke user access');
+        }
+    }
+
     deleteUser = async (userId) => {
         if (!window.confirm('Are you sure you want to permanently delete this user?')) return;
 
@@ -291,6 +304,16 @@ class UserManager extends Component {
                                                         </button>
                                                     </>
                                                 )}
+                                                {/* Show revoke for approved users */}
+                                                {user.approvalStatus === 'approved' && user.role !== 'super_admin' && (
+                                                    <button
+                                                        onClick={() => this.revokeUser(user.id)}
+                                                        className="px-3 py-1 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-medium transition"
+                                                    >
+                                                        Revoke Access
+                                                    </button>
+                                                )}
+                                                {/* Show delete for rejected users */}
                                                 {user.approvalStatus === 'rejected' && user.role !== 'super_admin' && (
                                                     <button
                                                         onClick={() => this.deleteUser(user.id)}

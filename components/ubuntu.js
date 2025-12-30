@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import BootingScreen from './screen/booting_screen';
 import Desktop from './screen/desktop';
@@ -22,17 +22,20 @@ export default function Ubuntu() {
 		getLocalData();
 	}, []);
 
+	// Memoize approval status check to prevent unnecessary re-renders
+	const isApproved = useMemo(() => {
+		if (!user || !userData) return false;
+		return userData.approvalStatus === 'approved';
+	}, [user, userData?.approvalStatus]);
+
+	const isPending = useMemo(() => {
+		if (!user || !userData) return false;
+		return userData.approvalStatus !== 'approved';
+	}, [user, userData?.approvalStatus]);
+
 	// Update currentUser when Firebase user changes
 	useEffect(() => {
-		if (user && userData) {
-			// Check approval status
-			if (userData.approvalStatus !== 'approved') {
-				// User not approved - don't show desktop
-				setShowFirebaseAuth(false);
-				setCurrentUser(null);
-				return;
-			}
-
+		if (user && userData && isApproved) {
 			// User is approved - proceed normally
 			const firebaseUser = {
 				username: user.email,
@@ -48,8 +51,12 @@ export default function Ubuntu() {
 			if (userData.settings?.wallpaper) {
 				setBgImageName(userData.settings.wallpaper);
 			}
+		} else if (user && userData && !isApproved) {
+			// User not approved
+			setShowFirebaseAuth(false);
+			setCurrentUser(null);
 		}
-	}, [user, userData]);
+	}, [user, userData, isApproved]);
 
 	const setTimeOutBootScreen = () => {
 		setTimeout(() => {

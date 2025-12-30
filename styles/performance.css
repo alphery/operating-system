@@ -1,0 +1,142 @@
+/* Performance Optimizations for Butter-Smooth Experience */
+
+/* Enable GPU acceleration for all animations */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Optimize all transforms and animations */
+.window,
+.app-window,
+[class*="window"],
+[class*="modal"],
+[class*="screen"] {
+  will-change: transform, opacity;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Smooth transitions for all interactive elements */
+button,
+a,
+input,
+select,
+textarea,
+[role="button"] {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+
+/* Optimize hover states */
+button:hover,
+[role="button"]:hover {
+  transform: translateZ(0) scale(1.02);
+}
+
+button:active,
+[role="button"]:active {
+  transform: translateZ(0) scale(0.98);
+}
+
+/* Smooth scrolling */
+* {
+  scroll-behavior: smooth;
+}
+
+/* Optimize window dragging */
+.window-dragging {
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Hardware acceleration for animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateZ(0) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateZ(0) translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateZ(0) translateX(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateZ(0) translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Optimize app window animations */
+.app-window {
+  animation: fadeIn 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Reduce repaints */
+.no-repaint {
+  contain: layout style paint;
+}
+
+/* Optimize large lists */
+.scrollable-list {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  contain: layout style paint;
+}
+
+/* Prevent layout shifts */
+img,
+video {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Optimize context menus */
+.context-menu {
+  will-change: transform, opacity;
+  animation: fadeIn 0.1s ease-out;
+}
+
+/* Mac-like smooth animations */
+.mac-smooth {
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Optimize modal overlays */
+.modal-overlay {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  will-change: opacity;
+}
+
+/* Prevent jank on resize */
+.window-resizing {
+  pointer-events: none;
+}
+
+/* Optimize desktop background */
+#desktop-background {
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/* Smooth navbar */
+.navbar {
+  will-change: transform;
+  transform: translateZ(0);
+  transition: all 0.2s ease;
+}
+
+/* Performance hint for Chrome */
+@media (prefers-reduced-motion: no-preference) {
+  * {
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
