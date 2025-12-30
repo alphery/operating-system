@@ -1,127 +1,175 @@
-import React, { Component } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 import BootingScreen from './screen/booting_screen';
 import Desktop from './screen/desktop';
 import LockScreen from './screen/lock_screen';
+import FirebaseAuthScreen from './screen/firebase_auth_screen';
 import Navbar from './screen/navbar';
 import ReactGA from 'react-ga';
 import SessionManager from './util components/session';
 
-export default class Ubuntu extends Component {
-	constructor() {
-		super();
-		this.state = {
-			screen_locked: false,
-			bg_image_name: 'wall-8',
-			booting_screen: true,
-			shutDownScreen: false,
-			currentUser: null
-		};
-	}
+export default function Ubuntu() {
+	const { user, userData, updateUserData } = useAuth();
+	const [screenLocked, setScreenLocked] = useState(false);
+	const [bgImageName, setBgImageName] = useState('wall-8');
+	const [bootingScreen, setBootingScreen] = useState(true);
+	const [shutDownScreen, setShutDownScreen] = useState(false);
+	const [currentUser, setCurrentUser] = useState(null);
+	const [showFirebaseAuth, setShowFirebaseAuth] = useState(false);
 
-	componentDidMount() {
-		this.getLocalData();
-	}
+	useEffect(() => {
+		getLocalData();
+	}, []);
 
-	setTimeOutBootScreen = () => {
+	// Update currentUser when Firebase user changes
+	useEffect(() => {
+		if (user && userData) {
+			const firebaseUser = {
+				username: user.email,
+				displayName: userData.displayName || user.displayName,
+				image: userData.photoURL || user.photoURL,
+				password: '' // Not needed for Firebase users
+			};
+			setCurrentUser(firebaseUser);
+			setScreenLocked(false);
+			setShowFirebaseAuth(false);
+
+			// Load user's wallpaper from Firebase
+			if (userData.settings?.wallpaper) {
+				setBgImageName(userData.settings.wallpaper);
+			}
+		}
+	}, [user, userData]);
+
+	const setTimeOutBootScreen = () => {
 		setTimeout(() => {
-			this.setState({ booting_screen: false });
+			setBootingScreen(false);
 		}, 4000);
 	};
 
-	getLocalData = () => {
-		// Global system state (not per user yet, as we don't know who is logged in until they unlock)
-		// However, we can check if a session was active? 
-		// For security, we always start locked if we are "rebooting" or refreshing.
+	const getLocalData = () => {
+		setTimeOutBootScreen();
 
-		let booting_screen = localStorage.getItem('booting_screen');
-		this.setTimeOutBootScreen();
-
-		let shut_down = localStorage.getItem('shut-down');
-		if (shut_down !== null && shut_down !== undefined && shut_down === 'true') this.shutDown();
-		else {
-			this.setState({ screen_locked: true });
+		let shutDown = localStorage.getItem('shut-down');
+		if (shutDown !== null && shutDown !== undefined && shutDown === 'true') {
+			shutDown();
+		} else {
+			// Show Firebase auth if user is not logged in
+			// Otherwise show lock screen for local users
+			setShowFirebaseAuth(true);
 		}
 	};
 
-	lockScreen = () => {
+	const lockScreen = () => {
 		ReactGA.pageview('/lock-screen');
-		document.getElementById('status-bar').blur();
+		if (document.getElementById('status-bar')) {
+			document.getElementById('status-bar').blur();
+		}
 		setTimeout(() => {
-			this.setState({ screen_locked: true });
+			if (user) {
+				// Firebase users - just lock to lock screen
+				setScreenLocked(true);
+			} else {
+				// Local users - show lock screen
+				setScreenLocked(true);
+			}
 		}, 100);
-		// We don't save 'screen-locked' to local storage globally anymore because we want to force login on refresh
 	};
 
-	unLockScreen = (user) => {
+	const unLockScreen = (localUser) => {
 		ReactGA.pageview('/desktop');
-		window.removeEventListener('click', this.unLockScreen);
-		window.removeEventListener('keypress', this.unLockScreen);
+		window.removeEventListener('click', unLockScreen);
+		window.removeEventListener('keypress', unLockScreen);
 
-		// Set Session
-		SessionManager.setCurrentUser(user.username);
+		// Set Session for local users
+		if (localUser && localUser.username) {
+			SessionManager.setCurrentUser(localUser.username);
+			const userBg = SessionManager.getBackgroundImage(localUser.username);
+			setCurrentUser(localUser);
+			setBgImageName(userBg);
+		}
 
-		// Load User Preferences
-		const userBg = SessionManager.getBackgroundImage(user.username);
-
-		this.setState({
-			screen_locked: false,
-			currentUser: user,
-			bg_image_name: userBg
-		});
+		setScreenLocked(false);
 	};
 
-	changeBackgroundImage = (img_name) => {
-		this.setState({ bg_image_name: img_name });
-		// Save to User Session
-		if (this.state.currentUser) {
-			SessionManager.setItem('bg-image', img_name);
+	const handleFirebaseAuthSuccess = () => {
+		ReactGA.pageview('/desktop');
+		setShowFirebaseAuth(false);
+		setScreenLocked(false);
+	};
+
+	const changeBackgroundImage = async (imgName) => {
+		setBgImageName(imgName);
+
+		// Save to Firebase if user is logged in
+		if (user && userData && updateUserData) {
+			await updateUserData({
+				...userData,
+				settings: {
+					...userData.settings,
+					wallpaper: imgName
+				}
+			});
+		}
+		// Save to local session for local users
+		else if (currentUser) {
+			SessionManager.setItem('bg-image', imgName);
 		}
 	};
 
-	shutDown = () => {
+	const shutDown = () => {
 		ReactGA.pageview('/switch-off');
 		ReactGA.event({
 			category: `Screen Change`,
 			action: `Switched off the Ubuntu`
 		});
 
-		document.getElementById('status-bar').blur();
-		this.setState({ shutDownScreen: true });
+		if (document.getElementById('status-bar')) {
+			document.getElementById('status-bar').blur();
+		}
+		setShutDownScreen(true);
 		localStorage.setItem('shut-down', true);
 	};
 
-	turnOn = () => {
+	const turnOn = () => {
 		ReactGA.pageview('/desktop');
-
-		this.setState({ shutDownScreen: false, booting_screen: true });
-		this.setTimeOutBootScreen();
+		setShutDownScreen(false);
+		setBootingScreen(true);
+		setTimeOutBootScreen();
 		localStorage.setItem('shut-down', false);
 	};
 
-	render() {
-		return (
-			<div className="w-screen h-screen overflow-hidden" id="monitor-screen">
+	return (
+		<div className="w-screen h-screen overflow-hidden" id="monitor-screen">
+			{/* Firebase Auth Screen - shows if user not authenticated */}
+			{showFirebaseAuth && !user && (
+				<FirebaseAuthScreen onAuthSuccess={handleFirebaseAuthSuccess} />
+			)}
+
+			{/* Lock Screen - for local users or locked Firebase users */}
+			{!showFirebaseAuth && (
 				<LockScreen
-					isLocked={this.state.screen_locked}
-					bgImgName={this.state.bg_image_name}
-					unLockScreen={this.unLockScreen}
+					isLocked={screenLocked}
+					bgImgName={bgImageName}
+					unLockScreen={unLockScreen}
 				/>
-				<BootingScreen
-					visible={this.state.booting_screen}
-					isShutDown={this.state.shutDownScreen}
-					turnOn={this.turnOn}
-				/>
-				<Navbar
-					lockScreen={this.lockScreen}
-					shutDown={this.shutDown}
-					user={this.state.currentUser}
-				/>
-				<Desktop
-					bg_image_name={this.state.bg_image_name}
-					changeBackgroundImage={this.changeBackgroundImage}
-					user={this.state.currentUser}
-				/>
-			</div>
-		);
-	}
+			)}
+
+			<BootingScreen
+				visible={bootingScreen}
+				isShutDown={shutDownScreen}
+				turnOn={turnOn}
+			/>
+			<Navbar
+				lockScreen={lockScreen}
+				shutDown={shutDown}
+				user={currentUser}
+			/>
+			<Desktop
+				bg_image_name={bgImageName}
+				changeBackgroundImage={changeBackgroundImage}
+				user={currentUser}
+			/>
+		</div>
+	);
 }
