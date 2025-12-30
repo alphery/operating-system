@@ -13,16 +13,34 @@ const firebaseConfig = {
     appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase (only once)
-let app;
-if (!getApps().length) {
-    app = initializeApp(firebaseConfig);
+// Check if Firebase is configured
+const isFirebaseConfigured = firebaseConfig.apiKey && firebaseConfig.projectId;
+
+// Initialize Firebase (only once and only if configured)
+let app = null;
+let auth = null;
+let db = null;
+let storage = null;
+
+if (isFirebaseConfigured) {
+    try {
+        if (!getApps().length) {
+            app = initializeApp(firebaseConfig);
+        } else {
+            app = getApps()[0];
+        }
+
+        // Initialize Firebase services
+        auth = getAuth(app);
+        db = getFirestore(app);
+        storage = getStorage(app);
+    } catch (error) {
+        console.warn('Firebase initialization error:', error.message);
+        console.warn('App will run in demo mode without Firebase');
+    }
 } else {
-    app = getApps()[0];
+    console.warn('Firebase not configured. App will run in demo mode.');
 }
 
-// Initialize Firebase services
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-export const storage = getStorage(app);
+export { auth, db, storage };
 export default app;
