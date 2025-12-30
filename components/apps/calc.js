@@ -1,256 +1,218 @@
-import React, { Component } from 'react'
-import $ from 'jquery';
-const Parser = require('expr-eval').Parser;
+import React, { Component } from 'react';
 
-const parser = new Parser({
-    operators: {
-      // These default to true, but are included to be explicit
-      add: true,
-      concatenate: true,
-      conditional: true,
-      divide: true,
-      factorial: true,
-      multiply: true,
-      power: true,
-      remainder: true,
-      subtract: true,
-
-      // Disable and, or, not, <, ==, !=, etc.
-      logical: false,
-      comparison: false,
-
-      // Disable 'in' and = operators
-      'in': false,
-      assignment: true
-    }
-  });
-
-export class Calc extends Component {
+export class Calculator extends Component {
     constructor() {
         super();
-        this.cursor = "";
-        this.terminal_rows = 2;
-        this.prev_commands = [];
-        this.commands_index = -1;
-        this.variables={}
         this.state = {
-            terminal: [],
-        }
+            displayValue: '0',
+            previousValue: null,
+            operation: null,
+            waitingForOperand: false,
+            history: [] // Keeping history internal for now
+        };
     }
 
     componentDidMount() {
-        this.reStartTerminal();
-    }
-
-    componentDidUpdate() {
-        clearInterval(this.cursor);
-        this.startCursor(this.terminal_rows - 2);
+        document.addEventListener('keydown', this.handleKeyPress);
     }
 
     componentWillUnmount() {
-        clearInterval(this.cursor);
+        document.removeEventListener('keydown', this.handleKeyPress);
     }
 
-    reStartTerminal = () => {
-        clearInterval(this.cursor);
-        $('#calculator-body').empty();
-        this.appendTerminalRow();
+    handleKeyPress = (e) => {
+        const key = e.key;
+
+        // Prevent default actions for calculator keys
+        if (!isNaN(key) || ['+', '-', '*', '/', '=', 'Enter', 'Backspace', 'Escape', '.', '%'].includes(key)) {
+            e.preventDefault();
+        }
+
+        if (!isNaN(key)) {
+            this.inputDigit(parseInt(key));
+        } else if (key === '.') {
+            this.inputDecimal();
+        } else if (key === '+' || key === '-' || key === '*' || key === '/') {
+            const operations = { '+': '+', '-': '-', '*': '×', '/': '÷' };
+            this.performOperation(operations[key]);
+        } else if (key === 'Enter' || key === '=') {
+            this.performOperation('=');
+        } else if (key === 'Escape') {
+            this.clearAll();
+        } else if (key === 'Backspace') {
+            this.clearLastDigit();
+        } else if (key === '%') {
+            this.percentage();
+        }
     }
 
-    appendTerminalRow = () => {
-        let terminal = this.state.terminal;
-        terminal.push(this.terminalRow(this.terminal_rows));
-        this.setState({ terminal });
-        this.terminal_rows += 2;
-    }
-
-    terminalRow = (id) => {
-        return (
-
-            <React.Fragment key={id}>
-                <div className=" flex p-2 text-ubt-grey opacity-100 mt-1 float-left font-normal "></div>
-                <div className="flex w-full h-5">
-                        <div className=" flex text-ubt-green h-1 mr-2"> {';'} </div>
-                    <div id="cmd" onClick={this.focusCursor} className=" bg-transperent relative flex-1 overflow-hidden">
-                        <span id={`show-calculator-${id}`} className=" float-left whitespace-pre pb-1 opacity-100 font-normal tracking-wider"></span>
-                        <div id={`cursor-${id}`} className=" float-left mt-1 w-1.5 h-3.5 bg-white"></div>
-                        <input id={`calculator-input-${id}`} data-row-id={id} onKeyDown={this.checkKey} onBlur={this.unFocusCursor} className=" absolute top-0 left-0 w-full opacity-0 outline-none bg-transparent" spellCheck={false} autoFocus={true} autoComplete="off" type="text" />
-                    </div>
-                </div>
-                <div id={`row-calculator-result-${id}`} className={"my-2 font-normal"}></div>
-            </React.Fragment>
-        );
-
-    }
-
-    focusCursor = (e) => {
-        clearInterval(this.cursor);
-        this.startCursor($(e.target).data("row-id"));
-    }
-
-    unFocusCursor = (e) => {
-        this.stopCursor($(e.target).data("row-id"));
-    }
-
-    startCursor = (id) => {
-        clearInterval(this.cursor);
-        $(`input#calculator-input-${id}`).trigger("focus");
-        // On input change, set current text in span
-        $(`input#calculator-input-${id}`).on("input", function () {
-            $(`#cmd span#show-calculator-${id}`).text($(this).val());
+    clearAll = () => {
+        this.setState({
+            displayValue: '0',
+            previousValue: null,
+            operation: null,
+            waitingForOperand: false
         });
-        this.cursor = window.setInterval(function () {
-            if ($(`#cursor-${id}`).css('visibility') === 'visible') {
-                $(`#cursor-${id}`).css({ visibility: 'hidden' });
-            } else {
-                $(`#cursor-${id}`).css({ visibility: 'visible' });
-            }
-        }, 500);
     }
 
-    stopCursor = (id) => {
-        clearInterval(this.cursor);
-        $(`#cursor-${id}`).css({ visibility: 'visible' });
+    clearLastDigit = () => {
+        const { displayValue } = this.state;
+        this.setState({
+            displayValue: displayValue.length > 1 ? displayValue.slice(0, -1) : '0'
+        });
     }
 
-    removeCursor = (id) => {
-        this.stopCursor(id);
-        $(`#cursor-${id}`).css({ display: 'none' });
+    toggleSign = () => {
+        const { displayValue } = this.state;
+        this.setState({
+            displayValue: displayValue.charAt(0) === '-' ? displayValue.slice(1) : '-' + displayValue
+        });
     }
 
-    clearInput = (id) => {
-        $(`input#calculator-input-${id}`).trigger("blur");
+    percentage = () => {
+        const { displayValue } = this.state;
+        const value = parseFloat(displayValue);
+        this.setState({
+            displayValue: String(value / 100)
+        });
     }
 
-    checkKey = (e) => {
-        if (e.key === "Enter") {
-            let terminal_row_id = $(e.target).data("row-id");
-            let command = $(`input#calculator-input-${terminal_row_id}`).val().trim();
-            if (command.length !== 0) {
-                this.removeCursor(terminal_row_id);
-                this.handleCommands(command, terminal_row_id);
-            }
-            else return;
-            // push to history
-            this.prev_commands.push(command);
-            this.commands_index = this.prev_commands.length - 1;
-
-            this.clearInput(terminal_row_id);
-        }
-        else if (e.key === "ArrowUp") {
-            let prev_command;
-
-            if (this.commands_index <= -1) prev_command = "";
-            else prev_command = this.prev_commands[this.commands_index];
-
-            let terminal_row_id = $(e.target).data("row-id");
-
-            $(`input#calculator-input-${terminal_row_id}`).val(prev_command);
-            $(`#show-calculator-${terminal_row_id}`).text(prev_command);
-
-            this.commands_index--;
-        }
-        else if (e.key === "ArrowDown") {
-            let prev_command;
-
-            if (this.commands_index >= this.prev_commands.length) return;
-            if (this.commands_index <= -1) this.commands_index = 0;
-
-            if (this.commands_index === this.prev_commands.length) prev_command = "";
-            else prev_command = this.prev_commands[this.commands_index];
-
-            let terminal_row_id = $(e.target).data("row-id");
-
-            $(`input#calculator-input-${terminal_row_id}`).val(prev_command);
-            $(`#show-calculator-${terminal_row_id}`).text(prev_command);
-
-            this.commands_index++;
+    inputDecimal = () => {
+        const { displayValue, waitingForOperand } = this.state;
+        if (waitingForOperand) {
+            this.setState({
+                displayValue: '0.',
+                waitingForOperand: false
+            });
+        } else if (displayValue.indexOf('.') === -1) {
+            this.setState({
+                displayValue: displayValue + '.'
+            });
         }
     }
 
-    closeTerminal = () => {
-        $("#close-calc").trigger('click');
+    inputDigit = (digit) => {
+        const { displayValue, waitingForOperand } = this.state;
+        if (waitingForOperand) {
+            this.setState({
+                displayValue: String(digit),
+                waitingForOperand: false
+            });
+        } else {
+            this.setState({
+                displayValue: displayValue === '0' ? String(digit) : displayValue + digit
+            });
+        }
     }
 
-    handleCommands = (command, rowId) => {
-        let words = command.split(' ').filter(Boolean);
-        let main = words[0];
-        // words.shift()
-        let result = "";
-        switch (main) {        
-            case "clear":
-                this.reStartTerminal();
-                return;
-            case "exit":
-                this.closeTerminal();
-                return;
-            case "help":                
-                result = "Available Commands: <br/>Operators:<br/> addition ( + ), subtraction ( - ),<br/>multiplication ( * ), division ( / ),<br/>modulo ( % )exponentiation. ( ^ )<br/><br/>Mathematical functions:<br/>abs[x] : Absolute value (magnitude) of x<br/>acos[x] : Arc cosine of x (in radians)<br/>acosh[x] : Hyperbolic arc cosine of x (in radians)<br/>asin[x] : Arc sine of x (in radians)<br/>asinh[x] : Hyperbolic arc sine of x (in radians)<br/>atan[x] : Arc tangent of x (in radians)<br/>atanh[x] : Hyperbolic arc tangent of x (in radians)<br/>cbrt[x] : Cube root of x<br/>ceil[x] : Ceiling of x — the smallest integer that’s >= x<br/>cos[x] : Cosine of x (x is in radians)<br/>cosh[x] : Hyperbolic cosine of x (x is in radians)<br/>exp[x] : e^x (exponential/antilogarithm function with base e)<br/>floor[x] : Floor of x — the largest integer that’s <= x<br/>ln[x] : Natural logarithm of x<br/>log[x] : Natural logarithm of x (synonym for ln, not base-10)<br/>log10[x] :	Base-10 logarithm of x<br/>log2[x] : Base-2 logarithm of x<br/>round[x] :	X, rounded to the nearest integer<br/>sign[x] : Sign of x (-1, 0, or 1 for negative, zero, or positive respectively)<br/>sin[x] : Sine of x (x is in radians)<br/>sinh[x] : Hyperbolic sine of x (x is in radians)<br/>sqrt[x] : Square root of x. Result is NaN (Not a Number) if x is negative.<br/>tan[x] : Tangent of x (x is in radians)<br/>tanh[x] : Hyperbolic tangent of x (x is in radians)<br/> <br/><br/>Pre-defined functions:<br/>random(n) : Get a random number in the range [0, n). If n is zero, or not provided, it defaults to 1.<br/>fac(n)	n! : (factorial of n: \"n * (n-1) * (n-2) * … * 2 * 1\") Deprecated. Use the ! operator instead.<br/>min(a,b,…) : Get the smallest (minimum) number in the list.<br/>max(a,b,…) : Get the largest (maximum) number in the list.<br/>hypot(a,b) : Hypotenuse, i.e. the square root of the sum of squares of its arguments.<br/>pyt(a, b) : Alias for hypot.<br/>pow(x, y) : Equivalent to x^y.<br/>roundTo(x, n) : Rounds x to n places after the decimal point.<br/><br/>Constants: <br/>E : The value of Math.E from your JavaScript runtime.<br/>PI : The value of Math.PI from your JavaScript runtime.<br/><br/>Variable assignments : <br/>declare variable and assign a value: x=1  declared variable can be used in further calculation x+2.<br/><br/>clear command for clearing calculator app.<br/><br/>exit command for exit from calculator app. ";
-                break;                
-            default: 
-                result = this.evaluteExp(command);                    
+    performOperation = (nextOperation) => {
+        const { displayValue, previousValue, operation } = this.state;
+        const inputValue = parseFloat(displayValue);
+
+        if (previousValue == null) {
+            this.setState({
+                previousValue: inputValue
+            });
+        } else if (operation) {
+            const currentValue = previousValue || 0;
+            const newValue = this.calculate(currentValue, inputValue, operation);
+            this.setState({
+                displayValue: String(newValue),
+                previousValue: newValue
+            });
         }
-        document.getElementById(`row-calculator-result-${rowId}`).innerHTML = result;
-        this.appendTerminalRow();
+
+        this.setState({
+            waitingForOperand: true,
+            operation: nextOperation
+        });
     }
-    evaluteExp = (command) => {
-        let result = "";
-        let expr;
-            try{
-                expr=parser.parse(command)
-                try{
-                    result = parser.evaluate(command,this.variables)
-                    if(expr.tokens.length===2&&expr.tokens[2].type==="IOP2")
-                    this.variables[expr.variables()[0]]=result
-                }
-                catch (e) {
-                    result = e.message;
-                }
-            }
-            catch(e){
-                result="Invalid Expression"
-            }    
-        return result;
+
+    calculate = (firstValue, secondValue, operation) => {
+        switch (operation) {
+            case '+': return firstValue + secondValue;
+            case '-': return firstValue - secondValue;
+            case '×': return firstValue * secondValue;
+            case '÷': return firstValue / secondValue;
+            case '=': return secondValue;
+            default: return secondValue;
+        }
     }
-    xss(str) {
-        if (!str) return;
-        return str.split('').map(char => {
-            switch (char) {
-                case '&':
-                    return '&amp';
-                case '<':
-                    return '&lt';
-                case '>':
-                    return '&gt';
-                case '"':
-                    return '&quot';
-                case "'":
-                    return '&#x27';
-                case '/':
-                    return '&#x2F';
-                default:
-                    return char;
-            }
-        }).join('');
-    }
-    
 
     render() {
+        const { displayValue, operation } = this.state;
+
+        // Button Component for cleaner render
+        const Button = ({ label, type = 'number', onClick, double = false }) => {
+            let baseClasses = "flex items-center justify-center text-2xl font-light transition-all active:scale-95 select-none h-full w-full border-[0.5px] border-gray-800";
+            let colorClasses = "";
+
+            if (type === 'number') {
+                colorClasses = "bg-gray-700 hover:bg-gray-600 text-white";
+            } else if (type === 'operator') {
+                // Highlight active operator
+                const isActive = operation === label;
+                colorClasses = isActive
+                    ? "bg-white text-orange-500 font-bold"
+                    : "bg-orange-500 hover:bg-orange-400 text-white font-medium";
+            } else if (type === 'function') {
+                colorClasses = "bg-gray-500 hover:bg-gray-400 text-black font-medium";
+            }
+
+            return (
+                <div onClick={onClick} className={`${baseClasses} ${colorClasses} ${double ? 'col-span-2' : ''}`}>
+                    {label}
+                </div>
+            );
+        };
+
         return (
-            <div className="h-full w-full bg-ub-drk-abrgn text-ubt-grey opacity-100 p-1 float-left font-normal">
-                <div>C-style arbitary precision calculator (version 2.12.7.2)</div>
-                <div>Calc is open software.</div>
-                <div>[ type "exit" to exit, "clear" to clear, "help" for help.]</div>
-            <div className="text-white text-sm font-bold bg-ub-drk-abrgn" id="calculator-body">
-                {this.state.terminal}
+            <div className="h-full w-full flex flex-col bg-gray-900 select-none">
+                {/* Display Area */}
+                <div className="flex-1 bg-black flex items-end justify-end p-6 pb-2 min-h-[30%]">
+                    <div className="text-white text-7xl font-thin tracking-tight break-all text-right w-full">
+                        {displayValue}
+                    </div>
+                </div>
+
+                {/* Keypad Area */}
+                <div className="flex-[2] grid grid-cols-4 grid-rows-5 bg-gray-900">
+                    {/* Row 1 */}
+                    <Button label={displayValue === '0' ? 'AC' : 'C'} type="function" onClick={this.clearAll} />
+                    <Button label="±" type="function" onClick={this.toggleSign} />
+                    <Button label="%" type="function" onClick={this.percentage} />
+                    <Button label="÷" type="operator" onClick={() => this.performOperation('÷')} />
+
+                    {/* Row 2 */}
+                    <Button label="7" type="number" onClick={() => this.inputDigit(7)} />
+                    <Button label="8" type="number" onClick={() => this.inputDigit(8)} />
+                    <Button label="9" type="number" onClick={() => this.inputDigit(9)} />
+                    <Button label="×" type="operator" onClick={() => this.performOperation('×')} />
+
+                    {/* Row 3 */}
+                    <Button label="4" type="number" onClick={() => this.inputDigit(4)} />
+                    <Button label="5" type="number" onClick={() => this.inputDigit(5)} />
+                    <Button label="6" type="number" onClick={() => this.inputDigit(6)} />
+                    <Button label="-" type="operator" onClick={() => this.performOperation('-')} />
+
+                    {/* Row 4 */}
+                    <Button label="1" type="number" onClick={() => this.inputDigit(1)} />
+                    <Button label="2" type="number" onClick={() => this.inputDigit(2)} />
+                    <Button label="3" type="number" onClick={() => this.inputDigit(3)} />
+                    <Button label="+" type="operator" onClick={() => this.performOperation('+')} />
+
+                    {/* Row 5 */}
+                    <Button label="0" type="number" double onClick={() => this.inputDigit(0)} />
+                    <Button label="." type="number" onClick={this.inputDecimal} />
+                    <Button label="=" type="operator" onClick={() => this.performOperation('=')} />
+                </div>
             </div>
-            </div>
-        )
+        );
     }
 }
 
-export default Calc
+export default Calculator;
 
-export const displayTerminalCalc = (addFolder,openApp) => {
-    return <Calc addFolder={addFolder} openApp={openApp}> </Calc>;
+export const displayCalculator = () => {
+    return <Calculator />;
 }

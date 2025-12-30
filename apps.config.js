@@ -1,11 +1,11 @@
 import displayVsCode from './components/apps/vscode';
 import { displayTerminal } from './components/apps/terminal';
 import { displaySettings } from './components/apps/settings';
-import { displayChrome } from './components/apps/chrome'; // Reverted to standard chrome if popout caused issues, or check file
+import { displayChrome } from './components/apps/chrome';
 import { displayTrash } from './components/apps/trash';
 import { displayGedit } from './components/apps/gedit';
 import { displayAboutAnurag } from './components/apps/anurag';
-import { displayTerminalCalc } from './components/apps/calc';
+import { displayCalculator } from './components/apps/calc';
 import { displayERPDashboard } from './components/apps/erp_dashboard';
 import { displayCRM } from './components/apps/crm';
 import { displayMail } from './components/apps/mail';
@@ -13,6 +13,7 @@ import { displayHRM } from './components/apps/hrm';
 import { displayProject } from './components/apps/projects';
 import { displayUserManager } from './components/apps/user_manager';
 import { displayMessenger } from './components/apps/messenger';
+import { displayAppStore } from './components/apps/app_store';
 
 const apps = [
     {
@@ -28,7 +29,7 @@ const apps = [
         id: "users",
         title: "Alphery Users",
         icon: './themes/Yaru/apps/users.png',
-        disabled: false, // Re-enabled for Admin Panel
+        disabled: false,
         favourite: true,
         desktop_shortcut: true,
         screen: displayUserManager,
@@ -54,7 +55,7 @@ const apps = [
     {
         id: "mail",
         title: "Z-Mail",
-        icon: './themes/Yaru/apps/gmap.png',
+        icon: './themes/Yaru/apps/gedit.png',
         disabled: false,
         favourite: true,
         desktop_shortcut: true,
@@ -63,9 +64,9 @@ const apps = [
     {
         id: "crm",
         title: "CRM Pro",
-        icon: './themes/Yaru/apps/calc.png',
+        icon: './themes/Yaru/apps/users.png',
         disabled: false,
-        favourite: true,
+        favourite: false,
         desktop_shortcut: true,
         screen: displayCRM,
     },
@@ -74,7 +75,7 @@ const apps = [
         title: "People Connect",
         icon: './themes/Yaru/system/user-desktop.png',
         disabled: false,
-        favourite: true,
+        favourite: false,
         desktop_shortcut: true,
         screen: displayHRM,
     },
@@ -89,12 +90,12 @@ const apps = [
     },
     {
         id: "calc",
-        title: "Calc",
+        title: "Calculator",
         icon: './themes/Yaru/apps/calc.png',
         disabled: false,
         favourite: true,
-        desktop_shortcut: false,
-        screen: displayTerminalCalc,
+        desktop_shortcut: true,
+        screen: displayCalculator,
     },
     {
         id: "vscode",
@@ -110,7 +111,7 @@ const apps = [
         title: "Terminal",
         icon: './themes/Yaru/apps/bash.png',
         disabled: false,
-        favourite: true,
+        favourite: false,
         desktop_shortcut: false,
         screen: displayTerminal,
     },
@@ -128,7 +129,7 @@ const apps = [
         title: "About Anurag",
         icon: './themes/Yaru/system/user-home.png',
         disabled: false,
-        favourite: true,
+        favourite: false,
         desktop_shortcut: true,
         screen: displayAboutAnurag,
     },
@@ -137,7 +138,7 @@ const apps = [
         title: "Contact Me",
         icon: './themes/Yaru/apps/gedit.png',
         disabled: false,
-        favourite: true,
+        favourite: false,
         desktop_shortcut: true,
         screen: displayGedit,
     },
@@ -150,6 +151,19 @@ const apps = [
         desktop_shortcut: true,
         screen: displayTrash,
     },
+    {
+        id: "app-store",
+        title: "App Store",
+        icon: './themes/Yaru/system/view-app-grid-symbolic.svg',
+        disabled: false,
+        favourite: false,
+        desktop_shortcut: true,
+        screen: displayAppStore,
+    }
 ]
 
 export default apps;
+
+if (typeof window !== 'undefined') {
+    window.ALL_APPS = apps;
+}

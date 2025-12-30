@@ -46,7 +46,7 @@ export class AllApplications extends React.Component {
             return frequentApps;
         }
 
-        let apps = this.state.category === 0 ? [...this.state.apps] : getFrequentApps();
+        let apps = (this.state.category === 0 ? [...this.state.apps] : getFrequentApps()).filter(app => !this.props.disabled_apps[app.id]);
         apps.forEach((app, index) => {
             const props = {
                 name: app.title,

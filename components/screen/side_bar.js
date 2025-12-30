@@ -15,7 +15,7 @@ export default function SideBar(props) {
     }
 
     // Filter apps first to get a clean list for indexing
-    const dockApps = props.apps.filter(app => props.favourite_apps[app.id] !== false);
+    const dockApps = props.apps.filter(app => props.favourite_apps[app.id] !== false && !props.disabled_apps[app.id]);
 
     // Calculate scale based on distance from hovered index
     const getScale = (index) => {

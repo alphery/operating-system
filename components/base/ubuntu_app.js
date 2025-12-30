@@ -60,7 +60,7 @@ export class UbuntuApp extends Component {
                     onContextMenu={this.handleContextMenu}
                     tabIndex={0}
                 >
-                    <img className={`${iconSize} pointer-events-none filter drop-shadow-lg ${this.props.id === 'nosleep' ? 'rounded-2xl' : ''}`} src={this.props.icon} alt={"Ubuntu " + this.props.name} />
+                    <img className={`${iconSize} pointer-events-none filter drop-shadow-lg rounded-xl transition-all duration-200`} src={this.props.icon} alt={"Ubuntu " + this.props.name} />
                     <span className={textSize} style={{ textShadow: isLaunchpad ? '0 1px 2px rgba(0,0,0,0.5)' : 'none' }}>
                         {this.props.name}
                     </span>
@@ -83,7 +83,7 @@ export class UbuntuApp extends Component {
                     onContextMenu={this.handleContextMenu}
                     tabIndex={0}
                 >
-                    <img width="40px" height="40px" className={`mb-1 w-10 pointer-events-none ${this.props.id === 'nosleep' ? 'rounded-lg' : ''}`} src={this.props.icon} alt={"Ubuntu " + this.props.name} />
+                    <img width="40px" height="40px" className={`mb-1 w-10 pointer-events-none rounded-xl`} src={this.props.icon} alt={"Ubuntu " + this.props.name} />
                     {this.props.name}
 
                 </div>
