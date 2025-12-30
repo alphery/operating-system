@@ -1,6 +1,7 @@
 import React, { Component } from 'react';
-import { db } from '../../config/firebase';
+import { db, storage } from '../../config/firebase';
 import { collection, query, where, or, and, orderBy, onSnapshot, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { useAuth } from '../../context/AuthContext';
 
 // Wrapper to use hooks in class component
@@ -19,9 +20,13 @@ class Messenger extends Component {
             messages: [],
             messageText: '',
             searchQuery: '',
-            loading: true
+            loading: true,
+            uploading: false,
+            uploadProgress: 0,
+            showAttachMenu: false
         };
         this.unsubscribeMessages = null;
+        this.fileInputRef = React.createRef();
     }
 
     componentDidMount() {
@@ -59,7 +64,6 @@ class Messenger extends Component {
             }
         });
 
-        // Load all users from Firestore
         await this.loadUsers();
     }
 
@@ -73,14 +77,13 @@ class Messenger extends Component {
                     uid: doc.id,
                     ...doc.data()
                 }))
-                .filter(u => u.uid !== this.props.user.uid); // Exclude current user
+                .filter(u => u.uid !== this.props.user.uid);
 
             this.setState({
                 otherUsers: users,
                 loading: false
             });
 
-            // Auto-select first user if available
             if (users.length > 0 && !this.state.selectedUser) {
                 this.selectUser(users[0]);
             }
@@ -105,7 +108,6 @@ class Messenger extends Component {
         const currentUid = this.state.currentUser.uid;
         const selectedUid = selectedUser.uid;
 
-        // Query messages between current user and selected user
         const messagesRef = collection(db, 'messages');
         const q = query(
             messagesRef,
@@ -122,7 +124,6 @@ class Messenger extends Component {
             orderBy('timestamp', 'asc')
         );
 
-        // Real-time listener
         this.unsubscribeMessages = onSnapshot(q, (snapshot) => {
             const messages = snapshot.docs.map(doc => ({
                 id: doc.id,
@@ -142,11 +143,11 @@ class Messenger extends Component {
         if (!messageText.trim() || !selectedUser || !currentUser) return;
 
         try {
-            // Add message to Firestore
             await addDoc(collection(db, 'messages'), {
                 from: currentUser.uid,
                 to: selectedUser.uid,
                 text: messageText.trim(),
+                type: 'text',
                 timestamp: serverTimestamp(),
                 fromName: currentUser.displayName,
                 toName: selectedUser.displayName
@@ -159,6 +160,108 @@ class Messenger extends Component {
         }
     }
 
+    handleFileSelect = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const { currentUser, selectedUser } = this.state;
+        if (!selectedUser || !currentUser) return;
+
+        // Validate file size (max 10MB)
+        if (file.size > 10 * 1024 * 1024) {
+            alert('File too large! Maximum size is 10MB.');
+            return;
+        }
+
+        this.uploadFile(file);
+    }
+
+    uploadFile = async (file) => {
+        const { currentUser, selectedUser } = this.state;
+
+        try {
+            this.setState({ uploading: true, uploadProgress: 0 });
+
+            // Create unique filename
+            const timestamp = Date.now();
+            const filename = `messages/${currentUser.uid}/${timestamp}_${file.name}`;
+            const storageRef = ref(storage, filename);
+
+            // Upload file
+            const uploadTask = uploadBytesResumable(storageRef, file);
+
+            uploadTask.on('state_changed',
+                (snapshot) => {
+                    const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                    this.setState({ uploadProgress: Math.round(progress) });
+                },
+                (error) => {
+                    console.error('Upload error:', error);
+                    alert('Failed to upload file');
+                    this.setState({ uploading: false, uploadProgress: 0 });
+                },
+                async () => {
+                    // Upload complete
+                    const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+
+                    // Determine file type
+                    const fileType = this.getFileType(file);
+
+                    // Save message with file
+                    await addDoc(collection(db, 'messages'), {
+                        from: currentUser.uid,
+                        to: selectedUser.uid,
+                        type: fileType,
+                        fileURL: downloadURL,
+                        fileName: file.name,
+                        fileSize: file.size,
+                        mimeType: file.type,
+                        timestamp: serverTimestamp(),
+                        fromName: currentUser.displayName,
+                        toName: selectedUser.displayName
+                    });
+
+                    this.setState({ uploading: false, uploadProgress: 0, showAttachMenu: false });
+                    this.fileInputRef.current.value = '';
+                }
+            );
+        } catch (error) {
+            console.error('Error uploading file:', error);
+            alert('Failed to upload file');
+            this.setState({ uploading: false, uploadProgress: 0 });
+        }
+    }
+
+    getFileType = (file) => {
+        const type = file.type.toLowerCase();
+        const name = file.name.toLowerCase();
+
+        if (type.startsWith('image/')) return 'image';
+        if (type.startsWith('video/')) return 'video';
+        if (type === 'application/pdf' || name.endsWith('.pdf')) return 'pdf';
+        if (type.includes('document') || type.includes('word') || name.endsWith('.doc') || name.endsWith('.docx')) return 'document';
+        if (type.includes('spreadsheet') || type.includes('excel') || name.endsWith('.xls') || name.endsWith('.xlsx')) return 'spreadsheet';
+        if (type.includes('zip') || type.includes('rar') || name.endsWith('.zip') || name.endsWith('.rar')) return 'archive';
+        return 'file';
+    }
+
+    formatFileSize = (bytes) => {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    getFileIcon = (type) => {
+        const icons = {
+            pdf: '📄',
+            document: '📝',
+            spreadsheet: '📊',
+            archive: '🗜️',
+            file: '📎'
+        };
+        return icons[type] || '📎';
+    }
+
     scrollToBottom = () => {
         setTimeout(() => {
             const chatBox = document.getElementById('chat-history-box');
@@ -166,10 +269,88 @@ class Messenger extends Component {
         }, 50);
     }
 
-    render() {
-        const { otherUsers, selectedUser, messages, messageText, currentUser, loading } = this.state;
+    renderMessage = (msg) => {
+        const { currentUser } = this.state;
+        const isMe = msg.from === currentUser.uid;
 
-        // Show loading or login prompt
+        if (msg.type === 'image') {
+            return (
+                <div className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-3`}>
+                    <div className={`max-w-xs md:max-w-md rounded-2xl overflow-hidden shadow-sm
+                        ${isMe ? 'bg-teal-600 rounded-br-none' : 'bg-white rounded-bl-none'}`}>
+                        <img
+                            src={msg.fileURL}
+                            alt={msg.fileName}
+                            className="w-full h-auto cursor-pointer"
+                            onClick={() => window.open(msg.fileURL, '_blank')}
+                        />
+                        <div className={`px-3 py-1 text-xs ${isMe ? 'text-teal-200' : 'text-gray-400'}`}>
+                            {msg.timestamp ? new Date(msg.timestamp.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Sending...'}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        if (msg.type === 'video') {
+            return (
+                <div className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-3`}>
+                    <div className={`max-w-xs md:max-w-md rounded-2xl overflow-hidden shadow-sm
+                        ${isMe ? 'bg-teal-600 rounded-br-none' : 'bg-white rounded-bl-none'}`}>
+                        <video controls className="w-full h-auto">
+                            <source src={msg.fileURL} type={msg.mimeType} />
+                        </video>
+                        <div className={`px-3 py-1 text-xs ${isMe ? 'text-teal-200' : 'text-gray-400'}`}>
+                            {msg.timestamp ? new Date(msg.timestamp.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Sending...'}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        if (['pdf', 'document', 'spreadsheet', 'archive', 'file'].includes(msg.type)) {
+            return (
+                <div className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-3`}>
+                    <div className={`max-w-xs md:max-w-md px-4 py-3 rounded-2xl shadow-sm cursor-pointer
+                        ${isMe ? 'bg-teal-600 text-white rounded-br-none' : 'bg-white text-gray-800 rounded-bl-none'}`}
+                        onClick={() => window.open(msg.fileURL, '_blank')}>
+                        <div className="flex items-center gap-3">
+                            <div className="text-4xl">{this.getFileIcon(msg.type)}</div>
+                            <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm truncate">{msg.fileName}</p>
+                                <p className={`text-xs ${isMe ? 'text-teal-200' : 'text-gray-500'}`}>
+                                    {this.formatFileSize(msg.fileSize)}
+                                </p>
+                            </div>
+                            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                        </div>
+                        <p className={`text-[10px] mt-2 text-right ${isMe ? 'text-teal-200' : 'text-gray-400'}`}>
+                            {msg.timestamp ? new Date(msg.timestamp.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Sending...'}
+                        </p>
+                    </div>
+                </div>
+            );
+        }
+
+        // Text message
+        return (
+            <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-3`}>
+                <div className={`max-w-xs md:max-w-md px-4 py-2 rounded-2xl shadow-sm text-sm
+                    ${isMe ? 'bg-teal-600 text-white rounded-br-none' : 'bg-white text-gray-800 rounded-bl-none'}`}>
+                    <p>{msg.text}</p>
+                    <p className={`text-[10px] mt-1 text-right ${isMe ? 'text-teal-200' : 'text-gray-400'}`}>
+                        {msg.timestamp ? new Date(msg.timestamp.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Sending...'}
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
+    render() {
+        const { otherUsers, selectedUser, messages, messageText, currentUser, loading, uploading, uploadProgress, showAttachMenu } = this.state;
+
         if (!this.props.user) {
             return (
                 <div className="w-full h-full flex items-center justify-center bg-gray-50">
@@ -199,7 +380,7 @@ class Messenger extends Component {
 
         return (
             <div className="w-full h-full flex bg-white overflow-hidden text-sm">
-                {/* Sidebar - Contact List */}
+                {/* Sidebar */}
                 <div className="w-1/3 md:w-1/4 bg-gray-50 border-r border-gray-200 flex flex-col">
                     <div className="flex flex-col border-b border-gray-200 bg-white shadow-sm z-10">
                         <div className="h-16 flex items-center px-4 font-bold text-lg text-teal-600 gap-2">
@@ -278,21 +459,8 @@ class Messenger extends Component {
                             </div>
 
                             {/* Messages */}
-                            <div id="chat-history-box" className="flex-1 overflow-y-auto p-6 space-y-4">
-                                {messages.map((msg) => {
-                                    const isMe = msg.from === currentUser.uid;
-                                    return (
-                                        <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                                            <div className={`max-w-xs md:max-w-md px-4 py-2 rounded-2xl shadow-sm text-sm
-                                                ${isMe ? 'bg-teal-600 text-white rounded-br-none' : 'bg-white text-gray-800 rounded-bl-none'}`}>
-                                                <p>{msg.text}</p>
-                                                <p className={`text-[10px] mt-1 text-right ${isMe ? 'text-teal-200' : 'text-gray-400'}`}>
-                                                    {msg.timestamp ? new Date(msg.timestamp.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Sending...'}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    )
-                                })}
+                            <div id="chat-history-box" className="flex-1 overflow-y-auto p-6">
+                                {messages.map((msg) => this.renderMessage(msg))}
                                 {messages.length === 0 && (
                                     <div className="flex justify-center mt-20">
                                         <div className="text-center text-gray-400">
@@ -300,23 +468,75 @@ class Messenger extends Component {
                                                 <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
                                             </div>
                                             <p className="font-medium text-gray-600">Start the conversation!</p>
-                                            <p className="text-xs mt-1">Send a message to {selectedUser.displayName || selectedUser.email}</p>
+                                            <p className="text-xs mt-1">Send a message or share a file</p>
                                         </div>
                                     </div>
                                 )}
                             </div>
 
+                            {/* Upload Progress */}
+                            {uploading && (
+                                <div className="px-6 pb-2">
+                                    <div className="bg-white rounded-lg shadow p-3">
+                                        <div className="flex items-center gap-3 mb-2">
+                                            <svg className="w-5 h-5 text-teal-600 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                                            </svg>
+                                            <span className="text-sm text-gray-700">Uploading... {uploadProgress}%</span>
+                                        </div>
+                                        <div className="w-full bg-gray-200 rounded-full h-1.5">
+                                            <div className="bg-teal-600 h-1.5 rounded-full transition-all" style={{ width: `${uploadProgress}%` }}></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Input */}
                             <div className="p-4 bg-white border-t border-gray-200">
                                 <form onSubmit={this.handleSend} className="flex gap-2">
+                                    <div className="relative">
+                                        <button
+                                            type="button"
+                                            onClick={() => this.setState({ showAttachMenu: !showAttachMenu })}
+                                            className="w-10 h-10 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full flex items-center justify-center transition"
+                                        >
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
+                                            </svg>
+                                        </button>
+                                        {showAttachMenu && (
+                                            <div className="absolute bottom-12 left-0 bg-white rounded-lg shadow-lg border border-gray-200 p-2 w-48">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => this.fileInputRef.current.click()}
+                                                    className="w-full flex items-center gap-3 px-3 py-2 hover:bg-gray-100 rounded-lg text-left transition"
+                                                >
+                                                    <span className="text-2xl">📎</span>
+                                                    <span className="text-sm text-gray-700">Attach File</span>
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <input
+                                        ref={this.fileInputRef}
+                                        type="file"
+                                        className="hidden"
+                                        onChange={this.handleFileSelect}
+                                        accept="*/*"
+                                    />
                                     <input
                                         className="flex-1 bg-gray-100 border-0 rounded-full px-4 py-2 focus:ring-2 focus:ring-teal-500 outline-none transition"
                                         placeholder="Type a message..."
                                         value={messageText}
                                         onChange={(e) => this.setState({ messageText: e.target.value })}
                                         autoFocus
+                                        disabled={uploading}
                                     />
-                                    <button type="submit" className="w-10 h-10 bg-teal-600 hover:bg-teal-700 text-white rounded-full flex items-center justify-center transition shadow-md disabled:opacity-50" disabled={!messageText.trim()}>
+                                    <button
+                                        type="submit"
+                                        className="w-10 h-10 bg-teal-600 hover:bg-teal-700 text-white rounded-full flex items-center justify-center transition shadow-md disabled:opacity-50"
+                                        disabled={!messageText.trim() || uploading}
+                                    >
                                         <svg className="w-5 h-5 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
                                     </button>
                                 </form>
