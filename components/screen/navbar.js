@@ -27,11 +27,11 @@ export default class Navbar extends Component {
 							<div className="px-4 py-1 hover:bg-blue-600 cursor-default">Force Quit...</div>
 							<div className="h-px bg-gray-700 my-1"></div>
 							<div className="px-4 py-1 hover:bg-blue-600 cursor-default">Sleep</div>
-							<div className="px-4 py-1 hover:bg-blue-600 cursor-default">Restart...</div>
-							<div className="px-4 py-1 hover:bg-blue-600 cursor-default">Shut Down...</div>
+							<div onClick={this.props.shutDown} className="px-4 py-1 hover:bg-blue-600 cursor-default">Restart...</div>
+							<div onClick={this.props.shutDown} className="px-4 py-1 hover:bg-blue-600 cursor-default">Shut Down...</div>
 							<div className="h-px bg-gray-700 my-1"></div>
-							<div className="px-4 py-1 hover:bg-blue-600 cursor-default">Lock Screen</div>
-							<div className="px-4 py-1 hover:bg-blue-600 cursor-default">Log Out</div>
+							<div onClick={this.props.lockScreen} className="px-4 py-1 hover:bg-blue-600 cursor-default">Lock Screen</div>
+							<div onClick={this.props.lockScreen} className="px-4 py-1 hover:bg-blue-600 cursor-default">Log Out</div>
 						</div>
 					</div>
 

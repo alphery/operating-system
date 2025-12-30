@@ -4,6 +4,7 @@ import Desktop from './screen/desktop';
 import LockScreen from './screen/lock_screen';
 import Navbar from './screen/navbar';
 import ReactGA from 'react-ga';
+import SessionManager from './util components/session';
 
 export default class Ubuntu extends Component {
 	constructor() {
@@ -12,7 +13,8 @@ export default class Ubuntu extends Component {
 			screen_locked: false,
 			bg_image_name: 'wall-8',
 			booting_screen: true,
-			shutDownScreen: false
+			shutDownScreen: false,
+			currentUser: null
 		};
 	}
 
@@ -27,56 +29,53 @@ export default class Ubuntu extends Component {
 	};
 
 	getLocalData = () => {
-		// Get Previously selected Background Image
-		let bg_image_name = localStorage.getItem('bg-image');
-		if (bg_image_name !== null && bg_image_name !== undefined) {
-			this.setState({ bg_image_name });
-		}
+		// Global system state (not per user yet, as we don't know who is logged in until they unlock)
+		// However, we can check if a session was active? 
+		// For security, we always start locked if we are "rebooting" or refreshing.
 
 		let booting_screen = localStorage.getItem('booting_screen');
-		// Always show boot screen for 4 seconds
 		this.setTimeOutBootScreen();
 
-		// get shutdown state
 		let shut_down = localStorage.getItem('shut-down');
 		if (shut_down !== null && shut_down !== undefined && shut_down === 'true') this.shutDown();
 		else {
-			// Get previous lock screen state
-			let screen_locked = localStorage.getItem('screen-locked');
-			if (screen_locked !== null && screen_locked !== undefined) {
-				this.setState({ screen_locked: screen_locked === 'true' ? true : false });
-			}
+			this.setState({ screen_locked: true });
 		}
 	};
 
 	lockScreen = () => {
-		// google analytics
 		ReactGA.pageview('/lock-screen');
-		ReactGA.event({
-			category: `Screen Change`,
-			action: `Set Screen to Locked`
-		});
-
 		document.getElementById('status-bar').blur();
 		setTimeout(() => {
 			this.setState({ screen_locked: true });
-		}, 100); // waiting for all windows to close (transition-duration)
-		localStorage.setItem('screen-locked', true);
+		}, 100);
+		// We don't save 'screen-locked' to local storage globally anymore because we want to force login on refresh
 	};
 
-	unLockScreen = () => {
+	unLockScreen = (user) => {
 		ReactGA.pageview('/desktop');
-
 		window.removeEventListener('click', this.unLockScreen);
 		window.removeEventListener('keypress', this.unLockScreen);
 
-		this.setState({ screen_locked: false });
-		localStorage.setItem('screen-locked', false);
+		// Set Session
+		SessionManager.setCurrentUser(user.username);
+
+		// Load User Preferences
+		const userBg = SessionManager.getBackgroundImage(user.username);
+
+		this.setState({
+			screen_locked: false,
+			currentUser: user,
+			bg_image_name: userBg
+		});
 	};
 
 	changeBackgroundImage = (img_name) => {
 		this.setState({ bg_image_name: img_name });
-		localStorage.setItem('bg-image', img_name);
+		// Save to User Session
+		if (this.state.currentUser) {
+			SessionManager.setItem('bg-image', img_name);
+		}
 	};
 
 	shutDown = () => {
@@ -112,8 +111,16 @@ export default class Ubuntu extends Component {
 					isShutDown={this.state.shutDownScreen}
 					turnOn={this.turnOn}
 				/>
-				<Navbar lockScreen={this.lockScreen} shutDown={this.shutDown} />
-				<Desktop bg_image_name={this.state.bg_image_name} changeBackgroundImage={this.changeBackgroundImage} />
+				<Navbar
+					lockScreen={this.lockScreen}
+					shutDown={this.shutDown}
+					user={this.state.currentUser}
+				/>
+				<Desktop
+					bg_image_name={this.state.bg_image_name}
+					changeBackgroundImage={this.changeBackgroundImage}
+					user={this.state.currentUser}
+				/>
 			</div>
 		);
 	}

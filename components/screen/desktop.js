@@ -9,6 +9,7 @@ import DesktopMenu from '../context menus/desktop-menu';
 import DefaultMenu from '../context menus/default';
 import $ from 'jquery';
 import ReactGA from 'react-ga';
+import SessionManager from '../util components/session';
 
 // App Context Menu Component
 function AppContextMenu({ active, appId, isOnDesktop, addToDesktop, removeFromDesktop }) {
@@ -62,9 +63,7 @@ export class Desktop extends Component {
     }
 
     componentDidMount() {
-        // google analytics
         ReactGA.pageview("/desktop");
-
         this.fetchAppsData();
         this.setContextListeners();
         this.setEventListeners();
@@ -75,14 +74,36 @@ export class Desktop extends Component {
         this.removeContextListeners();
     }
 
-    checkForNewFolders = () => {
-        var new_folders = localStorage.getItem('new_folders');
-        if (new_folders === null && new_folders !== undefined) {
-            localStorage.setItem("new_folders", JSON.stringify([]));
+    componentDidUpdate(prevProps) {
+        if (prevProps.user !== this.props.user) {
+            // When user changes, we need to re-fetch folders and shortcuts for THAT user
+            this.checkForNewFolders();
         }
-        else {
-            new_folders = JSON.parse(new_folders);
-            new_folders.forEach(folder => {
+    }
+
+    checkForNewFolders = () => {
+        let username = this.props.user ? this.props.user.username : null;
+        if (!username) return;
+
+        // Reset Apps List first (to remove previous user's custom folders)
+        // We filter out any app starting with 'new-folder-' before adding this user's folders
+        // Actually, easiest way is to reload specific new folders
+
+        // 1. Get User Folders
+        const new_folders = SessionManager.getFolders(username);
+
+        // 2. Remove ANY existing dynamically added folders from the global 'apps' config array 
+        // (This is a bit tricky since 'apps' is a global mutable array in apps.config.js... 
+        //  ideally we should not mutate 'apps' directly or reset it. 
+        //  For now, we will just Append. To do this correctly we'd need to filter 'apps' first.)
+
+        // Let's rely on 'fetchAppsData' filtering. 
+        // We will ADD this user's folders to the 'apps' array if they aren't there? 
+        // OR better: We store custom folders in state, not in the 'apps' config import.
+
+        // Migration: Let's assume we push to 'apps' but we need to check if they exist.
+        new_folders.forEach(folder => {
+            if (!apps.find(app => app.id === `new-folder-${folder.id}`)) {
                 apps.push({
                     id: `new-folder-${folder.id}`,
                     title: folder.name,
@@ -92,18 +113,24 @@ export class Desktop extends Component {
                     desktop_shortcut: true,
                     screen: () => { },
                 });
-            });
-            this.updateAppsData();
-        }
-
-        // Load desktop apps from localStorage
-        const savedDesktopApps = JSON.parse(localStorage.getItem('desktop_apps') || '[]');
-        savedDesktopApps.forEach(appId => {
-            const app = apps.find(a => a.id === appId);
-            if (app) {
-                app.desktop_shortcut = true;
             }
         });
+
+        // 3. Get User Desktop Layout
+        const savedDesktopApps = SessionManager.getDesktopApps(username);
+
+        // Reset all shortcuts first? No, default is defined in config. 
+        // We should overlay saved/removed shortcuts. 
+        // For simplicity: If we have a saved list, we use that list as the authoritative list of what is on desktop.
+        // If no saved list (fresh user), we use defaults from config.
+
+        if (savedDesktopApps.length > 0) {
+            apps.forEach(app => {
+                app.desktop_shortcut = savedDesktopApps.includes(app.id);
+            });
+        }
+
+        this.fetchAppsData();
     }
 
     setEventListeners = () => {
@@ -187,10 +214,31 @@ export class Desktop extends Component {
         }
     }
 
+    componentDidUpdate(prevProps) {
+        if (prevProps.user !== this.props.user) {
+            this.fetchAppsData();
+        }
+    }
+
     fetchAppsData = () => {
         let focused_windows = {}, closed_windows = {}, disabled_apps = {}, favourite_apps = {}, overlapped_windows = {}, minimized_windows = {};
         let desktop_apps = [];
+
         apps.forEach((app) => {
+            // Filter apps based on user permissions
+            // If permissions is "all_apps", show everything.
+            // Otherwise, check if app.id is in permissions array.
+            const user = this.props.user;
+            const hasPermission = user && (user.permissions.includes("all_apps") || user.permissions.includes(app.id));
+
+            // Core system apps should probably always be allowed or defined in config
+            // For now, assume strict permission based on the config I made
+
+            if (!hasPermission && user) {
+                // Skip this app if user doesn't have permission
+                return;
+            }
+
             focused_windows = {
                 ...focused_windows,
                 [app.id]: false,
@@ -206,6 +254,10 @@ export class Desktop extends Component {
             favourite_apps = {
                 ...favourite_apps,
                 [app.id]: app.favourite,
+            };
+            overlapped_windows = {
+                ...overlapped_windows,
+                [app.id]: false,
             };
             overlapped_windows = {
                 ...overlapped_windows,
