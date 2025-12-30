@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
-import ERPDatabase from '../util components/database';
+import { db } from '../../config/firebase';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 
 export class Projects extends Component {
     constructor() {
@@ -8,61 +9,126 @@ export class Projects extends Component {
             projects: [],
             view: 'kanban', // kanban, list
             showModal: false,
-            activeProject: null, // If editing or viewing details
-            newProject: { title: '', client: '', status: 'Planning', startDate: '', endDate: '', description: '' }
+            activeProject: null,
+            newProject: { title: '', client: '', status: 'Planning', startDate: '', endDate: '', description: '', progress: 0 },
+            loading: true
         }
+        this.unsubscribe = null;
     }
 
     componentDidMount() {
-        this.refreshData();
+        this.subscribeToProjects();
     }
 
-    refreshData = () => {
-        this.setState({ projects: ERPDatabase.getProjects() });
+    componentWillUnmount() {
+        if (this.unsubscribe) {
+            this.unsubscribe();
+        }
     }
 
-    handleInputChange = (e) => {
-        this.setState({
-            newProject: { ...this.state.newProject, [e.target.name]: e.target.value }
+    subscribeToProjects = () => {
+        // Real-time listener to projects collection (SHARED across all users)
+        const projectsRef = collection(db, 'projects');
+
+        this.unsubscribe = onSnapshot(projectsRef, (snapshot) => {
+            const projects = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+
+            this.setState({ projects, loading: false });
+        }, (error) => {
+            console.error('Error loading projects:', error);
+            this.setState({ loading: false });
         });
     }
 
-    saveProject = () => {
+    handleInputChange = (e) => {
+        const value = e.target.type === 'range' ? parseInt(e.target.value) : e.target.value;
+        this.setState({
+            newProject: { ...this.state.newProject, [e.target.name]: value }
+        });
+    }
+
+    saveProject = async () => {
         const p = this.state.newProject;
         if (!p.title) return;
 
-        if (this.state.activeProject) {
-            // Update mode
-            ERPDatabase.updateProject({ ...this.state.activeProject, ...p });
-        } else {
-            // Create mode
-            ERPDatabase.addProject(p);
-        }
+        try {
+            if (this.state.activeProject) {
+                // Update existing project
+                const projectRef = doc(db, 'projects', this.state.activeProject.id);
+                await updateDoc(projectRef, {
+                    ...p,
+                    updatedAt: serverTimestamp()
+                });
+            } else {
+                // Create new project
+                await addDoc(collection(db, 'projects'), {
+                    ...p,
+                    progress: 0,
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp()
+                });
+            }
 
-        this.setState({ showModal: false, activeProject: null, newProject: { title: '', client: '', status: 'Planning', startDate: '', endDate: '', description: '' } });
-        this.refreshData();
+            this.setState({
+                showModal: false,
+                activeProject: null,
+                newProject: { title: '', client: '', status: 'Planning', startDate: '', endDate: '', description: '', progress: 0 }
+            });
+        } catch (error) {
+            console.error('Error saving project:', error);
+            alert('Failed to save project. Please try again.');
+        }
     }
 
     openEdit = (project) => {
-        this.setState({ activeProject: project, newProject: { ...project }, showModal: true });
+        this.setState({
+            activeProject: project,
+            newProject: { ...project },
+            showModal: true
+        });
     }
 
-    deleteProject = (id, e) => {
+    deleteProject = async (id, e) => {
         e.stopPropagation();
-        if (window.confirm("Are you sure you want to delete this project?")) {
-            ERPDatabase.deleteProject(id);
-            this.refreshData();
+        if (!window.confirm("Are you sure you want to delete this project?")) return;
+
+        try {
+            await deleteDoc(doc(db, 'projects', id));
+        } catch (error) {
+            console.error('Error deleting project:', error);
+            alert('Failed to delete project.');
         }
     }
 
-    updateStatus = (project, status) => {
-        ERPDatabase.updateProject({ ...project, status });
-        this.refreshData();
+    updateStatus = async (project, status) => {
+        try {
+            const projectRef = doc(db, 'projects', project.id);
+            await updateDoc(projectRef, {
+                status,
+                updatedAt: serverTimestamp()
+            });
+        } catch (error) {
+            console.error('Error updating status:', error);
+        }
     }
 
     render() {
-        const { projects, view, showModal, newProject } = this.state;
+        const { projects, view, showModal, newProject, loading } = this.state;
         const columns = ['Planning', 'In Progress', 'Review', 'Completed'];
+
+        if (loading) {
+            return (
+                <div className="w-full h-full flex items-center justify-center bg-slate-50">
+                    <div className="text-center">
+                        <div className="animate-spin w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+                        <p className="text-slate-600">Loading projects...</p>
+                    </div>
+                </div>
+            );
+        }
 
         return (
             <div className="w-full h-full flex flex-col bg-slate-50 text-slate-800 relative font-sans">
@@ -73,13 +139,14 @@ export class Projects extends Component {
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                         </div>
                         <h1 className="font-bold text-xl tracking-tight text-slate-800">Alphery Projects</h1>
+                        <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full font-semibold">Shared Workspace</span>
                     </div>
                     <div className="flex items-center gap-3">
                         <div className="bg-slate-100 p-1 rounded-lg flex text-sm font-medium text-slate-600">
                             <button onClick={() => this.setState({ view: 'kanban' })} className={`px-3 py-1 rounded-md transition ${view === 'kanban' ? 'bg-white shadow text-emerald-600' : 'hover:bg-slate-200'}`}>Board</button>
                             <button onClick={() => this.setState({ view: 'list' })} className={`px-3 py-1 rounded-md transition ${view === 'list' ? 'bg-white shadow text-emerald-600' : 'hover:bg-slate-200'}`}>List</button>
                         </div>
-                        <button onClick={() => this.setState({ showModal: true, activeProject: null, newProject: { title: '', client: '', status: 'Planning', startDate: '', endDate: '', description: '' } })}
+                        <button onClick={() => this.setState({ showModal: true, activeProject: null, newProject: { title: '', client: '', status: 'Planning', startDate: '', endDate: '', description: '', progress: 0 } })}
                             className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg shadow-sm text-sm font-medium transition flex items-center gap-2">
                             <span>+ New Project</span>
                         </button>
@@ -220,21 +287,6 @@ export class Projects extends Component {
                                     <div>
                                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Progress ({newProject.progress || 0}%)</label>
                                         <input type="range" name="progress" min="0" max="100" value={newProject.progress || 0} onChange={this.handleInputChange} className="w-full accent-emerald-600" />
-                                    </div>
-                                )}
-
-                                {/* Audit Logs Preview */}
-                                {this.state.activeProject && this.state.activeProject.logs && (
-                                    <div className="bg-slate-50 rounded p-3 text-xs border border-slate-100">
-                                        <p className="font-bold text-slate-600 mb-2">Activity Log</p>
-                                        <ul className="space-y-1 text-slate-500 max-h-24 overflow-y-auto">
-                                            {this.state.activeProject.logs.map((log, i) => (
-                                                <li key={i} className="flex justify-between">
-                                                    <span>{log.action}</span>
-                                                    <span className="text-slate-400">{new Date(log.date).toLocaleDateString()}</span>
-                                                </li>
-                                            ))}
-                                        </ul>
                                     </div>
                                 )}
                             </div>
