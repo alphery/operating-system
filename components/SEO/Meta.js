@@ -4,7 +4,7 @@ import Head from 'next/head';
 export default function Meta() {
     return (
         <Head>
-            <title>QUBO</title>
+            <title>Alphery OS</title>
 
             <link rel="icon" href="/images/logos/Dark Logo H.png" />
             <link rel="apple-touch-icon" href="/images/logos/Dark Logo H.png" />
