@@ -234,13 +234,17 @@ export class Desktop extends Component {
 
         apps.forEach((app) => {
             // Filter apps based on user permissions
-            // If permissions is "all_apps", show everything.
-            // Otherwise, check if app.id is in permissions array.
+            // If no user is logged in yet, show all apps (or only public apps)
+            // If user is logged in, check permissions
             const user = this.props.user;
-            const hasPermission = user && (user.permissions.includes("all_apps") || user.permissions.includes(app.id));
 
-            // Core system apps should probably always be allowed or defined in config
-            // For now, assume strict permission based on the config I made
+            // Allow access if:
+            // 1. No user logged in yet (showing desktop while loading)
+            // 2. User exists and has "all_apps" permission
+            // 3. User exists and has specific permission for this app
+            const hasPermission = !user ||
+                (user.permissions && user.permissions.includes("all_apps")) ||
+                (user.permissions && user.permissions.includes(app.id));
 
             if (!hasPermission && user) {
                 // Skip this app if user doesn't have permission
