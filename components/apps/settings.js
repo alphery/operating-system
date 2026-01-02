@@ -148,14 +148,8 @@ export function Settings(props) {
     }, [settings]);
 
     const updateSetting = (key, value) => {
-        setSettings(prev => {
-            const newSettings = { ...prev, [key]: value };
-
-            // Apply settings immediately
-            applySettings(key, value);
-
-            return newSettings;
-        });
+        applySettings(key, value);
+        setSettings(prev => ({ ...prev, [key]: value }));
     };
 
     const applySettings = (key, value) => {
@@ -171,6 +165,69 @@ export function Settings(props) {
             case 'accentColor':
                 root.style.setProperty('--accent-color', value);
                 root.style.setProperty('--ub-orange', value);
+                break;
+
+            case 'theme':
+                if (value === 'dark') {
+                    document.body.classList.add('dark-mode');
+                    document.body.classList.remove('light-mode');
+                    root.style.setProperty('--bg-primary', '#1e1e1e');
+                    root.style.setProperty('--bg-secondary', '#2d2d2d');
+                    root.style.setProperty('--text-primary', '#ffffff');
+                    root.style.setProperty('--text-secondary', '#b0b0b0');
+                } else if (value === 'light') {
+                    document.body.classList.remove('dark-mode');
+                    document.body.classList.add('light-mode');
+                    root.style.setProperty('--bg-primary', '#ffffff');
+                    root.style.setProperty('--bg-secondary', '#f5f5f5');
+                    root.style.setProperty('--text-primary', '#000000');
+                    root.style.setProperty('--text-secondary', '#666666');
+                } else if (value === 'auto') {
+                    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    if (prefersDark) {
+                        document.body.classList.add('dark-mode');
+                        document.body.classList.remove('light-mode');
+                        root.style.setProperty('--bg-primary', '#1e1e1e');
+                        root.style.setProperty('--bg-secondary', '#2d2d2d');
+                        root.style.setProperty('--text-primary', '#ffffff');
+                        root.style.setProperty('--text-secondary', '#b0b0b0');
+                    } else {
+                        document.body.classList.remove('dark-mode');
+                        document.body.classList.add('light-mode');
+                        root.style.setProperty('--bg-primary', '#ffffff');
+                        root.style.setProperty('--bg-secondary', '#f5f5f5');
+                        root.style.setProperty('--text-primary', '#000000');
+                        root.style.setProperty('--text-secondary', '#666666');
+                    }
+                }
+                break;
+
+            case 'darkMode':
+                if (value) {
+                    document.body.classList.add('dark-mode');
+                    document.body.classList.remove('light-mode');
+                    root.style.setProperty('--bg-primary', '#1e1e1e');
+                    root.style.setProperty('--bg-secondary', '#2d2d2d');
+                } else {
+                    document.body.classList.remove('dark-mode');
+                    document.body.classList.add('light-mode');
+                    root.style.setProperty('--bg-primary', '#ffffff');
+                    root.style.setProperty('--bg-secondary', '#f5f5f5');
+                }
+                break;
+
+            case 'transparency':
+                if (value) {
+                    document.body.classList.add('transparency-enabled');
+                    root.style.setProperty('--window-transparency', '0.85');
+                    root.style.setProperty('--backdrop-blur', '12px');
+                    root.style.setProperty('--panel-opacity', '0.8');
+                } else {
+                    document.body.classList.remove('transparency-enabled');
+                    root.style.setProperty('--window-transparency', '1');
+                    root.style.setProperty('--backdrop-blur', '0px');
+                    root.style.setProperty('--panel-opacity', '1');
+                }
                 break;
 
             case 'brightness':
@@ -208,11 +265,95 @@ export function Settings(props) {
                 break;
 
             case 'volume':
-                // Store for potential audio elements
                 localStorage.setItem('system_volume', value);
+                window.dispatchEvent(new CustomEvent('system_volume_change', { detail: value }));
+                break;
+
+            case 'wifiEnable':
+                localStorage.setItem('system_wifi', value);
+                window.dispatchEvent(new CustomEvent('system_wifi_change', { detail: value }));
+                break;
+
+            case 'bluetoothEnable':
+                localStorage.setItem('system_bluetooth', value);
+                window.dispatchEvent(new CustomEvent('system_bluetooth_change', { detail: value }));
+                break;
+
+            case 'highContrast':
+                if (value) {
+                    document.body.classList.add('high-contrast-mode');
+                    root.style.setProperty('--contrast-multiplier', '1.5');
+                } else {
+                    document.body.classList.remove('high-contrast-mode');
+                    root.style.setProperty('--contrast-multiplier', '1');
+                }
+                break;
+
+            case 'reduceMotion':
+                if (value) {
+                    document.body.classList.add('reduce-motion');
+                    root.style.setProperty('--transition-duration', '0s');
+                    root.style.setProperty('--animation-duration', '0s');
+                } else {
+                    document.body.classList.remove('reduce-motion');
+                    root.style.setProperty('--transition-duration', '0.2s');
+                    root.style.setProperty('--animation-duration', '0.3s');
+                }
+                break;
+
+            case 'screenReader':
+                localStorage.setItem('system_screen_reader', value);
+                if (value) {
+                    document.body.setAttribute('aria-live', 'polite');
+                } else {
+                    document.body.removeAttribute('aria-live');
+                }
+                break;
+
+            case 'largeText':
+                if (value) {
+                    root.style.setProperty('--base-font-size', '20px');
+                    document.body.classList.add('large-text-mode');
+                } else {
+                    root.style.setProperty('--base-font-size', '16px');
+                    document.body.classList.remove('large-text-mode');
+                }
+                break;
+
+            case 'cursorSize':
+                const cursorSizes = {
+                    small: '1',
+                    medium: '1.5',
+                    large: '2'
+                };
+                root.style.setProperty('--cursor-size', cursorSizes[value] || '1');
+                document.body.style.cursor = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="${24 * (cursorSizes[value] || 1)}" height="${24 * (cursorSizes[value] || 1)}" viewBox="0 0 24 24"><path fill="white" stroke="black" d="M5 3l14 9-6 1-3 6z"/></svg>'), auto`;
+                break;
+
+            case 'muteSound':
+                localStorage.setItem('system_mute', value);
+                window.dispatchEvent(new CustomEvent('system_mute_change', { detail: value }));
+                break;
+
+            case 'alertVolume':
+                localStorage.setItem('system_alert_volume', value);
+                break;
+
+            case 'doNotDisturb':
+                localStorage.setItem('system_dnd', value);
+                window.dispatchEvent(new CustomEvent('system_dnd_change', { detail: value }));
+                break;
+
+            case 'showPreviews':
+            case 'soundAlerts':
+            case 'notificationPosition':
+                localStorage.setItem(`system_${key}`, value);
+                window.dispatchEvent(new CustomEvent(`system_${key}_change`, { detail: value }));
                 break;
 
             default:
+                // For any other settings, just store in localStorage
+                localStorage.setItem(`system_${key}`, typeof value === 'object' ? JSON.stringify(value) : value);
                 break;
         }
     };

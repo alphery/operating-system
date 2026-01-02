@@ -1,6 +1,17 @@
+:root {
+    --base-font-size: 16px;
+    --accent-color: #E95420;
+    --ub-orange: #E95420;
+}
+
+html {
+    font-size: var(--base-font-size);
+}
+
 body {
     font-family: 'Ubuntu', sans-serif;
-    font-display: swap
+    font-display: swap;
+    /* transition: font-size 0.2s ease; */
 }
 
 /* Top NavBar styling */
