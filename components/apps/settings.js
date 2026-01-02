@@ -163,7 +163,7 @@ export function Settings(props) {
 
         switch (key) {
             case 'wallpaper':
-                if (props.changeBackgroundImage) {
+                if (props.changeBackgroundImage && value !== props.currBgImgName) {
                     props.changeBackgroundImage(value);
                 }
                 break;
