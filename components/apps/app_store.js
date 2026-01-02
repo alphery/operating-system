@@ -26,6 +26,19 @@ class AppStore extends Component {
         }
     }
 
+    componentDidUpdate(prevProps) {
+        // Sync if user changes
+        if (prevProps.user?.uid !== this.props.user?.uid) {
+            this.setState({
+                disabled_apps: this.getDisabledApps()
+            });
+        }
+        // Sync apps if they were previously empty (window.ALL_APPS populate delay)
+        if (this.state.apps.length === 0 && window.ALL_APPS && window.ALL_APPS.length > 0) {
+            this.setState({ apps: window.ALL_APPS });
+        }
+    }
+
     getDisabledApps = () => {
         if (!this.props.user) return [];
         const key = `disabled_apps_${this.props.user.uid}`;
@@ -74,8 +87,8 @@ class AppStore extends Component {
                 {/* Header */}
                 <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between shadow-sm sticky top-0 z-10">
                     <div className="flex items-center gap-3">
-                        <div className="bg-blue-600 p-2 rounded-lg text-white">
-                            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"></path></svg>
+                        <div className="w-10 h-10 rounded-2xl overflow-hidden shadow-sm">
+                            <img src="./themes/Yaru/apps/app_store.png" alt="App Store" className="w-full h-full object-cover" />
                         </div>
                         <h1 className="text-xl font-bold text-gray-800">App Store</h1>
                     </div>
@@ -101,7 +114,7 @@ class AppStore extends Component {
 
                             return (
                                 <div key={app.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center gap-4 hover:shadow-md transition-shadow">
-                                    <img src={app.icon} alt={app.title} className="w-14 h-14 object-contain rounded-xl" />
+                                    <img src={app.icon} alt={app.title} className="w-14 h-14 object-contain rounded-2xl" />
                                     <div className="flex-1 min-w-0">
                                         <h3 className="font-bold text-gray-800 truncate">{app.title}</h3>
                                         <p className="text-xs text-gray-500">{isSystem ? 'System App' : (isInstalled ? 'Installed' : 'Not Installed')}</p>
@@ -110,13 +123,13 @@ class AppStore extends Component {
                                         onClick={() => this.toggleApp(app.id)}
                                         disabled={isSystem}
                                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${isSystem
-                                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                                : isInstalled
-                                                    ? 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-200'
-                                                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                            : isInstalled
+                                                ? 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-200'
+                                                : 'bg-blue-600 text-white hover:bg-blue-700'
                                             }`}
                                     >
-                                        {isSystem ? 'Systems' : (isInstalled ? 'Uninstall' : 'Install')}
+                                        {isSystem ? 'System' : (isInstalled ? 'Uninstall' : 'Install')}
                                     </button>
                                 </div>
                             );

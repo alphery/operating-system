@@ -4,7 +4,7 @@ import { displaySettings } from './components/apps/settings';
 import { displayChrome } from './components/apps/chrome';
 import { displayTrash } from './components/apps/trash';
 import { displayGedit } from './components/apps/gedit';
-import { displayAboutAnurag } from './components/apps/anurag';
+import { displayAboutAjith } from './components/apps/anurag';
 import { displayCalculator } from './components/apps/calc';
 import { displayERPDashboard } from './components/apps/erp_dashboard';
 import { displayCRM } from './components/apps/crm';
@@ -125,13 +125,13 @@ const apps = [
         screen: displaySettings,
     },
     {
-        id: "about-anurag",
-        title: "About Anurag",
+        id: "about-ajith",
+        title: "About Ajith",
         icon: './themes/Yaru/system/user-home.png',
         disabled: false,
         favourite: false,
         desktop_shortcut: true,
-        screen: displayAboutAnurag,
+        screen: displayAboutAjith,
     },
     {
         id: "gedit",
@@ -154,7 +154,7 @@ const apps = [
     {
         id: "app-store",
         title: "App Store",
-        icon: './themes/Yaru/system/view-app-grid-symbolic.svg',
+        icon: './themes/Yaru/apps/app_store.png',
         disabled: false,
         favourite: false,
         desktop_shortcut: true,

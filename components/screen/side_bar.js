@@ -97,7 +97,7 @@ export function AllApps(props) {
             <img
                 width={`${28 * scale}px`}
                 height={`${28 * scale}px`}
-                className="w-full h-full object-contain p-1.5"
+                className="w-full h-full object-contain p-1.5 rounded-2xl"
                 src="./themes/Yaru/system/view-app-grid-symbolic.svg"
                 alt="Ubuntu view app"
             />

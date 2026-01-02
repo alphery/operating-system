@@ -91,7 +91,7 @@ export class AllApplications extends React.Component {
                                 <img className="w-4 h-4 opacity-50 group-focus-within:opacity-100 transition-opacity" alt="search icon" src={'./images/logos/search.png'} />
                             </div>
                             <input
-                                className="w-full bg-white bg-opacity-10 text-white placeholder-gray-300 border border-white border-opacity-10 rounded-lg py-2 pl-10 pr-4 focus:outline-none focus:bg-opacity-20 focus:border-opacity-30 transition-all text-center placeholder:text-center focus:text-left focus:placeholder:text-left shadow-lg backdrop-blur-md"
+                                className="w-full bg-white bg-opacity-10 text-white placeholder-gray-300 border border-white border-opacity-10 rounded-2xl py-2 pl-10 pr-4 focus:outline-none focus:bg-opacity-20 focus:border-opacity-30 transition-all text-center placeholder:text-center focus:text-left focus:placeholder:text-left shadow-lg backdrop-blur-md"
                                 placeholder="Search"
                                 value={this.state.query}
                                 onChange={this.handleChange}

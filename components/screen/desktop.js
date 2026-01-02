@@ -142,8 +142,13 @@ export class Desktop extends Component {
         let desktop_apps = [];
 
         const userUid = this.props.user ? this.props.user.uid : 'guest';
+        const username = this.props.user ? this.props.user.username : 'guest';
         const storageKey = `disabled_apps_${userUid}`;
         const disabledFromStorage = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem(storageKey) || '[]') : [];
+
+        // Get user-specific favorites/desktop settings
+        const userFavorites = JSON.parse(localStorage.getItem(`${username}_favourite_apps`) || '{}');
+        const userDesktop = JSON.parse(localStorage.getItem(`${username}_desktop_apps`) || '[]');
 
         apps.forEach((app) => {
             const user = this.props.user;
@@ -158,11 +163,16 @@ export class Desktop extends Component {
             focused_windows[app.id] = false;
             closed_windows[app.id] = true;
             disabled_apps[app.id] = isDisabled;
-            favourite_apps[app.id] = app.favourite;
+
+            // Priority: User setting > Default config
+            favourite_apps[app.id] = userFavorites[app.id] !== undefined ? userFavorites[app.id] : app.favourite;
+
             overlapped_windows[app.id] = false;
             minimized_windows[app.id] = false;
 
-            if (app.desktop_shortcut) desktop_apps.push(app.id);
+            // Priority: User setting > Default config
+            const isOnDesktop = userDesktop.length > 0 ? userDesktop.includes(app.id) : app.desktop_shortcut;
+            if (isOnDesktop) desktop_apps.push(app.id);
         });
 
         this.setState({
@@ -325,11 +335,40 @@ export class Desktop extends Component {
     }
 
     addNewFolder = () => { this.setState({ showNameBar: true }); }
-    addToDesktop = () => { }
-    addAppToDesktop = () => { }
-    removeAppFromDesktop = () => { }
-    addAppToDock = () => { }
-    removeAppFromDock = () => { }
+
+    addToDesktop = (appId) => {
+        const username = this.props.user ? this.props.user.username : 'guest';
+        let desktop_apps = [...this.state.desktop_apps];
+        if (!desktop_apps.includes(appId)) desktop_apps.push(appId);
+        this.setState({ desktop_apps });
+        localStorage.setItem(`${username}_desktop_apps`, JSON.stringify(desktop_apps));
+    }
+
+    addAppToDesktop = (appId) => { this.addToDesktop(appId); }
+
+    removeAppFromDesktop = (appId) => {
+        const username = this.props.user ? this.props.user.username : 'guest';
+        let desktop_apps = this.state.desktop_apps.filter(id => id !== appId);
+        this.setState({ desktop_apps });
+        localStorage.setItem(`${username}_desktop_apps`, JSON.stringify(desktop_apps));
+    }
+
+    addAppToDock = (appId) => {
+        const username = this.props.user ? this.props.user.username : 'guest';
+        let favourite_apps = { ...this.state.favourite_apps };
+        favourite_apps[appId] = true;
+        this.setState({ favourite_apps });
+        localStorage.setItem(`${username}_favourite_apps`, JSON.stringify(favourite_apps));
+    }
+
+    removeAppFromDock = (appId) => {
+        const username = this.props.user ? this.props.user.username : 'guest';
+        let favourite_apps = { ...this.state.favourite_apps };
+        favourite_apps[appId] = false;
+        this.setState({ favourite_apps });
+        localStorage.setItem(`${username}_favourite_apps`, JSON.stringify(favourite_apps));
+    }
+
     handleAppContextMenu = (e, appId) => {
         e.preventDefault();
         e.stopPropagation();
@@ -337,6 +376,7 @@ export class Desktop extends Component {
         this.setState({ selectedAppId: appId });
         this.showContextMenu(e, "app");
     }
+
     showAllApps = () => { this.setState({ allAppsView: !this.state.allAppsView }) }
 
     render() {
@@ -393,8 +433,38 @@ export class Desktop extends Component {
 }
 
 function AppContextMenu({ active, appId, isFavourite, isOnDesktop, addToDesktop, removeFromDesktop, addToDock, removeFromDock }) {
-    return <div id="app-menu" className={(active ? " block " : " hidden ") + " cursor-default w-52 context-menu-bg border text-left font-light border-gray-900 rounded text-white py-2 absolute z-50 text-sm"}>
-    </div>
+    const handleAddToDesktop = (e) => { e.stopPropagation(); if (appId) addToDesktop(appId); };
+    const handleRemoveFromDesktop = (e) => { e.stopPropagation(); if (appId) removeFromDesktop(appId); };
+    const handleAddToDock = (e) => { e.stopPropagation(); if (appId) addToDock(appId); };
+    const handleRemoveFromDock = (e) => { e.stopPropagation(); if (appId) removeFromDock(appId); };
+
+    return (
+        <div id="app-menu" className={(active ? " block " : " hidden ") + " cursor-default w-52 context-menu-bg border text-left font-light border-gray-900 rounded text-white py-2 absolute z-50 text-sm shadow-xl backdrop-blur-md bg-opacity-80"}>
+            {!isOnDesktop ? (
+                <div onClick={handleAddToDesktop} className="w-full py-1.5 px-4 hover:bg-white hover:bg-opacity-10 cursor-pointer flex items-center gap-2">
+                    <span className="w-4 h-4 text-xs flex items-center justify-center">+</span>
+                    <span>Add to Desktop</span>
+                </div>
+            ) : (
+                <div onClick={handleRemoveFromDesktop} className="w-full py-1.5 px-4 hover:bg-white hover:bg-opacity-10 cursor-pointer flex items-center gap-2">
+                    <span className="w-4 h-4 text-xs flex items-center justify-center">−</span>
+                    <span>Remove from Desktop</span>
+                </div>
+            )}
+
+            {!isFavourite ? (
+                <div onClick={handleAddToDock} className="w-full py-1.5 px-4 hover:bg-white hover:bg-opacity-10 cursor-pointer flex items-center gap-2">
+                    <span className="w-4 h-4 text-xs flex items-center justify-center">★</span>
+                    <span>Add to Dock</span>
+                </div>
+            ) : (
+                <div onClick={handleRemoveFromDock} className="w-full py-1.5 px-4 hover:bg-white hover:bg-opacity-10 cursor-pointer flex items-center gap-2">
+                    <span className="w-4 h-4 text-xs flex items-center justify-center">☆</span>
+                    <span>Remove from Dock</span>
+                </div>
+            )}
+        </div>
+    );
 }
 
 export default Desktop;

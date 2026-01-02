@@ -1,7 +1,7 @@
 import React, { Component } from 'react';
 import ReactGA from 'react-ga';
 
-export class AboutAnurag extends Component {
+export class AboutAjith extends Component {
 
     constructor() {
         super();
@@ -54,23 +54,23 @@ export class AboutAnurag extends Component {
         return (
             <>
                 <div id="about" tabIndex="0" onFocus={this.changeScreen} className={(this.state.active_screen === "about" ? " bg-ub-orange bg-opacity-100 hover:bg-opacity-95" : " hover:bg-gray-50 hover:bg-opacity-5 ") + " w-28 md:w-full md:rounded-none rounded-sm cursor-default outline-none py-1.5 focus:outline-none duration-100 my-0.5 flex justify-start items-center pl-2 md:pl-2.5"}>
-                    <img className=" w-3 md:w-4" alt="about anurag" src="./themes/Yaru/status/about.svg" />
+                    <img className=" w-3 md:w-4" alt="about ajith" src="./themes/Yaru/status/about.svg" />
                     <span className=" ml-1 md:ml-2 text-gray-50 ">About Me</span>
                 </div>
                 <div id="education" tabIndex="0" onFocus={this.changeScreen} className={(this.state.active_screen === "education" ? " bg-ub-orange bg-opacity-100 hover:bg-opacity-95" : " hover:bg-gray-50 hover:bg-opacity-5 ") + " w-28 md:w-full md:rounded-none rounded-sm cursor-default outline-none py-1.5 focus:outline-none duration-100 my-0.5 flex justify-start items-center pl-2 md:pl-2.5"}>
-                    <img className=" w-3 md:w-4" alt="anurag's education" src="./themes/Yaru/status/education.svg" />
+                    <img className=" w-3 md:w-4" alt="ajith's education" src="./themes/Yaru/status/education.svg" />
                     <span className=" ml-1 md:ml-2 text-gray-50 ">Education</span>
                 </div>
                 <div id="skills" tabIndex="0" onFocus={this.changeScreen} className={(this.state.active_screen === "skills" ? " bg-ub-orange bg-opacity-100 hover:bg-opacity-95" : " hover:bg-gray-50 hover:bg-opacity-5 ") + " w-28 md:w-full md:rounded-none rounded-sm cursor-default outline-none py-1.5 focus:outline-none duration-100 my-0.5 flex justify-start items-center pl-2 md:pl-2.5"}>
-                    <img className=" w-3 md:w-4" alt="anurag's skills" src="./themes/Yaru/status/skills.svg" />
+                    <img className=" w-3 md:w-4" alt="ajith's skills" src="./themes/Yaru/status/skills.svg" />
                     <span className=" ml-1 md:ml-2 text-gray-50 ">Skills</span>
                 </div>
                 <div id="projects" tabIndex="0" onFocus={this.changeScreen} className={(this.state.active_screen === "projects" ? " bg-ub-orange bg-opacity-100 hover:bg-opacity-95" : " hover:bg-gray-50 hover:bg-opacity-5 ") + " w-28 md:w-full md:rounded-none rounded-sm cursor-default outline-none py-1.5 focus:outline-none duration-100 my-0.5 flex justify-start items-center pl-2 md:pl-2.5"}>
-                    <img className=" w-3 md:w-4" alt="anurag's projects" src="./themes/Yaru/status/projects.svg" />
+                    <img className=" w-3 md:w-4" alt="ajith's projects" src="./themes/Yaru/status/projects.svg" />
                     <span className=" ml-1 md:ml-2 text-gray-50 ">Projects</span>
                 </div>
                 <div id="resume" tabIndex="0" onFocus={this.changeScreen} className={(this.state.active_screen === "resume" ? " bg-ub-orange bg-opacity-100 hover:bg-opacity-95" : " hover:bg-gray-50 hover:bg-opacity-5 ") + " w-28 md:w-full md:rounded-none rounded-sm cursor-default outline-none py-1.5 focus:outline-none duration-100 my-0.5 flex justify-start items-center pl-2 md:pl-2.5"}>
-                    <img className=" w-3 md:w-4" alt="anurag's resume" src="./themes/Yaru/status/download.svg" />
+                    <img className=" w-3 md:w-4" alt="ajith's resume" src="./themes/Yaru/status/download.svg" />
                     <span className=" ml-1 md:ml-2 text-gray-50 ">Resume</span>
                 </div>
             </>
@@ -99,35 +99,34 @@ export class AboutAnurag extends Component {
     }
 }
 
-export default AboutAnurag;
+export default AboutAjith;
 
-export const displayAboutAnurag = () => {
-    return <AboutAnurag />;
+export const displayAboutAjith = () => {
+    return <AboutAjith />;
 }
 
 
 function About() {
     return (
         <>
-            <div className="w-20 md:w-28 my-4 bg-white rounded-full">
-                <img className="w-full" src="./images/logos/me.jpg" alt="Logo" />
+            <div className="w-20 md:w-28 my-4 bg-white rounded-full overflow-hidden">
+                <img className="w-full h-full object-cover" src="./images/Ajith.jpg" alt="Ajith Kumar.S" />
             </div>
             <div className=" mt-4 md:mt-8 text-lg md:text-2xl text-center px-1">
-                <div>This is <span className="font-bold">Anurag Pathak</span> ,</div>
-                <div className="font-normal ml-1">I'm a <span className="text-pink-600 font-bold">Software developer</span></div>
+                <div>This is <span className="font-bold">Ajith Kumar.S</span> ,</div>
+                <div className="font-normal ml-1">I'm a <span className="text-pink-600 font-bold">MSC IT Student</span></div>
             </div>
             <div className=" mt-4 relative md:my-8 pt-px bg-white w-32 md:w-48">
                 <div className="bg-white absolute rounded-full p-0.5 md:p-1 top-0 transform -translate-y-1/2 left-0"></div>
                 <div className="bg-white absolute rounded-full p-0.5 md:p-1 top-0 transform -translate-y-1/2 right-0"></div>
             </div>
             <ul className=" mt-4 leading-tight tracking-tight text-sm md:text-base w-5/6 md:w-3/4 emoji-list">
-                <li className=" list-pc">I'm an <span className=" font-medium">Undergraduate Student</span> currently pursuing Computer Science from GL Bajaj Institute of Technology and Management, and I'm open for internship opportunities!</li>
-                <li className=" mt-3 list-star"> I have interest in Web development and Machine learning</li>
-                <li className=" mt-3 list-time"> Other than coding, I love to study about human pshycology and watching science fiction movies</li>
+                <li className=" list-pc">I'm a <span className=" font-medium">MSC IT Student</span> currently studying at <span className="font-medium">Sri Krishna College of Arts and Science</span>.</li>
+                <li className=" mt-3 list-star"> I have studied Full stack and new generation AI technologies.</li>
                 <li className=" mt-3 list-social">Connect with me -
-                    <p><u><a href="https://www.linkedin.com/in/anuragpathak0/" target="_blank" rel="noreferrer">Linkedin</a></u></p>
-                    <p><u><a href="https://github.com/ANURAG-PATHAK" target="_blank" rel="noreferrer">GitHub</a></u></p>
-                    <p><u><a className='text-underline' href='mailto:pathakanurag605@gmail.com'><u>GMail</u></a></u></p>
+                    <p><u><a href="https://www.linkedin.com/in/ajith-kumar-s/" target="_blank" rel="noreferrer">Linkedin</a></u></p>
+                    <p><u><a href="https://github.com/ajith" target="_blank" rel="noreferrer">GitHub</a></u></p>
+                    <p><u><a className='text-underline' href='mailto:ajith@gmail.com'><u>GMail</u></a></u></p>
                 </li>
             </ul>
         </>
@@ -146,25 +145,10 @@ function Education() {
             <ul className=" w-10/12  mt-4 ml-4 px-0 md:px-1">
                 <li className="list-disc">
                     <div className=" text-lg md:text-xl text-left font-bold leading-tight">
-                        GL Bajaj Institute of Technology and Management
+                        Sri Krishna College of Arts and Science
                     </div>
-                    <div className=" text-sm text-gray-400 mt-0.5">2020 - 2024</div>
-                    <div className=" text-sm md:text-base">Computer Science and Engineering</div>
-                </li>
-                <li className="list-disc mt-5">
-                    <div className=" text-lg md:text-xl text-left font-bold leading-tight">
-                        Class 12<sup>th</sup> (Army Public School, Lucknow)
-                    </div>
-                    <div className=" text-sm text-gray-400 mt-0.5">2018 - 2019</div>
-                    <div className=" text-sm md:text-base">Maths, Physics, Chemistry</div>
-                    <div className="text-sm text-gray-300 font-bold mt-1">Percentage &nbsp; 81.4%</div>
-                </li>
-                <li className="list-disc mt-5">
-                    <div className=" text-lg md:text-xl text-left font-bold leading-tight">
-                        Class 10<sup>th</sup> (Army Public School, Lucknow)
-                    </div>
-                    <div className=" text-sm text-gray-400 mt-0.5">2016 - 2017</div>
-                    <div className="text-sm text-gray-300 font-bold mt-1">CGPA - 10</div>
+                    <div className=" text-sm text-gray-400 mt-0.5">2024 - Present</div>
+                    <div className=" text-sm md:text-base">MSC Information Technology</div>
                 </li>
             </ul>
         </>
