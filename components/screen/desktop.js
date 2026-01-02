@@ -34,8 +34,13 @@ export class Desktop extends Component {
             },
             selectedAppId: null,
             showNameBar: false,
+            sortOrder: "name",
+            displaySize: "medium"
         }
     }
+
+    changeSortOrder = (order) => { this.setState({ sortOrder: order }); }
+    changeDisplaySize = (size) => { this.setState({ displaySize: size }); }
 
     componentDidMount() {
         // ReactGA.pageview("/desktop"); // Removed: GA not initialized
@@ -302,18 +307,27 @@ export class Desktop extends Component {
     renderDesktopApps = () => {
         if (Object.keys(this.state.closed_windows).length === 0) return;
         let appsJsx = [];
-        apps.forEach((app, index) => {
-            if (this.state.desktop_apps.includes(app.id) && !this.state.disabled_apps[app.id]) {
-                const props = {
-                    name: app.title,
-                    id: app.id,
-                    icon: app.icon,
-                    openApp: this.openApp,
-                    isDesktop: true,
-                    onContextMenu: this.handleAppContextMenu
-                }
-                appsJsx.push(<UbuntuApp key={index} {...props} />);
+
+        // Filter and Sort
+        let appsToRender = apps.filter(app =>
+            this.state.desktop_apps.includes(app.id) && !this.state.disabled_apps[app.id]
+        );
+
+        if (this.state.sortOrder === "name") {
+            appsToRender.sort((a, b) => a.title.localeCompare(b.title));
+        }
+
+        appsToRender.forEach((app, index) => {
+            const props = {
+                name: app.title,
+                id: app.id,
+                icon: app.icon,
+                openApp: this.openApp,
+                isDesktop: true,
+                onContextMenu: this.handleAppContextMenu,
+                displaySize: this.state.displaySize
             }
+            appsJsx.push(<UbuntuApp key={app.id} {...props} />);
         });
         return appsJsx;
     }
@@ -413,7 +427,15 @@ export class Desktop extends Component {
 
                 {this.renderDesktopApps()}
 
-                <DesktopMenu active={this.state.context_menus.desktop} openApp={this.openApp} addNewFolder={this.addNewFolder} />
+                <DesktopMenu
+                    active={this.state.context_menus.desktop}
+                    openApp={this.openApp}
+                    addNewFolder={this.addNewFolder}
+                    changeSortOrder={this.changeSortOrder}
+                    changeDisplaySize={this.changeDisplaySize}
+                    sortOrder={this.state.sortOrder}
+                    displaySize={this.state.displaySize}
+                />
                 <DefaultMenu active={this.state.context_menus.default} />
                 <AppContextMenu
                     active={this.state.context_menus.app}

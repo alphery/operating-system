@@ -11,6 +11,9 @@ import { displayUserManager } from './components/apps/user_manager';
 import { displayMessenger } from './components/apps/messenger';
 import { displayAppStore } from './components/apps/app_store';
 import { displayFileManager } from './components/apps/file_manager';
+import { displayTodo } from './components/apps/todo';
+import { displayWeather } from './components/apps/weather';
+import { displayCalendar } from './components/apps/calendar';
 
 const apps = [
     {
@@ -105,12 +108,39 @@ const apps = [
     },
     {
         id: "gedit",
-        title: "Contact Me",
+        title: "Text Editor",
         icon: './themes/Yaru/apps/gedit.png',
         disabled: false,
-        favourite: false,
+        favourite: true,
         desktop_shortcut: true,
         screen: displayGedit,
+    },
+    {
+        id: "todo",
+        title: "To-Do",
+        icon: './themes/Yaru/apps/todo.svg',
+        disabled: false,
+        favourite: true,
+        desktop_shortcut: true,
+        screen: displayTodo,
+    },
+    {
+        id: "weather",
+        title: "Weather",
+        icon: './themes/Yaru/apps/weather.svg',
+        disabled: false,
+        favourite: true,
+        desktop_shortcut: true,
+        screen: displayWeather,
+    },
+    {
+        id: "calendar",
+        title: "Calendar",
+        icon: './themes/Yaru/apps/calendar.svg',
+        disabled: false,
+        favourite: true,
+        desktop_shortcut: true,
+        screen: displayCalendar,
     },
     {
         id: "trash",

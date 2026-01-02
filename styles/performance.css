@@ -47,7 +47,6 @@ body {
 /* Smooth window dragging */
 .react-draggable-dragging {
   transition: none !important;
-  cursor: grabbing !important;
 }
 
 /* === Interactive Elements (Buttons, Links) === */

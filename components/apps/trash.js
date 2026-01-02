@@ -63,7 +63,7 @@ export class Trash extends Component {
 
     showTrashItems = () => {
         return (
-            <div className="flex-grow ml-4 flex flex-wrap items-start content-start justify-start overflow-y-auto windowMainScreen">
+            <div className="flex-grow ml-4 flex flex-wrap items-start content-start justify-start overflow-y-auto">
                 {
                     this.trashItems.map((item, index) => {
                         return (

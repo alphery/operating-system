@@ -68,7 +68,7 @@ export class Window extends Component {
         if (this.state.maximized) {
             this.restoreWindow();
         }
-        this.setState({ cursorType: "cursor-move" })
+        this.setState({ cursorType: "cursor-default" })
     }
 
     changeCursorToDefault = () => {
@@ -82,7 +82,11 @@ export class Window extends Component {
             width: newWidth,
             height: newHeight,
             ...position
-        }, this.resizeBoundries);
+        }, () => {
+            this.resizeBoundries();
+            // Force re-render of app content after resize
+            this.forceUpdate();
+        });
     }
 
     handleDrag = (e, d) => {
@@ -138,6 +142,8 @@ export class Window extends Component {
         setTimeout(() => {
             this.setState({ maximized: false });
             this.checkOverlap();
+            // Force re-render of app content after restore
+            this.forceUpdate();
         }, 300);
     }
 
@@ -157,8 +163,11 @@ export class Window extends Component {
                 width: 100.2,
                 x: 0,
                 y: 0
+            }, () => {
+                this.props.hideSideBar(this.id, true);
+                // Force re-render of app content after maximize
+                setTimeout(() => this.forceUpdate(), 50);
             });
-            this.props.hideSideBar(this.id, true);
         }
     }
 
@@ -280,7 +289,7 @@ export class WindowMainScreen extends Component {
     }
     render() {
         return (
-            <div className={"w-full flex-grow z-20 max-h-full overflow-y-auto windowMainScreen" + (this.state.setDarkBg ? " bg-ub-drk-abrgn " : " bg-ub-cool-grey")}>
+            <div className={"w-full flex-grow z-20 max-h-full overflow-y-auto windowMainScreen resize-responsive" + (this.state.setDarkBg ? " bg-ub-drk-abrgn " : " bg-ub-cool-grey")}>
                 {this.props.addFolder ? displayTerminal(this.props.addFolder, this.props.openApp) : this.props.screen(this.props.openApp)}
             </div>
         )

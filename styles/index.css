@@ -269,3 +269,50 @@ input[type=range].ubuntu-slider::-webkit-slider-thumb {
 .list-arrow {
     list-style: "⇀";
 }
+
+/* ========== RESPONSIVE WINDOW CONTENT ========== */
+/* Ensure all app contents scale and fit properly when resized */
+
+.windowMainScreen {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+.windowMainScreen>* {
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+    box-sizing: border-box;
+}
+
+/* Ensure iframe-like apps scale properly */
+.windowMainScreen iframe,
+.windowMainScreen canvas {
+    width: 100%;
+    height: 100%;
+}
+
+/* Fix for flex containers inside windows */
+.windowMainScreen .flex {
+    flex-shrink: 1;
+}
+
+/* Ensure scrollable content works properly */
+.windowMainScreen .overflow-auto,
+.windowMainScreen .overflow-y-auto,
+.windowMainScreen .overflow-x-auto {
+    overflow: auto;
+}
+
+/* Window resize animation for smooth transitions */
+.main-window {
+    transition: width 0.15s ease, height 0.15s ease;
+}
+
+/* Allow content to overflow with scroll when needed */
+.resize-responsive {
+    overflow-y: auto !important;
+}
