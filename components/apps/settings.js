@@ -1,7 +1,53 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 
+
+// Error Boundary Component
+class ErrorBoundary extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = { hasError: false, error: null, errorInfo: null };
+    }
+
+    static getDerivedStateFromError(error) {
+        return { hasError: true };
+    }
+
+    componentDidCatch(error, errorInfo) {
+        console.error("Settings App Crash:", error, errorInfo);
+        this.setState({ error, errorInfo });
+    }
+
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div className="w-full h-full flex flex-col items-center justify-center bg-gray-900 text-white p-8 text-center">
+                    <div className="text-6xl mb-4">⚠️</div>
+                    <h2 className="text-2xl font-bold mb-2">Something went wrong</h2>
+                    <p className="text-gray-400 mb-4">The Settings app encountered an error.</p>
+                    <button
+                        onClick={() => {
+                            localStorage.removeItem('system_settings');
+                            window.location.reload();
+                        }}
+                        className="px-4 py-2 bg-blue-600 rounded hover:bg-blue-700 transition-colors"
+                    >
+                        Reset Settings & Reload
+                    </button>
+                    <details className="mt-8 text-left bg-black bg-opacity-50 p-4 rounded text-xs font-mono max-w-full overflow-auto text-red-400">
+                        <summary className="cursor-pointer mb-2">Error Details</summary>
+                        {this.state.error && this.state.error.toString()}
+                    </details>
+                </div>
+            );
+        }
+
+        return this.props.children;
+    }
+}
+
 export function Settings(props) {
+
     const { user, userData } = useAuth();
     const [activeSection, setActiveSection] = useState('appearance');
 
@@ -989,37 +1035,39 @@ export function Settings(props) {
     };
 
     return (
-        <div className="w-full h-full flex bg-gray-900 text-white select-none overflow-hidden">
-            {/* Sidebar */}
-            <div className="w-64 bg-gray-800 bg-opacity-50 backdrop-blur-xl border-r border-gray-700 overflow-y-auto">
-                <div className="p-4">
-                    <h2 className="text-xl font-bold mb-4">Settings</h2>
-                    <div className="space-y-1">
-                        {sections.map((section) => (
-                            <button
-                                key={section.id}
-                                onClick={() => setActiveSection(section.id)}
-                                className={`w-full text-left px-4 py-3 rounded-xl transition-all flex items-center gap-3 ${activeSection === section.id
-                                    ? 'bg-blue-600 text-white shadow-lg'
-                                    : 'text-gray-300 hover:bg-gray-700 hover:bg-opacity-50'
-                                    }`}
-                            >
-                                <span className="text-xl">{section.icon}</span>
-                                <span className="font-medium">{section.label}</span>
-                            </button>
-                        ))}
+        <ErrorBoundary>
+            <div className="w-full h-full flex bg-gray-900 text-white select-none overflow-hidden">
+                {/* Sidebar */}
+                <div className="w-64 bg-gray-800 bg-opacity-50 backdrop-blur-xl border-r border-gray-700 overflow-y-auto">
+                    <div className="p-4">
+                        <h2 className="text-xl font-bold mb-4">Settings</h2>
+                        <div className="space-y-1">
+                            {sections.map((section) => (
+                                <button
+                                    key={section.id}
+                                    onClick={() => setActiveSection(section.id)}
+                                    className={`w-full text-left px-4 py-3 rounded-xl transition-all flex items-center gap-3 ${activeSection === section.id
+                                        ? 'bg-blue-600 text-white shadow-lg'
+                                        : 'text-gray-300 hover:bg-gray-700 hover:bg-opacity-50'
+                                        }`}
+                                >
+                                    <span className="text-xl">{section.icon}</span>
+                                    <span className="font-medium">{section.label}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Main Content */}
+                <div className="flex-1 overflow-y-auto">
+                    <div className="p-8">
+                        <h1 className="text-3xl font-bold mb-6 capitalize">{activeSection}</h1>
+                        {renderContent()}
                     </div>
                 </div>
             </div>
-
-            {/* Main Content */}
-            <div className="flex-1 overflow-y-auto">
-                <div className="p-8">
-                    <h1 className="text-3xl font-bold mb-6 capitalize">{activeSection}</h1>
-                    {renderContent()}
-                </div>
-            </div>
-        </div>
+        </ErrorBoundary>
     );
 }
 

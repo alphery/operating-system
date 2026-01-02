@@ -167,8 +167,17 @@ export class Desktop extends Component {
             // Priority: User setting > Default config
             favourite_apps[app.id] = userFavorites[app.id] !== undefined ? userFavorites[app.id] : app.favourite;
 
-            overlapped_windows[app.id] = false;
-            minimized_windows[app.id] = false;
+            if (this.state.closed_windows[app.id] !== undefined && !isDisabled) {
+                closed_windows[app.id] = this.state.closed_windows[app.id];
+                focused_windows[app.id] = this.state.focused_windows[app.id];
+                overlapped_windows[app.id] = this.state.overlapped_windows[app.id];
+                minimized_windows[app.id] = this.state.minimized_windows[app.id];
+            } else {
+                closed_windows[app.id] = true;
+                focused_windows[app.id] = false;
+                overlapped_windows[app.id] = false;
+                minimized_windows[app.id] = false;
+            }
 
             // Priority: User setting > Default config
             const isOnDesktop = userDesktop.length > 0 ? userDesktop.includes(app.id) : app.desktop_shortcut;
