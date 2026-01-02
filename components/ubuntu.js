@@ -67,8 +67,8 @@ export default function Ubuntu() {
 	const getLocalData = () => {
 		setTimeOutBootScreen();
 
-		let shutDown = localStorage.getItem('shut-down');
-		if (shutDown !== null && shutDown !== undefined && shutDown === 'true') {
+		let isShutDown = localStorage.getItem('shut-down');
+		if (isShutDown !== null && isShutDown !== undefined && isShutDown === 'true') {
 			shutDown();
 		} else {
 			// Show Firebase auth if user is not logged in
