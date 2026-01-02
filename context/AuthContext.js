@@ -100,6 +100,11 @@ export const AuthProvider = ({ children }) => {
     const loginWithGoogle = async () => {
         try {
             const provider = new GoogleAuthProvider();
+
+            // Request Google Drive access
+            provider.addScope('https://www.googleapis.com/auth/drive.file');
+            provider.addScope('https://www.googleapis.com/auth/drive');
+
             const credential = await signInWithPopup(auth, provider);
 
             // Check if user document exists, if not create it

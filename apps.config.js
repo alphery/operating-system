@@ -10,6 +10,7 @@ import { displayProject } from './components/apps/projects';
 import { displayUserManager } from './components/apps/user_manager';
 import { displayMessenger } from './components/apps/messenger';
 import { displayAppStore } from './components/apps/app_store';
+import { displayFileManager } from './components/apps/file_manager';
 
 const apps = [
     {
@@ -38,6 +39,15 @@ const apps = [
         favourite: false,
         desktop_shortcut: true,
         screen: displayProject,
+    },
+    {
+        id: "files",
+        title: "Files",
+        icon: './themes/Yaru/system/folder.png',
+        disabled: false,
+        favourite: true,
+        desktop_shortcut: true,
+        screen: displayFileManager,
     },
     {
         id: "chrome",
