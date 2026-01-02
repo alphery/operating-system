@@ -38,7 +38,7 @@ export class Desktop extends Component {
     }
 
     componentDidMount() {
-        ReactGA.pageview("/desktop");
+        // ReactGA.pageview("/desktop"); // Removed: GA not initialized
         this.fetchAppsData();
         this.setContextListeners();
         this.setEventListeners();

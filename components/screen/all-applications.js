@@ -7,15 +7,13 @@ export class AllApplications extends React.Component {
         this.state = {
             query: "",
             apps: [],
-            category: 0, // 0 for all, 1 for frequent
-            isAnimating: true
+            category: 0 // 0 for all, 1 for frequent
         }
     }
 
     componentDidMount() {
         this.setState({
-            apps: this.props.apps,
-            isAnimating: false // Start animation immediately
+            apps: this.props.apps
         });
     }
 
@@ -59,7 +57,15 @@ export class AllApplications extends React.Component {
             }
 
             appsJsx.push(
-                <UbuntuApp key={index} {...props} />
+                <div
+                    key={index}
+                    className="app-icon-wrapper"
+                    style={{
+                        animationDelay: `${index * 6}ms`
+                    }}
+                >
+                    <UbuntuApp {...props} />
+                </div>
             );
         });
         return appsJsx;
@@ -74,24 +80,27 @@ export class AllApplications extends React.Component {
     }
 
     render() {
+        const { isClosing } = this.state;
+
         return (
             <>
                 <div
                     onClick={(e) => {
-                        // Only close if clicking the background itself
-                        if (e.target === e.currentTarget) this.props.closeMenu ? this.props.closeMenu() : null;
+                        if (e.target === e.currentTarget) {
+                            e.stopPropagation();
+                            this.props.closeMenu?.();
+                        }
                     }}
-                    className={`fixed inset-0 z-50 bg-black bg-opacity-30 backdrop-blur-2xl transition-all duration-300 ease-out flex flex-col items-center justify-start pt-20 ${this.state.isAnimating ? 'opacity-0 scale-105' : 'opacity-100 scale-100'}`}
-                    style={{ animation: 'zoomIn 0.2s ease-out' }}
+                    className="all-apps-overlay"
                 >
-                    {/* Search Bar - Launchpad Style */}
-                    <div className="w-full max-w-md mb-12 px-4 z-50">
-                        <div className="relative group">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <img className="w-4 h-4 opacity-50 group-focus-within:opacity-100 transition-opacity" alt="search icon" src={'./images/logos/search.png'} />
+                    {/* Search Bar - macOS Launchpad Style */}
+                    <div className="search-container">
+                        <div className="search-wrapper">
+                            <div className="search-icon-wrapper">
+                                <img className="search-icon" alt="search icon" src={'./images/logos/search.png'} />
                             </div>
                             <input
-                                className="w-full bg-white bg-opacity-10 text-white placeholder-gray-300 border border-white border-opacity-10 rounded-2xl py-2 pl-10 pr-4 focus:outline-none focus:bg-opacity-20 focus:border-opacity-30 transition-all text-center placeholder:text-center focus:text-left focus:placeholder:text-left shadow-lg backdrop-blur-md"
+                                className="search-input"
                                 placeholder="Search"
                                 value={this.state.query}
                                 onChange={this.handleChange}
@@ -100,43 +109,269 @@ export class AllApplications extends React.Component {
                         </div>
                     </div>
 
-                    {/* Apps Grid - Launchpad Style */}
+                    {/* Apps Grid - macOS Launchpad Style */}
                     <div
-                        className="w-full max-w-6xl flex-1 overflow-y-auto custom-scrollbar px-4 sm:px-10 pb-20"
+                        className="apps-grid-container"
                         onClick={(e) => {
-                            // If clicking in the grid empty space, close. 
-                            // But Grid items stop propagation? UbuntuApp should probably not propagate if clicked, but let's be safe.
-                            if (e.target === e.currentTarget) this.props.closeMenu ? this.props.closeMenu() : null;
+                            if (e.target === e.currentTarget) {
+                                e.stopPropagation();
+                                this.props.closeMenu?.();
+                            }
                         }}
                     >
-                        <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 gap-y-10 gap-x-4 justify-items-center">
+                        <div className="apps-grid">
                             {this.renderApps()}
                         </div>
 
                         {/* Empty State */}
                         {this.state.apps.length === 0 && (
-                            <div className="flex flex-col items-center justify-center h-64 text-white opacity-60">
-                                <span className="text-xl">No apps found</span>
+                            <div className="empty-state">
+                                <span className="empty-text">No apps found</span>
                             </div>
                         )}
                     </div>
                 </div>
 
                 <style jsx>{`
-                    @keyframes zoomIn {
+                    /* === macOS Launchpad Animation System === */
+                    
+                    .all-apps-overlay {
+                        position: fixed;
+                        inset: 0;
+                        z-index: 50;
+                        background: rgba(0, 0, 0, 0.4);
+                        backdrop-filter: blur(40px) saturate(180%);
+                        -webkit-backdrop-filter: blur(40px) saturate(180%);
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: flex-start;
+                        padding-top: 5rem;
+                        
+                        /* GPU Acceleration */
+                        will-change: opacity, transform;
+                        transform: translate3d(0, 0, 0);
+                        backface-visibility: hidden;
+                        perspective: 1000px;
+                        
+                        /* Opening Animation - macOS style */
+                        animation: launchpadOpen 150ms cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+                    }
+                    
+                    .all-apps-overlay.closing {
+                        animation: launchpadClose 120ms cubic-bezier(0.42, 0, 1, 1) forwards;
+                    }
+                    
+                    @keyframes launchpadOpen {
                         from {
                             opacity: 0;
-                            transform: scale(1.1);
+                            transform: translate3d(0, 0, 0) scale(1.15);
                         }
                         to {
                             opacity: 1;
-                            transform: scale(1);
+                            transform: translate3d(0, 0, 0) scale(1);
                         }
                     }
                     
-                    /* Hide scrollbar for cleaner look implicitly, or keep custom if needed */
-                    .custom-scrollbar::-webkit-scrollbar {
-                        width: 0px; /* Hidden scrollbar for Launchpad look */
+                    @keyframes launchpadClose {
+                        from {
+                            opacity: 1;
+                            transform: translate3d(0, 0, 0) scale(1);
+                        }
+                        to {
+                            opacity: 0;
+                            transform: translate3d(0, 0, 0) scale(1.1);
+                        }
+                    }
+                    
+                    /* === Search Bar === */
+                    
+                    .search-container {
+                        width: 100%;
+                        max-width: 28rem;
+                        margin-bottom: 3rem;
+                        padding: 0 1rem;
+                        z-index: 60;
+                        animation: searchFadeIn 150ms cubic-bezier(0.25, 0.1, 0.25, 1) 30ms backwards;
+                    }
+                    
+                    @keyframes searchFadeIn {
+                        from {
+                            opacity: 0;
+                            transform: translate3d(0, -10px, 0);
+                        }
+                        to {
+                            opacity: 1;
+                            transform: translate3d(0, 0, 0);
+                        }
+                    }
+                    
+                    .search-wrapper {
+                        position: relative;
+                        will-change: transform;
+                        transform: translate3d(0, 0, 0);
+                    }
+                    
+                    .search-icon-wrapper {
+                        position: absolute;
+                        top: 0;
+                        bottom: 0;
+                        left: 0;
+                        padding-left: 0.75rem;
+                        display: flex;
+                        align-items: center;
+                        pointer-events: none;
+                    }
+                    
+                    .search-icon {
+                        width: 1rem;
+                        height: 1rem;
+                        opacity: 0.5;
+                        transition: opacity 120ms cubic-bezier(0.25, 0.1, 0.25, 1);
+                    }
+                    
+                    .search-input {
+                        width: 100%;
+                        background: rgba(255, 255, 255, 0.12);
+                        color: white;
+                        border: 1px solid rgba(255, 255, 255, 0.1);
+                        border-radius: 1rem;
+                        padding: 0.5rem 1rem 0.5rem 2.5rem;
+                        outline: none;
+                        text-align: center;
+                        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+                        backdrop-filter: blur(20px);
+                        -webkit-backdrop-filter: blur(20px);
+                        transition: all 120ms cubic-bezier(0.25, 0.1, 0.25, 1);
+                        will-change: transform, background-color;
+                        transform: translate3d(0, 0, 0);
+                    }
+                    
+                    .search-input::placeholder {
+                        color: rgba(255, 255, 255, 0.6);
+                        text-align: center;
+                        transition: all 120ms cubic-bezier(0.25, 0.1, 0.25, 1);
+                    }
+                    
+                    .search-input:focus {
+                        background: rgba(255, 255, 255, 0.18);
+                        border-color: rgba(255, 255, 255, 0.25);
+                        text-align: left;
+                        transform: translate3d(0, 0, 0) scale(1.02);
+                    }
+                    
+                    .search-input:focus::placeholder {
+                        text-align: left;
+                    }
+                    
+                    .search-wrapper:focus-within .search-icon {
+                        opacity: 1;
+                    }
+                    
+                    /* === Apps Grid === */
+                    
+                    .apps-grid-container {
+                        width: 100%;
+                        max-width: 80rem;
+                        flex: 1;
+                        overflow-y: auto;
+                        overflow-x: hidden;
+                        padding: 0 1rem 5rem;
+                        -webkit-overflow-scrolling: touch;
+                        scroll-behavior: smooth;
+                    }
+                    
+                    .apps-grid-container::-webkit-scrollbar {
+                        width: 0;
+                        display: none;
+                    }
+                    
+                    .apps-grid {
+                        display: grid;
+                        grid-template-columns: repeat(4, 1fr);
+                        gap: 2.5rem 1rem;
+                        justify-items: center;
+                        padding: 1rem;
+                    }
+                    
+                    @media (min-width: 640px) {
+                        .apps-grid {
+                            grid-template-columns: repeat(5, 1fr);
+                        }
+                    }
+                    
+                    @media (min-width: 768px) {
+                        .apps-grid {
+                            grid-template-columns: repeat(6, 1fr);
+                        }
+                    }
+                    
+                    @media (min-width: 1024px) {
+                        .apps-grid {
+                            grid-template-columns: repeat(7, 1fr);
+                        }
+                    }
+                    
+                    /* === App Icon Stagger Animation === */
+                    
+                    .app-icon-wrapper {
+                        animation: iconFadeIn 180ms cubic-bezier(0.175, 0.885, 0.32, 1.275) backwards;
+                        will-change: transform, opacity;
+                        transform: translate3d(0, 0, 0);
+                    }
+                    
+                    .all-apps-overlay.closing .app-icon-wrapper {
+                        animation: iconFadeOut 100ms cubic-bezier(0.42, 0, 1, 1) forwards;
+                    }
+                    
+                    @keyframes iconFadeIn {
+                        from {
+                            opacity: 0;
+                            transform: translate3d(0, 20px, 0) scale(0.8);
+                        }
+                        to {
+                            opacity: 1;
+                            transform: translate3d(0, 0, 0) scale(1);
+                        }
+                    }
+                    
+                    @keyframes iconFadeOut {
+                        from {
+                            opacity: 1;
+                            transform: translate3d(0, 0, 0) scale(1);
+                        }
+                        to {
+                            opacity: 0;
+                            transform: translate3d(0, 10px, 0) scale(0.9);
+                        }
+                    }
+                    
+                    /* === Empty State === */
+                    
+                    .empty-state {
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        height: 16rem;
+                        color: white;
+                        opacity: 0.6;
+                    }
+                    
+                    .empty-text {
+                        font-size: 1.25rem;
+                    }
+                    
+                    /* === Reduced Motion Support === */
+                    
+                    @media (prefers-reduced-motion: reduce) {
+                        .all-apps-overlay,
+                        .search-container,
+                        .app-icon-wrapper,
+                        .search-input {
+                            animation: none !important;
+                            transition: none !important;
+                        }
                     }
                 `}</style>
             </>
