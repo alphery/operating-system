@@ -5,39 +5,71 @@ export function Settings(props) {
     const { user, userData } = useAuth();
     const [activeSection, setActiveSection] = useState('appearance');
 
+    // Default settings object
+    const getDefaultSettings = () => ({
+        // Appearance
+        wallpaper: props.currBgImgName || props.bg_image_name || 'wall-8',
+        darkMode: true,
+        accentColor: '#E95420',
+        iconSize: 'medium',
+        transparency: true,
+        theme: 'dark',
+        // Display
+        brightness: 100,
+        nightLight: false,
+        fontSize: 'medium',
+        scaleFactor: 100,
+        // Sound
+        volume: 70,
+        notificationSounds: true,
+        alertVolume: 80,
+        // System
+        animations: true,
+        autoUpdate: true,
+        showDesktopIcons: true,
+        doubleClickSpeed: 'medium',
+        // Privacy
+        locationServices: false,
+        analytics: false,
+        // Network
+        wifiEnabled: true,
+        bluetoothEnabled: false,
+        // Power
+        powerMode: 'balanced',
+        screenTimeout: 10,
+        // Accessibility
+        highContrast: false,
+        reduceMotion: false,
+        screenReader: false,
+        largeText: false,
+        cursorSize: 'medium',
+        // Notifications
+        doNotDisturb: false,
+        showPreviews: true,
+        notificationPosition: 'top-right',
+        // Keyboard
+        keyboardLayout: 'us',
+        enableShortcuts: true,
+        // Language & Region
+        language: 'en-US',
+        timeFormat: '12h',
+        dateFormat: 'MM/DD/YYYY',
+        temperature: 'celsius',
+    });
+
     // Initialize settings from localStorage or defaults
     const [settings, setSettings] = useState(() => {
-        const saved = localStorage.getItem('system_settings');
-        return saved ? JSON.parse(saved) : {
-            // Appearance
-            wallpaper: props.currBgImgName || props.bg_image_name || 'wall-8',
-            darkMode: true,
-            accentColor: '#E95420',
-            iconSize: 'medium',
-            // Display
-            brightness: 100,
-            nightLight: false,
-            fontSize: 'medium',
-            scaleFactor: 100,
-            // Sound
-            volume: 70,
-            notificationSounds: true,
-            alertVolume: 80,
-            // System
-            animations: true,
-            autoUpdate: true,
-            showDesktopIcons: true,
-            doubleClickSpeed: 'medium',
-            // Privacy
-            locationServices: false,
-            analytics: false,
-            // Network
-            wifiEnabled: true,
-            bluetoothEnabled: false,
-            // Power
-            powerMode: 'balanced',
-            screenTimeout: 10,
-        };
+        try {
+            const saved = localStorage.getItem('system_settings');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                // Merge with defaults to ensure all keys exist
+                return { ...getDefaultSettings(), ...parsed };
+            }
+        } catch (error) {
+            console.error('Error loading settings:', error);
+        }
+        return getDefaultSettings();
     });
 
     const wallpapers = {
@@ -62,7 +94,11 @@ export function Settings(props) {
 
     // Save settings whenever they change
     useEffect(() => {
-        localStorage.setItem('system_settings', JSON.stringify(settings));
+        try {
+            localStorage.setItem('system_settings', JSON.stringify(settings));
+        } catch (error) {
+            console.error('Error saving settings:', error);
+        }
     }, [settings]);
 
     const updateSetting = (key, value) => {
@@ -146,8 +182,12 @@ export function Settings(props) {
         { id: 'appearance', label: 'Appearance', icon: '🎨' },
         { id: 'display', label: 'Display', icon: '🖥️' },
         { id: 'sound', label: 'Sound', icon: '🔊' },
+        { id: 'notifications', label: 'Notifications', icon: '🔔' },
         { id: 'network', label: 'Network', icon: '📡' },
         { id: 'power', label: 'Power', icon: '🔋' },
+        { id: 'accessibility', label: 'Accessibility', icon: '♿' },
+        { id: 'keyboard', label: 'Keyboard', icon: '⌨️' },
+        { id: 'language', label: 'Language & Region', icon: '🌍' },
         { id: 'system', label: 'System', icon: '⚙️' },
         { id: 'privacy', label: 'Privacy', icon: '🔒' },
         { id: 'about', label: 'About', icon: 'ℹ️' },
@@ -176,6 +216,40 @@ export function Settings(props) {
             </div>
 
             <div>
+                <h3 className="text-lg font-semibold text-white mb-3">Theme</h3>
+                <div className="grid grid-cols-3 gap-2">
+                    {['dark', 'light', 'auto'].map((theme) => (
+                        <button
+                            key={theme}
+                            onClick={() => updateSetting('theme', theme)}
+                            className={`px-6 py-3 rounded-lg font-medium capitalize transition-all ${settings.theme === theme
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                }`}
+                        >
+                            {theme === 'dark' && '🌙'} {theme === 'light' && '☀️'} {theme === 'auto' && '🔄'} {theme}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-gray-800 bg-opacity-50 rounded-xl">
+                <div>
+                    <h3 className="text-white font-medium">Transparency Effects</h3>
+                    <p className="text-sm text-gray-400">Enable blur and transparency in UI</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                        type="checkbox"
+                        checked={settings.transparency}
+                        onChange={(e) => updateSetting('transparency', e.target.checked)}
+                        className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+            </div>
+
+            <div>
                 <h3 className="text-lg font-semibold text-white mb-3">Accent Color</h3>
                 <div className="flex gap-3 flex-wrap">
                     {accentColors.map((accent) => (
@@ -201,8 +275,8 @@ export function Settings(props) {
                             key={size}
                             onClick={() => updateSetting('iconSize', size)}
                             className={`px-6 py-2 rounded-lg font-medium capitalize transition-all ${settings.iconSize === size
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                                 }`}
                         >
                             {size}
@@ -254,8 +328,8 @@ export function Settings(props) {
                             key={size}
                             onClick={() => updateSetting('fontSize', size)}
                             className={`flex-1 px-6 py-2 rounded-lg font-medium capitalize transition-all ${settings.fontSize === size
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                                 }`}
                         >
                             {size}
@@ -374,7 +448,7 @@ export function Settings(props) {
                         onChange={(e) => updateSetting('bluetoothEnabled', e.target.checked)}
                         className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-  700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                 </label>
             </div>
         </div>
@@ -394,8 +468,8 @@ export function Settings(props) {
                             key={mode.id}
                             onClick={() => updateSetting('powerMode', mode.id)}
                             className={`px-4 py-3 rounded-xl font-medium transition-all flex flex-col items-center gap-1 ${settings.powerMode === mode.id
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                                 }`}
                         >
                             <span className="text-2xl">{mode.icon}</span>
@@ -480,8 +554,8 @@ export function Settings(props) {
                             key={speed}
                             onClick={() => updateSetting('doubleClickSpeed', speed)}
                             className={`flex-1 px-6 py-2 rounded-lg font-medium capitalize transition-all ${settings.doubleClickSpeed === speed
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                                 }`}
                         >
                             {speed}
@@ -617,13 +691,296 @@ export function Settings(props) {
         </div>
     );
 
+    const renderNotificationsSettings = () => (
+        <div className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-gray-800 bg-opacity-50 rounded-xl">
+                <div className="flex items-center gap-3">
+                    <span className="text-2xl">🔕</span>
+                    <div>
+                        <h3 className="text-white font-medium">Do Not Disturb</h3>
+                        <p className="text-sm text-gray-400">Silence all notifications</p>
+                    </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                        type="checkbox"
+                        checked={settings.doNotDisturb}
+                        onChange={(e) => updateSetting('doNotDisturb', e.target.checked)}
+                        className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-gray-800 bg-opacity-50 rounded-xl">
+                <div>
+                    <h3 className="text-white font-medium">Show Previews</h3>
+                    <p className="text-sm text-gray-400">Display notification content</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                        type="checkbox"
+                        checked={settings.showPreviews}
+                        onChange={(e) => updateSetting('showPreviews', e.target.checked)}
+                        className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+            </div>
+
+            <div>
+                <h3 className="text-lg font-semibold text-white mb-3">Notification Position</h3>
+                <div className="grid grid-cols-2 gap-2">
+                    {[
+                        { id: 'top-right', label: 'Top Right', icon: '↗️' },
+                        { id: 'top-left', label: 'Top Left', icon: '↖️' },
+                        { id: 'bottom-right', label: 'Bottom Right', icon: '↘️' },
+                        { id: 'bottom-left', label: 'Bottom Left', icon: '↙️' }
+                    ].map((pos) => (
+                        <button
+                            key={pos.id}
+                            onClick={() => updateSetting('notificationPosition', pos.id)}
+                            className={`px-4 py-3 rounded-lg font-medium transition-all ${settings.notificationPosition === pos.id
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                }`}
+                        >
+                            <span className="mr-2">{pos.icon}</span>{pos.label}
+                        </button>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+
+    const renderAccessibilitySettings = () => (
+        <div className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-gray-800 bg-opacity-50 rounded-xl">
+                <div>
+                    <h3 className="text-white font-medium">High Contrast</h3>
+                    <p className="text-sm text-gray-400">Increase color contrast for better visibility</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                        type="checkbox"
+                        checked={settings.highContrast}
+                        onChange={(e) => updateSetting('highContrast', e.target.checked)}
+                        className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-gray-800 bg-opacity-50 rounded-xl">
+                <div>
+                    <h3 className="text-white font-medium">Reduce Motion</h3>
+                    <p className="text-sm text-gray-400">Minimize animations and transitions</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                        type="checkbox"
+                        checked={settings.reduceMotion}
+                        onChange={(e) => updateSetting('reduceMotion', e.target.checked)}
+                        className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-gray-800 bg-opacity-50 rounded-xl">
+                <div>
+                    <h3 className="text-white font-medium">Screen Reader</h3>
+                    <p className="text-sm text-gray-400">Enable accessibility screen reader</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                        type="checkbox"
+                        checked={settings.screenReader}
+                        onChange={(e) => updateSetting('screenReader', e.target.checked)}
+                        className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-gray-800 bg-opacity-50 rounded-xl">
+                <div>
+                    <h3 className="text-white font-medium">Large Text</h3>
+                    <p className="text-sm text-gray-400">Increase default text size system-wide</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                        type="checkbox"
+                        checked={settings.largeText}
+                        onChange={(e) => updateSetting('largeText', e.target.checked)}
+                        className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+            </div>
+
+            <div>
+                <h3 className="text-lg font-semibold text-white mb-3">Cursor Size</h3>
+                <div className="flex gap-2">
+                    {['small', 'medium', 'large'].map((size) => (
+                        <button
+                            key={size}
+                            onClick={() => updateSetting('cursorSize', size)}
+                            className={`flex-1 px-6 py-2 rounded-lg font-medium capitalize transition-all ${settings.cursorSize === size
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                }`}
+                        >
+                            {size}
+                        </button>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+
+    const renderKeyboardSettings = () => (
+        <div className="space-y-6">
+            <div>
+                <h3 className="text-lg font-semibold text-white mb-3">Keyboard Layout</h3>
+                <select
+                    value={settings.keyboardLayout}
+                    onChange={(e) => updateSetting('keyboardLayout', e.target.value)}
+                    className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                    <option value="us">US English</option>
+                    <option value="uk">UK English</option>
+                    <option value="dvorak">Dvorak</option>
+                    <option value="colemak">Colemak</option>
+                    <option value="azerty">AZERTY (French)</option>
+                    <option value="qwertz">QWERTZ (German)</option>
+                </select>
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-gray-800 bg-opacity-50 rounded-xl">
+                <div>
+                    <h3 className="text-white font-medium">Keyboard Shortcuts</h3>
+                    <p className="text-sm text-gray-400">Enable system keyboard shortcuts</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                        type="checkbox"
+                        checked={settings.enableShortcuts}
+                        onChange={(e) => updateSetting('enableShortcuts', e.target.checked)}
+                        className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+            </div>
+
+            <div className="bg-gray-800 bg-opacity-50 rounded-xl p-4">
+                <h3 className="text-white font-semibold mb-3">Common Shortcuts</h3>
+                <div className="space-y-2 text-sm">
+                    <div className="flex justify-between items-center py-2 border-b border-gray-700">
+                        <span className="text-gray-400">Open Terminal</span>
+                        <span className="text-white font-mono bg-gray-700 px-2 py-1 rounded">Ctrl + Alt + T</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-gray-700">
+                        <span className="text-gray-400">Open Settings</span>
+                        <span className="text-white font-mono bg-gray-700 px-2 py-1 rounded">Ctrl + ,</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2">
+                        <span className="text-gray-400">Close Window</span>
+                        <span className="text-white font-mono bg-gray-700 px-2 py-1 rounded">Alt + F4</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
+    const renderLanguageSettings = () => (
+        <div className="space-y-6">
+            <div>
+                <h3 className="text-lg font-semibold text-white mb-3">Language</h3>
+                <select
+                    value={settings.language}
+                    onChange={(e) => updateSetting('language', e.target.value)}
+                    className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                    <option value="en-US">English (United States)</option>
+                    <option value="en-GB">English (United Kingdom)</option>
+                    <option value="es-ES">Español (España)</option>
+                    <option value="fr-FR">Français (France)</option>
+                    <option value="de-DE">Deutsch (Deutschland)</option>
+                    <option value="it-IT">Italiano (Italia)</option>
+                    <option value="pt-BR">Português (Brasil)</option>
+                    <option value="ja-JP">日本語 (Japanese)</option>
+                    <option value="zh-CN">中文 (Chinese Simplified)</option>
+                    <option value="hi-IN">हिन्दी (Hindi)</option>
+                </select>
+            </div>
+
+            <div>
+                <h3 className="text-lg font-semibold text-white mb-3">Time Format</h3>
+                <div className="flex gap-2">
+                    {['12h', '24h'].map((format) => (
+                        <button
+                            key={format}
+                            onClick={() => updateSetting('timeFormat', format)}
+                            className={`flex-1 px-6 py-2 rounded-lg font-medium transition-all ${settings.timeFormat === format
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                }`}
+                        >
+                            {format === '12h' ? '12 Hour (2:30 PM)' : '24 Hour (14:30)'}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            <div>
+                <h3 className="text-lg font-semibold text-white mb-3">Date Format</h3>
+                <select
+                    value={settings.dateFormat}
+                    onChange={(e) => updateSetting('dateFormat', e.target.value)}
+                    className="w-full px-4 py-2 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                    <option value="MM/DD/YYYY">MM/DD/YYYY (12/31/2024)</option>
+                    <option value="DD/MM/YYYY">DD/MM/YYYY (31/12/2024)</option>
+                    <option value="YYYY-MM-DD">YYYY-MM-DD (2024-12-31)</option>
+                    <option value="DD MMM YYYY">DD MMM YYYY (31 Dec 2024)</option>
+                </select>
+            </div>
+
+            <div>
+                <h3 className="text-lg font-semibold text-white mb-3">Temperature Unit</h3>
+                <div className="flex gap-2">
+                    {[
+                        { id: 'celsius', label: 'Celsius (°C)' },
+                        { id: 'fahrenheit', label: 'Fahrenheit (°F)' }
+                    ].map((unit) => (
+                        <button
+                            key={unit.id}
+                            onClick={() => updateSetting('temperature', unit.id)}
+                            className={`flex-1 px-6 py-2 rounded-lg font-medium transition-all ${settings.temperature === unit.id
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                }`}
+                        >
+                            {unit.label}
+                        </button>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+
     const renderContent = () => {
         switch (activeSection) {
             case 'appearance': return renderAppearanceSettings();
             case 'display': return renderDisplaySettings();
             case 'sound': return renderSoundSettings();
+            case 'notifications': return renderNotificationsSettings();
             case 'network': return renderNetworkSettings();
             case 'power': return renderPowerSettings();
+            case 'accessibility': return renderAccessibilitySettings();
+            case 'keyboard': return renderKeyboardSettings();
+            case 'language': return renderLanguageSettings();
             case 'system': return renderSystemSettings();
             case 'privacy': return renderPrivacySettings();
             case 'about': return renderAboutSettings();
@@ -643,8 +1000,8 @@ export function Settings(props) {
                                 key={section.id}
                                 onClick={() => setActiveSection(section.id)}
                                 className={`w-full text-left px-4 py-3 rounded-xl transition-all flex items-center gap-3 ${activeSection === section.id
-                                        ? 'bg-blue-600 text-white shadow-lg'
-                                        : 'text-gray-300 hover:bg-gray-700 hover:bg-opacity-50'
+                                    ? 'bg-blue-600 text-white shadow-lg'
+                                    : 'text-gray-300 hover:bg-gray-700 hover:bg-opacity-50'
                                     }`}
                             >
                                 <span className="text-xl">{section.icon}</span>
