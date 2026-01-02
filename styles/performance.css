@@ -1,142 +1,345 @@
-/* Performance Optimizations for Butter-Smooth Experience */
+/* ========================================
+   macOS-Like Performance Optimizations
+   Buttery-smooth 120fps animations
+   ======================================== */
 
-/* Enable GPU acceleration for all animations */
+/* === GPU Acceleration & Anti-aliasing === */
 * {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
-/* Optimize all transforms and animations */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+}
+
+/* === macOS Easing Functions === */
+:root {
+  --ease-apple: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --ease-apple-in: cubic-bezier(0.42, 0, 1, 1);
+  --ease-apple-out: cubic-bezier(0, 0, 0.58, 1);
+  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --transition-fast: 150ms;
+  --transition-normal: 250ms;
+  --transition-slow: 350ms;
+}
+
+/* === Window & App Optimizations === */
 .window,
 .app-window,
 [class*="window"],
 [class*="modal"],
-[class*="screen"] {
-  will-change: transform, opacity;
-  transform: translateZ(0);
+[class*="screen"],
+.react-draggable {
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
   backface-visibility: hidden;
   perspective: 1000px;
+  -webkit-perspective: 1000px;
 }
 
-/* Smooth transitions for all interactive elements */
+/* Smooth window dragging */
+.react-draggable-dragging {
+  transition: none !important;
+  cursor: grabbing !important;
+}
+
+/* === Interactive Elements (Buttons, Links) === */
 button,
 a,
 input,
 select,
 textarea,
-[role="button"] {
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  will-change: transform;
+[role="button"],
+.clickable {
+  transition: all var(--transition-fast) var(--ease-apple);
+  transform: translateZ(0);
+  will-change: transform, box-shadow;
 }
 
-/* Optimize hover states */
 button:hover,
-[role="button"]:hover {
-  transform: translateZ(0) scale(1.02);
+[role="button"]:hover,
+.clickable:hover {
+  transform: translateZ(0) scale(1.03);
+  transition: all var(--transition-fast) var(--ease-apple-out);
 }
 
 button:active,
-[role="button"]:active {
-  transform: translateZ(0) scale(0.98);
+[role="button"]:active,
+.clickable:active {
+  transform: translateZ(0) scale(0.97);
+  transition: all 80ms var(--ease-apple-in);
 }
 
-/* Smooth scrolling */
-* {
+/* === Smooth Scrolling === */
+.scrollable,
+.overflow-auto,
+.overflow-y-auto,
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
+  will-change: scroll-position;
 }
 
-/* Optimize window dragging */
-.window-dragging {
+/* Hide scrollbar but keep functionality */
+.scrollable::-webkit-scrollbar,
+.overflow-auto::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.scrollable::-webkit-scrollbar-track,
+.overflow-auto::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollable::-webkit-scrollbar-thumb,
+.overflow-auto::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  transition: background 0.2s var(--ease-apple);
+}
+
+.scrollable::-webkit-scrollbar-thumb:hover,
+.overflow-auto::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* === macOS Window Animations === */
+@keyframes windowOpen {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) scale(0.85);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes windowClose {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) scale(0.85);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 20px, 0);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/* === App Launch Animation === */
+.app-window,
+.window {
+  animation: windowOpen var(--transition-normal) var(--ease-apple-out) forwards;
+}
+
+.closed-window {
+  animation: windowClose var(--transition-fast) var(--ease-apple-in) forwards;
+}
+
+/* === Context Menu & Dropdown Animations === */
+.context-menu,
+.dropdown-menu,
+.menu {
+  animation: fadeInUp var(--transition-fast) var(--ease-apple-out);
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
+/* === Modal Overlays === */
+.modal-overlay,
+.overlay {
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  will-change: opacity;
+  transition: opacity var(--transition-normal) var(--ease-apple);
+}
+
+/* === Prevent Layout Shifts === */
+img,
+video,
+iframe {
+  max-width: 100%;
+  height: auto;
+  transform: translateZ(0);
+}
+
+/* === Dock & Taskbar Optimizations === */
+.dock,
+.sidebar,
+.taskbar,
+[class*="sidebar"],
+[class*="dock"] {
+  will-change: transform;
+  transform: translateZ(0);
+  transition: all var(--transition-normal) var(--ease-apple);
+}
+
+/* === Icon Hover Effects (macOS Dock-like) === */
+.dock-icon,
+.app-icon,
+[class*="icon"]:hover {
+  transform: translateZ(0) translateY(-5px) scale(1.1);
+  transition: all var(--transition-fast) var(--ease-spring);
+}
+
+.dock-icon:active,
+.app-icon:active {
+  transform: translateZ(0) translateY(0) scale(0.95);
+  transition: all 100ms var(--ease-apple-in);
+}
+
+/* === Window Dragging Performance === */
+.window-dragging,
+.react-draggable-dragging {
+  pointer-events: none;
+  user-select: none;
+  cursor: grabbing;
+  opacity: 0.95;
+}
+
+.window-resizing {
   pointer-events: none;
   user-select: none;
 }
 
-/* Hardware acceleration for animations */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateZ(0) translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateZ(0) translateY(0);
+/* === Desktop Background === */
+#desktop,
+#desktop-background,
+.desktop-bg {
+  will-change: transform;
+  transform: translateZ(0);
+  transition: background-image var(--transition-slow) var(--ease-apple);
+}
+
+/* === Reduce Motion for Accessibility === */
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
-@keyframes slideIn {
-  from {
-    transform: translateZ(0) translateX(-20px);
-    opacity: 0;
+/* === Enable 120fps animations === */
+@media (prefers-reduced-motion: no-preference) {
+  * {
+    animation-timing-function: var(--ease-apple);
   }
-  to {
-    transform: translateZ(0) translateX(0);
-    opacity: 1;
+
+  /* Force GPU acceleration */
+  .window,
+  .app-window,
+  button,
+  a {
+    transform: translate3d(0, 0, 0);
   }
 }
 
-/* Optimize app window animations */
-.app-window {
-  animation: fadeIn 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+/* === Performance Hints === */
+.gpu-accelerated {
+  transform: translateZ(0);
+  will-change: transform;
 }
 
-/* Reduce repaints */
 .no-repaint {
   contain: layout style paint;
 }
 
-/* Optimize large lists */
-.scrollable-list {
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+.isolate {
+  isolation: isolate;
+}
+
+/* === Smooth Transitions for Settings Changes === */
+body,
+html,
+#root {
+  transition:
+    background-color var(--transition-normal) var(--ease-apple),
+    color var(--transition-normal) var(--ease-apple),
+    filter var(--transition-normal) var(--ease-apple);
+}
+
+/* === Optimize Large Lists === */
+.list,
+.grid,
+[role="list"],
+[role="grid"] {
   contain: layout style paint;
+  will-change: scroll-position;
 }
 
-/* Prevent layout shifts */
-img,
-video {
-  max-width: 100%;
-  height: auto;
+/* === Better Text Rendering === */
+p,
+span,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+li,
+a {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Optimize context menus */
-.context-menu {
-  will-change: transform, opacity;
-  animation: fadeIn 0.1s ease-out;
+/* === Shadow Optimizations === */
+.shadow,
+[class*="shadow"] {
+  will-change: box-shadow;
+  transition: box-shadow var(--transition-fast) var(--ease-apple);
 }
 
-/* Mac-like smooth animations */
-.mac-smooth {
-  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+/* === Glassmorphism Effects === */
+.glass,
+.glassmorphism,
+[class*="glass"] {
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  background-color: rgba(255, 255, 255, 0.1);
+  will-change: backdrop-filter;
 }
 
-/* Optimize modal overlays */
-.modal-overlay {
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  will-change: opacity;
-}
-
-/* Prevent jank on resize */
-.window-resizing {
-  pointer-events: none;
-}
-
-/* Optimize desktop background */
-#desktop-background {
-  will-change: transform;
-  transform: translateZ(0);
-}
-
-/* Smooth navbar */
-.navbar {
-  will-change: transform;
-  transform: translateZ(0);
-  transition: all 0.2s ease;
-}
-
-/* Performance hint for Chrome */
-@media (prefers-reduced-motion: no-preference) {
-  * {
-    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  }
+/* === Prevent Jank on Focus === */
+:focus-visible {
+  outline: 2px solid var(--accent-color, #007AFF);
+  outline-offset: 2px;
+  transition: outline-offset var(--transition-fast) var(--ease-apple);
 }

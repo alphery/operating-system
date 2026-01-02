@@ -6,10 +6,6 @@ import { displayTrash } from './components/apps/trash';
 import { displayGedit } from './components/apps/gedit';
 import { displayAboutAjith } from './components/apps/anurag';
 import { displayCalculator } from './components/apps/calc';
-import { displayERPDashboard } from './components/apps/erp_dashboard';
-import { displayCRM } from './components/apps/crm';
-import { displayMail } from './components/apps/mail';
-import { displayHRM } from './components/apps/hrm';
 import { displayProject } from './components/apps/projects';
 import { displayUserManager } from './components/apps/user_manager';
 import { displayMessenger } from './components/apps/messenger';
@@ -35,15 +31,6 @@ const apps = [
         screen: displayUserManager,
     },
     {
-        id: "dashboard",
-        title: "Enterprise Dashboard",
-        icon: './themes/Yaru/apps/gnome-control-center.png',
-        disabled: false,
-        favourite: true,
-        desktop_shortcut: true,
-        screen: displayERPDashboard,
-    },
-    {
         id: "projects",
         title: "Alphery Projects",
         icon: './themes/Yaru/apps/projects.png',
@@ -51,33 +38,6 @@ const apps = [
         favourite: false,
         desktop_shortcut: true,
         screen: displayProject,
-    },
-    {
-        id: "mail",
-        title: "Z-Mail",
-        icon: './themes/Yaru/apps/gedit.png',
-        disabled: false,
-        favourite: false,
-        desktop_shortcut: true,
-        screen: displayMail,
-    },
-    {
-        id: "crm",
-        title: "CRM Pro",
-        icon: './themes/Yaru/apps/users.png',
-        disabled: false,
-        favourite: false,
-        desktop_shortcut: true,
-        screen: displayCRM,
-    },
-    {
-        id: "people",
-        title: "People Connect",
-        icon: './themes/Yaru/system/user-desktop.png',
-        disabled: false,
-        favourite: false,
-        desktop_shortcut: true,
-        screen: displayHRM,
     },
     {
         id: "chrome",
