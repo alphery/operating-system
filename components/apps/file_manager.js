@@ -1,4 +1,5 @@
 import React, { Component } from 'react';
+import JSZip from 'jszip';
 
 export class FileManager extends Component {
     constructor() {
@@ -16,11 +17,17 @@ export class FileManager extends Component {
             isUploading: false,
             storageUsed: 0,
             storageQuota: 0,
-            error: null
+            error: null,
+            isExporting: false,
+            exportProgress: 0,
+            isImporting: false,
+            lastBackupDate: null,
+            showBackupReminder: false
         };
         this.rootHandle = null;
         this.currentHandle = null;
         this.fileInputRef = React.createRef();
+        this.zipInputRef = React.createRef();
     }
 
     async componentDidMount() {
@@ -34,6 +41,15 @@ export class FileManager extends Component {
 
             await this.loadFiles();
             await this.updateStorageInfo();
+
+            // Check last backup date
+            const lastBackup = localStorage.getItem('lastBackupDate');
+            if (lastBackup) {
+                this.setState({ lastBackupDate: new Date(lastBackup) });
+                this.checkBackupReminder();
+            } else {
+                this.setState({ showBackupReminder: true });
+            }
         } catch (error) {
             console.error('Error initializing file system:', error);
             this.setState({
@@ -270,6 +286,174 @@ export class FileManager extends Component {
         return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
 
+    checkBackupReminder = () => {
+        const { lastBackupDate } = this.state;
+        if (!lastBackupDate) {
+            this.setState({ showBackupReminder: true });
+            return;
+        }
+
+        const daysSinceBackup = (Date.now() - lastBackupDate.getTime()) / (1000 * 60 * 60 * 24);
+        if (daysSinceBackup >= 7) {
+            this.setState({ showBackupReminder: true });
+        }
+    }
+
+    exportAllFiles = async () => {
+        if (!this.rootHandle) {
+            alert('Backup system not ready. Please try again.');
+            return;
+        }
+
+        this.setState({ isExporting: true, exportProgress: 0 });
+
+        try {
+            const zip = new JSZip();
+            const alpheryFolder = await this.rootHandle.getDirectoryHandle('Alphery OS', { create: true });
+
+            // Recursive function to add directory to ZIP
+            const addDirectoryToZip = async (dirHandle, zipFolder, path = '') => {
+                let processed = 0;
+                const entries = [];
+
+                for await (const entry of dirHandle.values()) {
+                    entries.push(entry);
+                }
+
+                for (const entry of entries) {
+                    const fullPath = path ? `${path}/${entry.name}` : entry.name;
+
+                    if (entry.kind === 'directory') {
+                        const newZipFolder = zipFolder.folder(entry.name);
+                        await addDirectoryToZip(entry, newZipFolder, fullPath);
+                    } else {
+                        const file = await entry.getFile();
+                        zipFolder.file(entry.name, file);
+                    }
+
+                    processed++;
+                    const progress = (processed / entries.length) * 100;
+                    this.setState({ exportProgress: progress });
+                }
+            };
+
+            await addDirectoryToZip(alpheryFolder, zip);
+
+            // Generate ZIP file
+            const zipBlob = await zip.generateAsync({
+                type: 'blob',
+                compression: 'DEFLATE',
+                compressionOptions: { level: 6 }
+            }, (metadata) => {
+                this.setState({ exportProgress: metadata.percent });
+            });
+
+            // Download the ZIP
+            const url = URL.createObjectURL(zipBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Alphery-OS-Backup-${new Date().toISOString().split('T')[0]}.zip`;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            // Update last backup date
+            localStorage.setItem('lastBackupDate', new Date().toISOString());
+            this.setState({
+                isExporting: false,
+                exportProgress: 0,
+                lastBackupDate: new Date(),
+                showBackupReminder: false
+            });
+
+            alert('✅ Backup completed successfully!');
+        } catch (error) {
+            console.error('Export error:', error);
+            this.setState({ isExporting: false, exportProgress: 0 });
+            alert('Failed to create backup: ' + error.message);
+        }
+    }
+
+    importFromZip = async (file) => {
+        if (!this.rootHandle) {
+            alert('Restore system not ready. Please try again.');
+            return;
+        }
+
+        if (!window.confirm('This will replace all existing files. Continue?')) {
+            return;
+        }
+
+        this.setState({ isImporting: true, exportProgress: 0 });
+
+        try {
+            const zip = new JSZip();
+            const zipContent = await zip.loadAsync(file);
+
+            const alpheryFolder = await this.rootHandle.getDirectoryHandle('Alphery OS', { create: true });
+
+            // Clear existing files
+            for await (const entry of alpheryFolder.values()) {
+                await alpheryFolder.removeEntry(entry.name, { recursive: true });
+            }
+
+            // Extract files from ZIP
+            const fileKeys = Object.keys(zipContent.files);
+            let processed = 0;
+
+            for (const filename of fileKeys) {
+                const zipEntry = zipContent.files[filename];
+
+                if (zipEntry.dir) {
+                    // Create directory
+                    const pathParts = filename.split('/').filter(p => p);
+                    let currentDir = alpheryFolder;
+
+                    for (const part of pathParts) {
+                        currentDir = await currentDir.getDirectoryHandle(part, { create: true });
+                    }
+                } else {
+                    // Create file
+                    const blob = await zipEntry.async('blob');
+                    const pathParts = filename.split('/').filter(p => p);
+                    const fileName = pathParts.pop();
+
+                    let currentDir = alpheryFolder;
+                    for (const part of pathParts) {
+                        currentDir = await currentDir.getDirectoryHandle(part, { create: true });
+                    }
+
+                    const fileHandle = await currentDir.getFileHandle(fileName, { create: true });
+                    const writable = await fileHandle.createWritable();
+                    await writable.write(blob);
+                    await writable.close();
+                }
+
+                processed++;
+                const progress = (processed / fileKeys.length) * 100;
+                this.setState({ exportProgress: progress });
+            }
+
+            this.setState({ isImporting: false, exportProgress: 0 });
+            await this.loadFiles();
+            await this.updateStorageInfo();
+
+            alert('✅ Files restored successfully!');
+        } catch (error) {
+            console.error('Import error:', error);
+            this.setState({ isImporting: false, exportProgress: 0 });
+            alert('Failed to restore backup: ' + error.message);
+        }
+    }
+
+    handleZipInputChange = (e) => {
+        const file = e.target.files[0];
+        if (file && file.name.endsWith('.zip')) {
+            this.importFromZip(file);
+        } else {
+            alert('Please select a valid ZIP file.');
+        }
+    }
+
     render() {
         const { loading, files, viewMode, folderStack, showNewFolderModal, newFolderName,
             isUploading, uploadProgress, searchQuery, storageUsed, storageQuota, error } = this.state;
@@ -344,6 +528,31 @@ export class FileManager extends Component {
                             className="bg-white bg-opacity-20 hover:bg-opacity-30 px-4 py-2 rounded-lg font-semibold transition"
                         >
                             New Folder
+                        </button>
+
+                        {/* Backup/Restore */}
+                        <div className="h-8 w-px bg-white bg-opacity-30"></div>
+                        <button
+                            onClick={this.exportAllFiles}
+                            disabled={this.state.isExporting || this.state.isImporting}
+                            className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-semibold transition flex items-center gap-2 disabled:opacity-50"
+                            title="Download backup as ZIP"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                            </svg>
+                            Backup
+                        </button>
+                        <button
+                            onClick={() => this.zipInputRef.current.click()}
+                            disabled={this.state.isExporting || this.state.isImporting}
+                            className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-semibold transition flex items-center gap-2 disabled:opacity-50"
+                            title="Restore from ZIP backup"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                            </svg>
+                            Restore
                         </button>
                     </div>
                 </div>
@@ -487,6 +696,15 @@ export class FileManager extends Component {
                     className="hidden"
                 />
 
+                {/* Hidden ZIP Input */}
+                <input
+                    ref={this.zipInputRef}
+                    type="file"
+                    accept=".zip"
+                    onChange={this.handleZipInputChange}
+                    className="hidden"
+                />
+
                 {/* New Folder Modal */}
                 {showNewFolderModal && (
                     <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => this.setState({ showNewFolderModal: false })}>
@@ -520,6 +738,38 @@ export class FileManager extends Component {
                     </div>
                 )}
 
+                {/* Backup Reminder Modal */}
+                {this.state.showBackupReminder && (
+                    <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                        <div className="bg-white rounded-2xl shadow-2xl w-96 p-6">
+                            <div className="text-5xl text-center mb-4">💾</div>
+                            <h3 className="text-xl font-bold text-slate-800 mb-2 text-center">Backup Your Files</h3>
+                            <p className="text-sm text-slate-600 mb-4 text-center">
+                                {this.state.lastBackupDate
+                                    ? "It's been over a week since your last backup. Protect your files!"
+                                    : "Create your first backup to protect your files from loss."}
+                            </p>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => this.setState({ showBackupReminder: false })}
+                                    className="flex-1 px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition"
+                                >
+                                    Later
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        this.setState({ showBackupReminder: false });
+                                        this.exportAllFiles();
+                                    }}
+                                    className="flex-1 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-semibold"
+                                >
+                                    Backup Now
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Upload Progress */}
                 {isUploading && (
                     <div className="absolute bottom-6 right-6 bg-white rounded-xl shadow-2xl p-4 w-80 border border-slate-200 z-50">
@@ -534,6 +784,40 @@ export class FileManager extends Component {
                             ></div>
                         </div>
                         <p className="text-xs text-slate-500 mt-2">{Math.round(uploadProgress)}%</p>
+                    </div>
+                )}
+
+                {/* Export Progress */}
+                {this.state.isExporting && (
+                    <div className="absolute bottom-6 right-6 bg-white rounded-xl shadow-2xl p-4 w-80 border border-slate-200 z-50">
+                        <div className="flex items-center gap-3 mb-3">
+                            <div className="animate-spin w-5 h-5 border-2 border-green-500 border-t-transparent rounded-full"></div>
+                            <span className="font-semibold text-slate-800">Creating Backup...</span>
+                        </div>
+                        <div className="w-full bg-slate-200 rounded-full h-2">
+                            <div
+                                className="bg-green-600 h-2 rounded-full transition-all"
+                                style={{ width: `${this.state.exportProgress}%` }}
+                            ></div>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-2">{Math.round(this.state.exportProgress)}%</p>
+                    </div>
+                )}
+
+                {/* Import Progress */}
+                {this.state.isImporting && (
+                    <div className="absolute bottom-6 right-6 bg-white rounded-xl shadow-2xl p-4 w-80 border border-slate-200 z-50">
+                        <div className="flex items-center gap-3 mb-3">
+                            <div className="animate-spin w-5 h-5 border-2 border-orange-500 border-t-transparent rounded-full"></div>
+                            <span className="font-semibold text-slate-800">Restoring Backup...</span>
+                        </div>
+                        <div className="w-full bg-slate-200 rounded-full h-2">
+                            <div
+                                className="bg-orange-600 h-2 rounded-full transition-all"
+                                style={{ width: `${this.state.exportProgress}%` }}
+                            ></div>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-2">{Math.round(this.state.exportProgress)}%</p>
                     </div>
                 )}
             </div>
