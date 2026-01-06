@@ -16,9 +16,6 @@ export class Projects extends Component {
             activeProject: null,
             activeTask: null,
             selectedProject: null,
-            // ENTERPRISE FEATURES
-            darkMode: localStorage.getItem('darkMode') === 'true',
-            favorites: JSON.parse(localStorage.getItem('favoriteProjects') || '[]'),
             newProject: {
                 title: '',
                 client: '',
@@ -58,102 +55,14 @@ export class Projects extends Component {
         this.subscribeToProjects();
         this.subscribeToTasks();
         this.loadTeamMembers();
-        this.setupKeyboardShortcuts();
     }
 
     componentWillUnmount() {
         if (this.unsubscribeProjects) this.unsubscribeProjects();
         if (this.unsubscribeTasks) this.unsubscribeTasks();
-        this.removeKeyboardShortcuts();
-    }
-
-    // ============ ENTERPRISE FEATURES ============
-    setupKeyboardShortcuts = () => {
-        document.addEventListener('keydown', this.handleKeyPress);
-    }
-
-    removeKeyboardShortcuts = () => {
-        document.removeEventListener('keydown', this.handleKeyPress);
-    }
-
-    handleKeyPress = (e) => {
-        if (e.metaKey || e.ctrlKey) {
-            switch (e.key) {
-                case 'n': // New Project
-                    e.preventDefault();
-                    this.setState({ showModal: true, activeProject: null });
-                    break;
-                case 'k': // Search
-                    e.preventDefault();
-                    document.querySelector('input[placeholder*="Search"]')?.focus();
-                    break;
-                case 'd': // Dark Mode
-                    e.preventDefault();
-                    this.toggleDarkMode();
-                    break;
-                case 'e': // Export
-                    e.preventDefault();
-                    this.exportToExcel();
-                    break;
-                default:
-                    break;
-            }
-        }
-    }
-
-    toggleDarkMode = () => {
-        const darkMode = !this.state.darkMode;
-        this.setState({ darkMode });
-        localStorage.setItem('darkMode', darkMode);
-        if (darkMode) {
-            document.body.classList.add('dark');
-        } else {
-            document.body.classList.remove('dark');
-        }
-    }
-
-    toggleFavorite = (projectId, e) => {
-        if (e) e.stopPropagation();
-        const favorites = this.state.favorites.includes(projectId)
-            ? this.state.favorites.filter(id => id !== projectId)
-            : [...this.state.favorites, projectId];
-        this.setState({ favorites });
-        localStorage.setItem('favoriteProjects', JSON.stringify(favorites));
-    }
-
-    exportToExcel = () => {
-        const data = this.filterProjects().map(p => ({
-            'Project': p.title,
-            'Client': p.client || '',
-            'Status': p.status,
-            'Priority': p.priority,
-            'Progress': `${p.progress || 0}%`,
-            'Budget': `$${p.budget || 0}`,
-            'Spent': `$${p.spent || 0}`,
-            'Team': p.assignedTo?.length || 0
-        }));
-
-        const csv = [
-            Object.keys(data[0]).join(','),
-            ...data.map(row => Object.values(row).map(val => `"${val}"`).join(','))
-        ].join('\n');
-
-        const blob = new Blob([csv], { type: 'text/csv' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `alphery-projects-${new Date().toISOString().split('T')[0]}.csv`;
-        a.click();
-        window.URL.revokeObjectURL(url);
     }
 
     subscribeToProjects = () => {
-        if (!db) {
-            console.log('Firebase not configured - Projects app running in demo mode');
-            this.setState({ loading: false, projects: [] });
-            return;
-        }
-
         const projectsRef = collection(db, 'projects');
         const q = query(projectsRef, orderBy('updatedAt', 'desc'));
 
@@ -170,11 +79,6 @@ export class Projects extends Component {
     }
 
     subscribeToTasks = () => {
-        if (!db) {
-            this.setState({ tasks: [] });
-            return;
-        }
-
         const tasksRef = collection(db, 'tasks');
         this.unsubscribeTasks = onSnapshot(tasksRef, (snapshot) => {
             const tasks = snapshot.docs.map(doc => ({
@@ -186,17 +90,6 @@ export class Projects extends Component {
     }
 
     loadTeamMembers = () => {
-        if (!db) {
-            console.log('Firebase not configured - Using demo team members');
-            this.setState({
-                teamMembers: [
-                    { id: 'demo1', name: 'Demo User 1', email: 'demo1@alphery.com', role: 'Admin', avatar: '👤' },
-                    { id: 'demo2', name: 'Demo User 2', email: 'demo2@alphery.com', role: 'User', avatar: '👥' }
-                ]
-            });
-            return;
-        }
-
         // Fetch real users from Firestore (Alphery Users)
         const usersRef = collection(db, 'users');
         onSnapshot(usersRef, (snapshot) => {
@@ -260,11 +153,6 @@ export class Projects extends Component {
     }
 
     saveProject = async () => {
-        if (!db) {
-            alert('Firebase not configured. Running in demo mode - projects cannot be saved.');
-            return;
-        }
-
         const p = this.state.newProject;
         if (!p.title) return alert('Project title is required');
 
@@ -302,11 +190,6 @@ export class Projects extends Component {
     }
 
     saveTask = async () => {
-        if (!db) {
-            alert('Firebase not configured. Running in demo mode - tasks cannot be saved.');
-            return;
-        }
-
         const t = this.state.newTask;
         if (!t.title) return alert('Task title is required');
         if (!this.state.selectedProject) return alert('Please select a project first');
@@ -360,11 +243,6 @@ export class Projects extends Component {
     }
 
     deleteProject = async (id, e) => {
-        if (!db) {
-            alert('Firebase not configured. Running in demo mode.');
-            return;
-        }
-
         e.stopPropagation();
         if (!window.confirm("Delete this project and all its tasks?")) return;
 
@@ -401,9 +279,7 @@ export class Projects extends Component {
             completed: projects.filter(p => p.status === 'Completed').length,
             totalBudget: projects.reduce((sum, p) => sum + (p.budget || 0), 0),
             totalSpent: projects.reduce((sum, p) => sum + (p.spent || 0), 0),
-            totalHours: projects.reduce((sum, p) => sum + (p.hoursLogged || 0), 0),
-            favorites: this.state.favorites.length,
-            overdue: projects.filter(p => p.endDate && new Date(p.endDate) < new Date() && p.status !== 'Completed').length
+            totalHours: projects.reduce((sum, p) => sum + (p.hoursLogged || 0), 0)
         };
     }
 
@@ -437,7 +313,6 @@ export class Projects extends Component {
                         <div>
                             <p className="text-slate-500 text-sm font-medium">Total Projects</p>
                             <p className="text-3xl font-bold text-slate-800 mt-2">{stats.total}</p>
-                            <p className="text-xs text-emerald-600 mt-1">⭐ {stats.favorites} favorites</p>
                         </div>
                         <div className="bg-emerald-100 p-3 rounded-xl">
                             <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -452,7 +327,6 @@ export class Projects extends Component {
                         <div>
                             <p className="text-slate-500 text-sm font-medium">In Progress</p>
                             <p className="text-3xl font-bold text-blue-600 mt-2">{stats.inProgress}</p>
-                            <p className="text-xs text-orange-600 mt-1">⚠️ {stats.overdue} overdue</p>
                         </div>
                         <div className="bg-blue-100 p-3 rounded-xl">
                             <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -567,34 +441,13 @@ export class Projects extends Component {
                         <div className="relative">
                             <input
                                 type="text"
-                                placeholder="Search projects... (Cmd+K)"
+                                placeholder="Search projects..."
                                 value={this.state.searchQuery}
                                 onChange={(e) => this.setState({ searchQuery: e.target.value })}
                                 className="pl-10 pr-4 py-2 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none transition w-64 text-sm"
                             />
                             <svg className="w-4 h-4 absolute left-3 top-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                         </div>
-
-                        {/* Dark Mode Toggle */}
-                        <button
-                            onClick={this.toggleDarkMode}
-                            className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-xl transition hover:scale-110"
-                            title="Toggle Dark Mode (Cmd+D)"
-                        >
-                            {this.state.darkMode ? '🌙' : '☀️'}
-                        </button>
-
-                        {/* Export Button */}
-                        <button
-                            onClick={this.exportToExcel}
-                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow text-sm font-semibold transition flex items-center gap-2"
-                            title="Export to Excel (Cmd+E)"
-                        >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                            </svg>
-                            Export
-                        </button>
 
                         {/* View Toggle */}
                         <div className="bg-slate-100 p-1 rounded-lg flex text-xs font-semibold">
