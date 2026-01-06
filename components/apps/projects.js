@@ -959,7 +959,11 @@ export class Projects extends Component {
                                                     : 'border-slate-200 hover:border-slate-300'
                                                     }`}>
                                                 <div className="flex items-center gap-2">
-                                                    <span className="text-2xl">{member.avatar}</span>
+                                                    {member.avatar && member.avatar.startsWith('http') ? (
+                                                        <img src={member.avatar} alt={member.name} className="w-8 h-8 rounded-full object-cover" />
+                                                    ) : (
+                                                        <span className="text-2xl">{member.avatar || '👤'}</span>
+                                                    )}
                                                     <div className="text-xs">
                                                         <div className="font-semibold text-slate-800">{member.name}</div>
                                                         <div className="text-slate-500">{member.role}</div>
