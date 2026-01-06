@@ -5,83 +5,112 @@ function BootingScreen(props) {
     return (
         <div style={(props.visible || props.isShutDown ? { zIndex: "100" } : { zIndex: "-20" })} className={(props.visible || props.isShutDown ? " visible opacity-100" : " invisible opacity-0 ") + " absolute duration-500 select-none flex flex-col justify-center items-center top-0 right-0 overflow-hidden m-0 p-0 h-screen w-screen bg-black"}>
 
-            {/* Main content */}
+            {/* Subtle Background Glow */}
+            <div className="absolute inset-0 pointer-events-none">
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-br from-blue-500/5 via-purple-600/5 to-blue-500/5 blur-3xl"></div>
+            </div>
+
+            {/* Main Content */}
             <div className="relative z-10 flex flex-col items-center">
 
-                {/* Alphery OS Logo with animated OS */}
-                <div className="relative mb-16 flex items-center justify-center overflow-visible">
-                    {/* ALPHERY text */}
-                    <h1 className="text-7xl md:text-9xl font-black tracking-tight relative">
+                {/* Logo Section - SF Pro Style */}
+                <div className="text-center mb-16">
+                    {/* ALPHERY OS - Smaller, Sleeker */}
+                    <h1 className="text-5xl md:text-6xl font-semibold tracking-tight mb-3" style={{ fontFamily: '"SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
                         <span className="bg-gradient-to-r from-blue-500 via-purple-600 to-blue-500 text-transparent bg-clip-text">
                             ALPHERY
                         </span>
-                    </h1>
-
-                    {/* OS text - animates from inside ALPHERY */}
-                    <div className="relative overflow-visible ml-4">
-                        <span className="text-7xl md:text-9xl font-black tracking-tight bg-gradient-to-r from-blue-500 via-purple-600 to-blue-500 text-transparent bg-clip-text animate-slide-out">
+                        {" "}
+                        <span className="bg-gradient-to-r from-blue-500 via-purple-600 to-blue-500 text-transparent bg-clip-text">
                             OS
                         </span>
-                    </div>
+                    </h1>
+
+                    {/* Tagline - SF Pro Text */}
+                    <p className="text-gray-500 text-sm font-normal tracking-wide" style={{ fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif' }}>
+                        Enterprise Operating System
+                    </p>
                 </div>
 
-                {/* Loading indicator */}
+                {/* Loading Section */}
                 {!props.isShutDown && (
-                    <div className="flex flex-col items-center">
-                        {/* White loading spinner */}
-                        <div className="w-16 h-16 border-4 border-gray-800 border-t-white rounded-full animate-spin mb-4"></div>
+                    <div className="flex flex-col items-center space-y-6">
 
-                        {/* Loading dots */}
-                        <div className="flex space-x-2">
-                            <div className="w-2 h-2 bg-white rounded-full animate-bounce"></div>
-                            <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                            <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+                        {/* Circular Loader - macOS Style */}
+                        <div className="relative w-16 h-16 animate-spin">
+                            {/* Outer Circle Track */}
+                            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100">
+                                <circle
+                                    cx="50"
+                                    cy="50"
+                                    r="42"
+                                    fill="none"
+                                    stroke="rgba(255, 255, 255, 0.1)"
+                                    strokeWidth="6"
+                                />
+                            </svg>
+
+                            {/* Animated Circle - White */}
+                            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100">
+                                <circle
+                                    cx="50"
+                                    cy="50"
+                                    r="42"
+                                    fill="none"
+                                    stroke="white"
+                                    strokeWidth="6"
+                                    strokeLinecap="round"
+                                    strokeDasharray="220"
+                                    strokeDashoffset="60"
+                                    transform="rotate(-90 50 50)"
+                                />
+                            </svg>
+                        </div>
+
+                        {/* Loading Text - SF Pro */}
+                        <div className="text-center">
+                            <p className="text-gray-500 text-xs font-medium tracking-wide" style={{ fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif' }}>
+                                Loading
+                            </p>
                         </div>
                     </div>
                 )}
 
-                {/* Power button for shutdown state */}
+                {/* Shutdown State - Clean Power Button */}
                 {props.isShutDown && (
                     <div className="flex flex-col items-center cursor-pointer group" onClick={props.turnOn}>
+
+                        {/* Power Button - macOS Style */}
                         <div className="relative">
-                            <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full blur-xl opacity-50 group-hover:opacity-75 transition-opacity"></div>
-                            <div className="relative bg-gray-900 rounded-full p-6 border-2 border-white group-hover:border-purple-500 transition-all">
-                                <svg className="w-12 h-12 text-white group-hover:text-purple-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.636 18.364a9 9 0 010-12.728m12.728 0a9 9 0 010 12.728m-9.9-2.829a5 5 0 010-7.07m7.072 0a5 5 0 010 7.07M13 12a1 1 0 11-2 0 1 1 0 012 0z" />
+                            {/* Glow on Hover */}
+                            <div className="absolute -inset-3 bg-gradient-to-r from-blue-500/0 via-purple-600/0 to-blue-500/0 group-hover:from-blue-500/20 group-hover:via-purple-600/20 group-hover:to-blue-500/20 rounded-full blur-xl transition-all duration-500"></div>
+
+                            {/* Button */}
+                            <div className="relative w-20 h-20 bg-gray-900/50 backdrop-blur-sm border border-gray-800 group-hover:border-purple-500/50 rounded-full flex items-center justify-center transition-all duration-300">
+                                <svg className="w-8 h-8 text-gray-600 group-hover:text-gray-300 transition-colors duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3m0 0L9.5 6.5M13 3l3.5 3.5M19 12a7 7 0 11-14 0" />
                                 </svg>
                             </div>
                         </div>
-                        <p className="text-gray-500 text-sm mt-6 uppercase tracking-widest opacity-0 group-hover:opacity-100 group-hover:text-white transition-all">Press to Start</p>
+
+                        {/* Text */}
+                        <p className="text-gray-600 group-hover:text-gray-400 text-xs font-medium mt-5 transition-all duration-300" style={{ fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif' }}>
+                            Press to start
+                        </p>
                     </div>
                 )}
             </div>
 
+            {/* Version Badge - Bottom Right */}
+            <div className="absolute bottom-6 right-6 text-gray-700 text-xs font-medium tracking-wide" style={{ fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif' }}>
+                Version 2.0
+            </div>
+
             <style jsx>{`
-                @keyframes spin {
-                    from {
-                        transform: rotate(0deg);
-                    }
-                    to {
-                        transform: rotate(360deg);
-                    }
-                }
-                
-                @keyframes slide-out {
-                    0% {
-                        transform: translateX(-100%) scale(0.5);
-                        opacity: 0;
-                    }
-                    60% {
-                        transform: translateX(10px) scale(1.1);
-                    }
-                    100% {
-                        transform: translateX(0) scale(1);
-                        opacity: 1;
-                    }
-                }
-                
-                .animate-slide-out {
-                    animation: slide-out 1.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+                /* macOS-style smooth animations */
+                * {
+                    -webkit-font-smoothing: antialiased;
+                    -moz-osx-font-smoothing: grayscale;
                 }
             `}</style>
         </div>

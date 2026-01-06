@@ -538,12 +538,69 @@ export class Projects extends Component {
         const priorities = ['Low', 'Medium', 'High', 'Urgent'];
         const filteredProjects = this.filterProjects();
 
+
         if (loading) {
             return (
-                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
-                    <div className="text-center">
-                        <div className="animate-spin w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-                        <p className="text-slate-600 font-medium">Loading projects...</p>
+                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-50 via-slate-100 to-slate-200 relative overflow-hidden">
+                    {/* Animated Background Gradient */}
+                    <div className="absolute inset-0 opacity-30">
+                        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-gradient-to-br from-emerald-400 to-blue-500 rounded-full blur-3xl animate-pulse"></div>
+                        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-gradient-to-br from-purple-400 to-pink-500 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+                    </div>
+
+                    {/* Loader Content */}
+                    <div className="text-center z-10">
+                        {/* Premium Spinner - Apple Style */}
+                        <div className="relative inline-flex items-center justify-center mb-8">
+                            {/* Outer Ring */}
+                            <div className="absolute w-24 h-24 border-4 border-slate-200 rounded-full"></div>
+
+                            {/* Animated Ring 1 */}
+                            <div className="absolute w-24 h-24 border-4 border-transparent border-t-emerald-500 rounded-full animate-spin"></div>
+
+                            {/* Animated Ring 2 */}
+                            <div className="absolute w-20 h-20 border-4 border-transparent border-t-blue-500 rounded-full animate-spin" style={{ animationDuration: '1.5s', animationDirection: 'reverse' }}></div>
+
+                            {/* Animated Ring 3 */}
+                            <div className="absolute w-16 h-16 border-4 border-transparent border-t-purple-500 rounded-full animate-spin" style={{ animationDuration: '2s' }}></div>
+
+                            {/* Center Orb */}
+                            <div className="w-12 h-12 bg-gradient-to-br from-emerald-400 via-blue-500 to-purple-500 rounded-full animate-pulse shadow-2xl"></div>
+
+                            {/* Glow Effect */}
+                            <div className="absolute w-24 h-24 bg-gradient-to-br from-emerald-400 to-purple-500 rounded-full blur-xl opacity-50 animate-pulse"></div>
+                        </div>
+
+                        {/* Loading Text */}
+                        <div className="space-y-2">
+                            <h3 className="text-2xl font-bold bg-gradient-to-r from-emerald-600 via-blue-600 to-purple-600 bg-clip-text text-transparent animate-pulse">
+                                Alphery Projects
+                            </h3>
+                            <p className="text-slate-600 font-medium animate-pulse" style={{ animationDelay: '0.2s' }}>
+                                Loading your workspace...
+                            </p>
+
+                            {/* Animated Dots */}
+                            <div className="flex justify-center gap-2 mt-4">
+                                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce"></div>
+                                <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                                <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                            </div>
+                        </div>
+
+                        {/* Progress Hint */}
+                        <div className="mt-8">
+                            <div className="w-64 h-1 bg-slate-200 rounded-full mx-auto overflow-hidden">
+                                <div className="h-full bg-gradient-to-r from-emerald-500 via-blue-500 to-purple-500 rounded-full animate-pulse" style={{ width: '60%' }}></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Floating Particles */}
+                    <div className="absolute inset-0 pointer-events-none">
+                        <div className="absolute top-1/4 left-1/3 w-2 h-2 bg-emerald-400 rounded-full animate-ping opacity-75"></div>
+                        <div className="absolute top-2/3 right-1/3 w-3 h-3 bg-blue-400 rounded-full animate-ping opacity-75" style={{ animationDelay: '0.5s' }}></div>
+                        <div className="absolute bottom-1/4 left-2/3 w-2 h-2 bg-purple-400 rounded-full animate-ping opacity-75" style={{ animationDelay: '1s' }}></div>
                     </div>
                 </div>
             );
