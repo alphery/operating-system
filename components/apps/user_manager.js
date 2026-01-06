@@ -31,6 +31,12 @@ class UserManager extends Component {
     }
 
     loadUsers = () => {
+        if (!db) {
+            console.warn('Firestore not available. User Manager requires Firebase.');
+            this.setState({ loading: false, users: [] });
+            return;
+        }
+
         const usersRef = collection(db, 'users');
 
         this.unsubscribe = onSnapshot(usersRef, (snapshot) => {
@@ -54,6 +60,11 @@ class UserManager extends Component {
     }
 
     approveUser = async (userId) => {
+        if (!db) {
+            alert('Firebase not configured. Cannot approve users in demo mode.');
+            return;
+        }
+
         try {
             await updateDoc(doc(db, 'users', userId), {
                 approvalStatus: 'approved'
@@ -66,6 +77,11 @@ class UserManager extends Component {
 
     rejectUser = async (userId) => {
         if (!window.confirm('Are you sure you want to reject this user?')) return;
+
+        if (!db) {
+            alert('Firebase not configured. Cannot reject users in demo mode.');
+            return;
+        }
 
         try {
             await updateDoc(doc(db, 'users', userId), {
@@ -80,6 +96,11 @@ class UserManager extends Component {
     revokeUser = async (userId) => {
         if (!window.confirm('Are you sure you want to revoke access? User will lose access to the OS immediately.')) return;
 
+        if (!db) {
+            alert('Firebase not configured. Cannot revoke users in demo mode.');
+            return;
+        }
+
         try {
             await updateDoc(doc(db, 'users', userId), {
                 approvalStatus: 'pending'
@@ -92,6 +113,11 @@ class UserManager extends Component {
 
     deleteUser = async (userId) => {
         if (!window.confirm('Are you sure you want to permanently delete this user?')) return;
+
+        if (!db) {
+            alert('Firebase not configured. Cannot delete users in demo mode.');
+            return;
+        }
 
         try {
             await deleteDoc(doc(db, 'users', userId));

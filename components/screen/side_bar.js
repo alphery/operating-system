@@ -56,7 +56,8 @@ export default function SideBar(props) {
     return (
         <>
             <div
-                className={(props.hide ? " translate-y-full " : "") + " absolute transform duration-300 select-none z-50 left-1/2 transform -translate-x-1/2 bottom-4 w-auto h-[58px] flex justify-center items-end rounded-2xl bg-white bg-opacity-20 backdrop-blur-2xl border border-white border-opacity-20 shadow-2xl pb-[1px] px-3 transition-all"}
+                className={(props.hide ? " translate-y-full " : "") + " absolute transform duration-300 select-none z-100 left-1/2 transform -translate-x-1/2 bottom-4 w-auto h-[58px] flex justify-center items-end rounded-2xl bg-white bg-opacity-20 backdrop-blur-2xl border border-white border-opacity-20 shadow-2xl pb-[1px] px-3 transition-all"}
+                style={{ zIndex: 100 }}
                 onMouseLeave={() => setHoveredIndex(null)}
             >
                 <AllApps

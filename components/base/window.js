@@ -43,22 +43,29 @@ export class Window extends Component {
 
     setDefaultWindowDimenstion = () => {
         if (window.innerWidth < 640) {
-            this.setState({ height: 60, width: 85 }, this.resizeBoundries);
+            this.setState({ height: 70, width: 90 }, this.resizeBoundries);
         }
         else {
-            this.setState({ height: 85, width: 60 }, this.resizeBoundries);
+            // macOS-like proportions: 70% width, 75% height
+            this.setState({ height: 75, width: 70 }, this.resizeBoundries);
         }
     }
 
     resizeBoundries = () => {
+        // Account for dock at bottom (70px) and navbar at top (32px)
+        const dockHeight = 70;
+        const navbarHeight = 32;
+
         this.setState({
             parentSize: {
                 height: window.innerHeight //parent height
                     - (window.innerHeight * (this.state.height / 100.0))  // this window's height
-                    - 28 // some padding
+                    - dockHeight // dock at bottom
+                    - navbarHeight // navbar at top
                 ,
                 width: window.innerWidth // parent width
                     - (window.innerWidth * (this.state.width / 100.0)) //this window's width
+                    - 80 // account for right sidebar
             }
         });
     }
@@ -155,12 +162,17 @@ export class Window extends Component {
             this.focusWindow();
             var r = document.querySelector("#" + this.id);
             this.setWinowsPosition();
+
+            // Calculate height to leave space for dock (70px = ~7% of screen)
+            const dockHeight = 7; // percentage
+            const maxHeight = 100 - dockHeight - 3.7; // 3.7% for navbar
+
             // translate window to maximize position
-            r.style.transform = `translate(-1pt,-2pt)`;
+            r.style.transform = `translate(-1pt, 0pt)`;
             this.setState({
                 maximized: true,
-                height: 96.3,
-                width: 100.2,
+                height: maxHeight,
+                width: 100,
                 x: 0,
                 y: 0
             }, () => {
@@ -205,7 +217,12 @@ export class Window extends Component {
                 }}
             >
                 <div
-                    className={this.state.cursorType + " " + (this.state.closed ? " closed-window " : "") + (this.state.maximized ? " duration-300 rounded-none" : " rounded-lg rounded-b-none") + (this.props.minimized ? " opacity-0 invisible duration-200 " : "") + (this.props.isFocused ? "" : " notFocused") + " opened-window overflow-hidden main-window window-shadow border-black border-opacity-40 border border-t-0 flex flex-col h-full w-full"}
+                    className={this.state.cursorType + " " + (this.state.closed ? " closed-window " : "") + (this.state.maximized ? " duration-300 rounded-none" : " rounded-2xl") + (this.props.minimized ? " opacity-0 invisible duration-200 " : "") + (this.props.isFocused ? "" : " notFocused") + " opened-window overflow-hidden main-window border-black border-opacity-20 border flex flex-col h-full w-full backdrop-blur-sm"}
+                    style={{
+                        boxShadow: this.props.isFocused
+                            ? '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1)'
+                            : '0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.05)',
+                    }}
                     id={this.id}
                 >
                     <WindowTopBar title={this.props.title} />
@@ -226,7 +243,7 @@ export default Window
 // Window's title bar
 export function WindowTopBar(props) {
     return (
-        <div className={" relative bg-ub-window-title border-t-2 border-white border-opacity-5 py-1.5 px-3 text-white w-full select-none rounded-b-none"}>
+        <div className=" relative bg-ub-window-title border-t-2 border-white border-opacity-5 py-1.5 px-3 text-white w-full select-none rounded-t-2xl backdrop-blur-md bg-opacity-95">
             <div className="flex justify-center text-sm font-bold">{props.title}</div>
         </div>
     )
@@ -235,39 +252,39 @@ export function WindowTopBar(props) {
 // Window's Edit Buttons
 export function WindowEditButtons(props) {
     return (
-        <div className="absolute select-none right-0 top-0 mt-1 mr-1 flex justify-center items-center">
-            <span className="mx-1.5 bg-white bg-opacity-0 hover:bg-opacity-10 rounded-full flex justify-center mt-1 h-5 w-5 items-center" onClick={props.minimize}>
+        <div className="absolute select-none right-0 top-0 mt-1.5 mr-2 flex justify-center items-center gap-2">
+            <span className="bg-white bg-opacity-0 hover:bg-opacity-20 rounded-full flex justify-center h-6 w-6 items-center transition-all duration-200" onClick={props.minimize}>
                 <img
                     src="./themes/Yaru/window/window-minimize-symbolic.svg"
-                    alt="ubuntu window minimize"
-                    className="h-5 w-5 inline"
+                    alt="minimize"
+                    className="h-4 w-4 inline opacity-90 hover:opacity-100"
                 />
             </span>
             {
                 (props.isMaximised
                     ?
-                    <span className="mx-2 bg-white bg-opacity-0 hover:bg-opacity-10 rounded-full flex justify-center mt-1 h-5 w-5 items-center" onClick={props.maximize}>
+                    <span className="bg-white bg-opacity-0 hover:bg-opacity-20 rounded-full flex justify-center h-6 w-6 items-center transition-all duration-200" onClick={props.maximize}>
                         <img
                             src="./themes/Yaru/window/window-restore-symbolic.svg"
-                            alt="ubuntu window restore"
-                            className="h-5 w-5 inline"
+                            alt="restore"
+                            className="h-4 w-4 inline opacity-90 hover:opacity-100"
                         />
                     </span>
                     :
-                    <span className="mx-2 bg-white bg-opacity-0 hover:bg-opacity-10 rounded-full flex justify-center mt-1 h-5 w-5 items-center" onClick={props.maximize}>
+                    <span className="bg-white bg-opacity-0 hover:bg-opacity-20 rounded-full flex justify-center h-6 w-6 items-center transition-all duration-200" onClick={props.maximize}>
                         <img
                             src="./themes/Yaru/window/window-maximize-symbolic.svg"
-                            alt="ubuntu window maximize"
-                            className="h-5 w-5 inline"
+                            alt="maximize"
+                            className="h-4 w-4 inline opacity-90 hover:opacity-100"
                         />
                     </span>
                 )
             }
-            <button tabIndex="-1" id={`close-${props.id}`} className="mx-1.5 focus:outline-none cursor-default bg-ub-orange bg-opacity-90 hover:bg-opacity-100 rounded-full flex justify-center mt-1 h-5 w-5 items-center" onClick={props.close}>
+            <button tabIndex="-1" id={`close-${props.id}`} className="focus:outline-none cursor-default bg-ub-orange bg-opacity-90 hover:bg-opacity-100 rounded-full flex justify-center h-6 w-6 items-center transition-all duration-200 hover:scale-110" onClick={props.close}>
                 <img
                     src="./themes/Yaru/window/window-close-symbolic.svg"
-                    alt="ubuntu window close"
-                    className="h-5 w-5 inline"
+                    alt="close"
+                    className="h-4 w-4 inline"
                 />
             </button>
         </div>

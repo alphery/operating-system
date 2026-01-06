@@ -289,7 +289,7 @@ export class AllApplications extends React.Component {
                     .apps-grid {
                         display: grid;
                         grid-template-columns: repeat(4, 1fr);
-                        gap: 2.5rem 1rem;
+                        gap: 1.5rem 1rem;
                         justify-items: center;
                         padding: 1rem;
                     }
@@ -308,7 +308,7 @@ export class AllApplications extends React.Component {
                     
                     @media (min-width: 1024px) {
                         .apps-grid {
-                            grid-template-columns: repeat(7, 1fr);
+                            grid-template-columns: repeat(6, 1fr);
                         }
                     }
                     

@@ -9,9 +9,20 @@ html {
 }
 
 body {
-    font-family: 'Ubuntu', sans-serif;
+    /* Apple San Francisco font family - exact macOS match */
+    font-family: "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-weight: 400;
+    letter-spacing: -0.01em;
     font-display: swap;
-    /* transition: font-size 0.2s ease; */
+
+    /* macOS text rendering */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "kern" 1, "liga" 1;
+
+    /* Smooth scrolling like macOS */
+    scroll-behavior: smooth;
 }
 
 /* Top NavBar styling */
@@ -315,4 +326,41 @@ input[type=range].ubuntu-slider::-webkit-slider-thumb {
 /* Allow content to overflow with scroll when needed */
 .resize-responsive {
     overflow-y: auto !important;
+}
+
+/* ========== macOS-STYLE ANIMATIONS ========== */
+
+/* Improved window opening animation - macOS style */
+.opened-window {
+    animation: openWindow 300ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes openWindow {
+    0% {
+        opacity: 0;
+        transform: scale(0.95) translateY(10px);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* Smoother window transitions */
+.main-window {
+    transition: width 200ms cubic-bezier(0.25, 0.1, 0.25, 1),
+        height 200ms cubic-bezier(0.25, 0.1, 0.25, 1),
+        transform 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* macOS-style blur effects */
+.backdrop-blur-md {
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+}
+
+.backdrop-blur-xl {
+    -webkit-backdrop-filter: blur(40px);
+    backdrop-filter: blur(40px);
 }

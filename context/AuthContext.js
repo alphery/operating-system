@@ -21,6 +21,13 @@ export const AuthProvider = ({ children }) => {
     const [userData, setUserData] = useState(null);
 
     useEffect(() => {
+        // Check if Firebase is configured
+        if (!auth) {
+            console.warn('Firebase auth not available. Running in demo mode.');
+            setLoading(false);
+            return;
+        }
+
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (user) {
                 setUser(user);
@@ -37,6 +44,11 @@ export const AuthProvider = ({ children }) => {
     }, []);
 
     const loadUserData = async (uid) => {
+        if (!db) {
+            console.warn('Firestore not available in demo mode');
+            return;
+        }
+
         try {
             const userDoc = await getDoc(doc(db, 'users', uid));
             if (userDoc.exists()) {
@@ -50,6 +62,10 @@ export const AuthProvider = ({ children }) => {
     const SUPER_ADMIN_EMAIL = 'alpherymail@gmail.com';
 
     const signup = async (email, password, displayName) => {
+        if (!auth || !db) {
+            throw new Error('Firebase not configured. Cannot sign up in demo mode.');
+        }
+
         try {
             const credential = await createUserWithEmailAndPassword(auth, email, password);
 
@@ -88,6 +104,10 @@ export const AuthProvider = ({ children }) => {
     };
 
     const login = async (email, password) => {
+        if (!auth) {
+            throw new Error('Firebase not configured. Cannot login in demo mode.');
+        }
+
         try {
             const credential = await signInWithEmailAndPassword(auth, email, password);
             return credential.user;
@@ -98,6 +118,10 @@ export const AuthProvider = ({ children }) => {
     };
 
     const loginWithGoogle = async () => {
+        if (!auth || !db) {
+            throw new Error('Firebase not configured. Cannot login with Google in demo mode.');
+        }
+
         try {
             const provider = new GoogleAuthProvider();
 
@@ -140,6 +164,13 @@ export const AuthProvider = ({ children }) => {
     };
 
     const logout = async () => {
+        if (!auth) {
+            console.warn('Firebase not configured. Cannot logout in demo mode.');
+            setUser(null);
+            setUserData(null);
+            return;
+        }
+
         try {
             await signOut(auth);
             setUser(null);
@@ -152,6 +183,11 @@ export const AuthProvider = ({ children }) => {
 
     const updateUserData = async (data) => {
         if (!user) return;
+
+        if (!db) {
+            console.warn('Firestore not available. Cannot update user data in demo mode.');
+            return;
+        }
 
         try {
             await setDoc(doc(db, 'users', user.uid), data, { merge: true });

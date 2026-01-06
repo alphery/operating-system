@@ -13,7 +13,7 @@ export default class Navbar extends Component {
 
 	render() {
 		return (
-			<div className="absolute top-0 right-0 w-screen h-8 shadow-sm flex flex-nowrap justify-between items-center bg-gray-900 bg-opacity-90 backdrop-blur-md text-gray-200 text-sm select-none z-50">
+			<div className="absolute top-0 right-0 w-screen h-8 shadow-sm flex flex-nowrap justify-between items-center bg-gray-900 bg-opacity-90 backdrop-blur-md text-gray-200 text-sm select-none" style={{ zIndex: 100 }}>
 				{/* Left Side: Apple Menu */}
 				<div tabIndex="0" className="flex items-center pl-4 pr-4 h-full outline-none transition duration-100 ease-in-out border-b-2 border-transparent focus:border-ubb-orange">
 					{/* Apple Logo */}
