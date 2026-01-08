@@ -35,8 +35,11 @@ export default function Ubuntu() {
 
 	// Update currentUser when Firebase user changes
 	useEffect(() => {
+		console.log('[UBUNTU] User state changed:', { hasUser: !!user, hasUserData: !!userData, isApproved });
+
 		if (user && userData && isApproved) {
 			// User is approved - proceed normally
+			console.log('[UBUNTU] User approved - granting access');
 			const firebaseUser = {
 				username: user.email,
 				displayName: userData.displayName || user.displayName,
@@ -52,8 +55,15 @@ export default function Ubuntu() {
 				setBgImageName(userData.settings.wallpaper);
 			}
 		} else if (user && userData && !isApproved) {
-			// User not approved
+			// User logged in but not approved - hide auth screen, show pending screen
+			console.log('[UBUNTU] User pending approval - showing approval screen');
 			setShowFirebaseAuth(false);
+			setCurrentUser(null);
+			setScreenLocked(true); // Keep screen locked
+		} else if (!user) {
+			// No user - show auth screen
+			console.log('[UBUNTU] No user - showing auth screen');
+			setShowFirebaseAuth(true);
 			setCurrentUser(null);
 		}
 	}, [user, userData, isApproved]);
@@ -110,9 +120,9 @@ export default function Ubuntu() {
 	};
 
 	const handleFirebaseAuthSuccess = () => {
-		ReactGA.pageview('/desktop');
-		setShowFirebaseAuth(false);
-		setScreenLocked(false);
+		// Do nothing - let the useEffect handle approval logic
+		// This prevents bypassing the approval screen
+		console.log('[UBUNTU] Auth success - waiting for approval check');
 	};
 
 	const changeBackgroundImage = async (imgName) => {
@@ -182,16 +192,22 @@ export default function Ubuntu() {
 				isShutDown={shutDownScreen}
 				turnOn={turnOn}
 			/>
-			<Navbar
-				lockScreen={lockScreen}
-				shutDown={shutDown}
-				user={currentUser}
-			/>
-			<Desktop
-				bg_image_name={bgImageName}
-				changeBackgroundImage={changeBackgroundImage}
-				user={currentUser}
-			/>
+
+			{/* Only show Navbar and Desktop for approved users */}
+			{user && userData && userData.approvalStatus === 'approved' && (
+				<>
+					<Navbar
+						lockScreen={lockScreen}
+						shutDown={shutDown}
+						user={currentUser}
+					/>
+					<Desktop
+						bg_image_name={bgImageName}
+						changeBackgroundImage={changeBackgroundImage}
+						user={currentUser}
+					/>
+				</>
+			)}
 		</div>
 	);
 }

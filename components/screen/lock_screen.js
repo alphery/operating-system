@@ -7,6 +7,9 @@ export default function LockScreen(props) {
     const [selectedUser, setSelectedUser] = useState(null);
     const [password, setPassword] = useState("");
     const [error, setError] = useState(false);
+    const [loginAttempts, setLoginAttempts] = useState(0);
+    const [isLocked, setIsLocked] = useState(false);
+    const [lockoutTime, setLockoutTime] = useState(null);
 
     const wallpapers = {
         "wall-1": "./images/wallpapers/wallpaper1.jpg",
@@ -28,19 +31,60 @@ export default function LockScreen(props) {
             setSelectedUser(null);
             setPassword("");
             setError(false);
+            setLoginAttempts(0);
+            setIsLocked(false);
+            setLockoutTime(null);
         }
     }, [props.isLocked]);
 
+    // Check lockout timer
+    useEffect(() => {
+        if (isLocked && lockoutTime) {
+            const timer = setInterval(() => {
+                const now = Date.now();
+                if (now >= lockoutTime) {
+                    setIsLocked(false);
+                    setLoginAttempts(0);
+                    setLockoutTime(null);
+                }
+            }, 1000);
+            return () => clearInterval(timer);
+        }
+    }, [isLocked, lockoutTime]);
+
     const handleLogin = () => {
         if (!selectedUser) return;
+
+        // Check if locked out
+        if (isLocked) {
+            const remainingTime = Math.ceil((lockoutTime - Date.now()) / 1000);
+            setError(`Too many failed attempts. Try again in ${remainingTime} seconds`);
+            return;
+        }
 
         if (selectedUser.password === password) {
             props.unLockScreen(selectedUser);
             setPassword("");
             setError(false);
+            setLoginAttempts(0);
         } else {
-            setError(true);
-            setTimeout(() => setError(false), 2000);
+            const newAttempts = loginAttempts + 1;
+            setLoginAttempts(newAttempts);
+
+            if (newAttempts >= 3) {
+                // Lock for 30 seconds after 3 failed attempts
+                setIsLocked(true);
+                setLockoutTime(Date.now() + 30000);
+                setError('Too many failed attempts. Locked for 30 seconds.');
+                setPassword("");
+            } else {
+                setError(`Incorrect password. ${3 - newAttempts} attempts remaining`);
+            }
+            setTimeout(() => {
+                if (newAttempts < 3) {
+                    setError(false);
+                }
+            }, 2000);
         }
     };
 
@@ -113,14 +157,16 @@ export default function LockScreen(props) {
                                     placeholder="Password"
                                     autoFocus
                                     className={`w-full px-4 py-2 rounded border focus:outline-none focus:ring-2 focus:ring-orange-500 text-black ${error ? 'border-red-500 bg-red-100' : 'border-gray-300'}`}
+                                    disabled={isLocked}
                                 />
                                 <button
                                     onClick={handleLogin}
-                                    className="absolute right-1 top-1 bottom-1 px-3 bg-orange-500 hover:bg-orange-600 text-white rounded flex items-center justify-center transition-colors">
+                                    disabled={isLocked}
+                                    className="absolute right-1 top-1 bottom-1 px-3 bg-orange-500 hover:bg-orange-600 text-white rounded flex items-center justify-center transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed">
                                     Login
                                 </button>
                             </div>
-                            {error && <p className="text-red-400 text-sm mt-2 font-medium">Incorrect password. Try "123"</p>}
+                            {error && <p className="text-red-400 text-sm mt-2 font-medium">{error}</p>}
 
                             <button
                                 onClick={() => { setSelectedUser(null); setPassword(""); setError(false); }}

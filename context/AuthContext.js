@@ -67,6 +67,7 @@ export const AuthProvider = ({ children }) => {
         }
 
         try {
+            console.log('[AUTH] Signup attempt for email:', email);
             const credential = await createUserWithEmailAndPassword(auth, email, password);
 
             // Update profile
@@ -96,9 +97,10 @@ export const AuthProvider = ({ children }) => {
                 apps: []
             });
 
+            console.log('[AUTH] Signup successful for user:', credential.user.uid);
             return credential.user;
         } catch (error) {
-            console.error('Signup error:', error);
+            console.error('[AUTH] Signup failed:', error.code, error.message);
             throw error;
         }
     };
@@ -109,11 +111,38 @@ export const AuthProvider = ({ children }) => {
         }
 
         try {
+            console.log('[AUTH] Login attempt for email:', email);
             const credential = await signInWithEmailAndPassword(auth, email, password);
+            console.log('[AUTH] Login successful for user:', credential.user.uid);
             return credential.user;
         } catch (error) {
-            console.error('Login error:', error);
-            throw error;
+            console.error('[AUTH] Login failed:', error.code, error.message);
+
+            // Provide user-friendly error messages
+            let errorMessage = 'Login failed. Please try again.';
+            switch (error.code) {
+                case 'auth/invalid-email':
+                    errorMessage = 'Invalid email address.';
+                    break;
+                case 'auth/user-disabled':
+                    errorMessage = 'This account has been disabled.';
+                    break;
+                case 'auth/user-not-found':
+                    errorMessage = 'No account found with this email.';
+                    break;
+                case 'auth/wrong-password':
+                    errorMessage = 'Incorrect password.';
+                    break;
+                case 'auth/too-many-requests':
+                    errorMessage = 'Too many failed login attempts. Please try again later.';
+                    break;
+                default:
+                    errorMessage = error.message;
+            }
+
+            const enhancedError = new Error(errorMessage);
+            enhancedError.code = error.code;
+            throw enhancedError;
         }
     };
 
@@ -123,6 +152,7 @@ export const AuthProvider = ({ children }) => {
         }
 
         try {
+            console.log('[AUTH] Google login attempt');
             const provider = new GoogleAuthProvider();
 
             // Request Google Drive access
@@ -156,9 +186,10 @@ export const AuthProvider = ({ children }) => {
                 });
             }
 
+            console.log('[AUTH] Google login successful for user:', credential.user.uid);
             return credential.user;
         } catch (error) {
-            console.error('Google login error:', error);
+            console.error('[AUTH] Google login failed:', error.code, error.message);
             throw error;
         }
     };
