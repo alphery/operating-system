@@ -13,65 +13,66 @@ function BootingScreen(props) {
             {/* Main Content */}
             <div className="relative z-10 flex flex-col items-center">
 
-                {/* Logo Section - SF Pro Style */}
+                {/* Animated ALPHERY OS Text */}
                 <div className="text-center mb-16">
-                    {/* ALPHERY OS - Smaller, Sleeker */}
-                    <h1 className="text-5xl md:text-6xl font-semibold tracking-tight mb-3" style={{ fontFamily: '"SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
-                        <span className="bg-gradient-to-r from-blue-500 via-purple-600 to-blue-500 text-transparent bg-clip-text">
-                            ALPHERY
-                        </span>
-                        {" "}
-                        <span className="bg-gradient-to-r from-blue-500 via-purple-600 to-blue-500 text-transparent bg-clip-text">
-                            OS
-                        </span>
-                    </h1>
+                    <svg height="0" width="0" className="absolute">
+                        <defs>
+                            <linearGradient id="text-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" stopColor="#3B82F6">
+                                    <animate attributeName="stop-color" values="#3B82F6; #A855F7; #3B82F6" dur="4s" repeatCount="indefinite"></animate>
+                                </stop>
+                                <stop offset="50%" stopColor="#A855F7">
+                                    <animate attributeName="stop-color" values="#A855F7; #3B82F6; #A855F7" dur="4s" repeatCount="indefinite"></animate>
+                                </stop>
+                                <stop offset="100%" stopColor="#3B82F6">
+                                    <animate attributeName="stop-color" values="#3B82F6; #A855F7; #3B82F6" dur="4s" repeatCount="indefinite"></animate>
+                                </stop>
+                            </linearGradient>
+                        </defs>
+                    </svg>
 
-                    {/* Tagline - SF Pro Text */}
-                    <p className="text-gray-500 text-sm font-normal tracking-wide" style={{ fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif' }}>
+                    <svg width="600" height="120" viewBox="0 0 600 120" className="mx-auto">
+                        <text
+                            x="50%"
+                            y="50%"
+                            dominantBaseline="middle"
+                            textAnchor="middle"
+                            fill="url(#text-gradient)"
+                            className="tracking-tight"
+                            fontSize="72"
+                            fontWeight="600"
+                            fontFamily="SF Pro Display, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+                        >
+                            ALPHERY OS
+                        </text>
+                    </svg>
+
+                    {/* Tagline */}
+                    <p className="text-gray-500 text-sm font-normal tracking-wide mt-3" style={{ fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif' }}>
                         Enterprise Operating System
                     </p>
                 </div>
 
                 {/* Loading Section */}
                 {!props.isShutDown && (
-                    <div className="flex flex-col items-center space-y-6">
-
-                        {/* Circular Loader - macOS Style */}
-                        <div className="relative w-16 h-16 animate-spin">
-                            {/* Outer Circle Track */}
-                            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100">
-                                <circle
-                                    cx="50"
-                                    cy="50"
-                                    r="42"
-                                    fill="none"
-                                    stroke="rgba(255, 255, 255, 0.1)"
-                                    strokeWidth="6"
+                    <div className="flex flex-col items-center">
+                        {/* Simple rotating dots loader */}
+                        <div className="relative w-16 h-16">
+                            {[...Array(12)].map((_, i) => (
+                                <div
+                                    key={i}
+                                    className="absolute w-1 h-3 bg-white rounded-full will-change-opacity"
+                                    style={{
+                                        left: '50%',
+                                        top: '50%',
+                                        transform: `rotate(${i * 30}deg) translate(0, -24px)`,
+                                        transformOrigin: '0 24px',
+                                        opacity: 1 - (i * 0.08),
+                                        animation: `dots-spin 1s linear infinite`,
+                                        animationDelay: `${-1 + (i * 0.083)}s`
+                                    }}
                                 />
-                            </svg>
-
-                            {/* Animated Circle - White */}
-                            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100">
-                                <circle
-                                    cx="50"
-                                    cy="50"
-                                    r="42"
-                                    fill="none"
-                                    stroke="white"
-                                    strokeWidth="6"
-                                    strokeLinecap="round"
-                                    strokeDasharray="220"
-                                    strokeDashoffset="60"
-                                    transform="rotate(-90 50 50)"
-                                />
-                            </svg>
-                        </div>
-
-                        {/* Loading Text - SF Pro */}
-                        <div className="text-center">
-                            <p className="text-gray-500 text-xs font-medium tracking-wide" style={{ fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif' }}>
-                                Loading
-                            </p>
+                            ))}
                         </div>
                     </div>
                 )}
@@ -111,6 +112,11 @@ function BootingScreen(props) {
                 * {
                     -webkit-font-smoothing: antialiased;
                     -moz-osx-font-smoothing: grayscale;
+                }
+                
+                @keyframes dots-spin {
+                    0% { opacity: 1; }
+                    100% { opacity: 0.1; }
                 }
             `}</style>
         </div>

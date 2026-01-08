@@ -57,6 +57,17 @@ export default function FirebaseAuthScreen({ onAuthSuccess }) {
                             {error}
                         </div>
                     )}
+
+                    <div className="text-center pt-2">
+                        <button
+                            onClick={() => onAuthSuccess({ demoMode: true })}
+                            className="group relative px-4 py-2 text-gray-500 hover:text-white transition-colors text-sm font-medium overflow-hidden rounded-lg"
+                        >
+                            <span className="relative z-10">Try Demo Mode</span>
+                            <div className="absolute inset-0 bg-white/5 transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-300 rounded-lg"></div>
+                        </button>
+                        <p className="text-gray-600 text-xs mt-1">Local admin login (demo only)</p>
+                    </div>
                 </div>
             </div>
         </div>

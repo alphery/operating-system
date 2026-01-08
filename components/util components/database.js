@@ -176,17 +176,59 @@ export default class ERPDatabase {
     static getSystemUsers() {
         let users = this.getCollection('system_users');
         if (!users) {
-            // Default Admin User on first load
+            // Default Users on first load
             users = [
                 {
                     id: 1,
                     username: "admin",
-                    password: "123",
+                    password: "admin123",
                     displayName: "Administrator",
                     image: "./themes/Yaru/system/user-home.png",
-                    permissions: ["all_apps"]
+                    permissions: ["all_apps"],
+                    role: "admin"
+                },
+                {
+                    id: 2,
+                    username: "demo",
+                    password: "", // No password required for demo
+                    displayName: "Demo User",
+                    image: "./images/logos/boy.png",
+                    permissions: ["basic_apps"], // Limited access
+                    role: "demo"
                 }
             ];
+            this.saveCollection('system_users', users);
+        } else {
+            // Migration: Add demo user if it doesn't exist (for existing installations)
+            const demoUserIndex = users.findIndex(u => u.role === 'demo' || u.username === 'demo');
+
+            if (demoUserIndex === -1) {
+                // Demo user doesn't exist - add it
+                console.log('[DATABASE] Migrating: Adding demo user to existing users');
+                users.push({
+                    id: Date.now(),
+                    username: "demo",
+                    password: "", // No password required
+                    displayName: "Demo User",
+                    image: "./images/logos/boy.png",
+                    permissions: ["basic_apps"],
+                    role: "demo"
+                });
+                this.saveCollection('system_users', users);
+            } else {
+                // Demo user exists - update password to empty
+                console.log('[DATABASE] Migrating: Updating demo user password to empty');
+                users[demoUserIndex].password = "";
+                users[demoUserIndex].role = "demo"; // Ensure role is set
+                this.saveCollection('system_users', users);
+            }
+
+            // Migration: Add role field to admin if missing
+            users.forEach(user => {
+                if (!user.role && user.username === 'admin') {
+                    user.role = 'admin';
+                }
+            });
             this.saveCollection('system_users', users);
         }
         return users;

@@ -17,6 +17,7 @@ export default function Ubuntu() {
 	const [shutDownScreen, setShutDownScreen] = useState(false);
 	const [currentUser, setCurrentUser] = useState(null);
 	const [showFirebaseAuth, setShowFirebaseAuth] = useState(false);
+	const [demoMode, setDemoMode] = useState(false);
 
 	useEffect(() => {
 		getLocalData();
@@ -35,17 +36,23 @@ export default function Ubuntu() {
 
 	// Update currentUser when Firebase user changes
 	useEffect(() => {
-		console.log('[UBUNTU] User state changed:', { hasUser: !!user, hasUserData: !!userData, isApproved });
+		console.log('[UBUNTU] Auth state changed:', {
+			hasUser: !!user,
+			hasUserData: !!userData,
+			approvalStatus: userData?.approvalStatus,
+			isApproved,
+			isPending
+		});
 
 		if (user && userData && isApproved) {
 			// User is approved - proceed normally
-			console.log('[UBUNTU] User approved - granting access');
 			const firebaseUser = {
 				username: user.email,
 				displayName: userData.displayName || user.displayName,
 				image: userData.photoURL || user.photoURL,
 				password: '' // Not needed for Firebase users
 			};
+			console.log('[UBUNTU] User approved, setting current user');
 			setCurrentUser(firebaseUser);
 			setScreenLocked(false);
 			setShowFirebaseAuth(false);
@@ -55,15 +62,9 @@ export default function Ubuntu() {
 				setBgImageName(userData.settings.wallpaper);
 			}
 		} else if (user && userData && !isApproved) {
-			// User logged in but not approved - hide auth screen, show pending screen
-			console.log('[UBUNTU] User pending approval - showing approval screen');
+			// User not approved
+			console.log('[UBUNTU] User pending approval');
 			setShowFirebaseAuth(false);
-			setCurrentUser(null);
-			setScreenLocked(true); // Keep screen locked
-		} else if (!user) {
-			// No user - show auth screen
-			console.log('[UBUNTU] No user - showing auth screen');
-			setShowFirebaseAuth(true);
 			setCurrentUser(null);
 		}
 	}, [user, userData, isApproved]);
@@ -71,7 +72,7 @@ export default function Ubuntu() {
 	const setTimeOutBootScreen = () => {
 		setTimeout(() => {
 			setBootingScreen(false);
-		}, 4000);
+		}, 2000);
 	};
 
 	const getLocalData = () => {
@@ -119,10 +120,20 @@ export default function Ubuntu() {
 		setScreenLocked(false);
 	};
 
-	const handleFirebaseAuthSuccess = () => {
-		// Do nothing - let the useEffect handle approval logic
-		// This prevents bypassing the approval screen
-		console.log('[UBUNTU] Auth success - waiting for approval check');
+	const handleFirebaseAuthSuccess = (options = {}) => {
+		ReactGA.pageview('/desktop');
+		setShowFirebaseAuth(false);
+
+		if (options.demoMode) {
+			// Demo mode - show lock screen with demo user only
+			console.log('[UBUNTU] Demo mode activated');
+			setDemoMode(true);
+			setScreenLocked(true);
+		} else {
+			// Normal Firebase login - wait for approval check
+			setDemoMode(false);
+			setScreenLocked(false);
+		}
 	};
 
 	const changeBackgroundImage = async (imgName) => {
@@ -169,21 +180,22 @@ export default function Ubuntu() {
 	return (
 		<div className="w-screen h-screen overflow-hidden" id="monitor-screen">
 			{/* Pending Approval Screen - shows if user is logged in but not approved */}
-			{user && userData && userData.approvalStatus !== 'approved' && (
+			{user && userData && isPending && !bootingScreen && (
 				<PendingApprovalScreen />
 			)}
 
 			{/* Firebase Auth Screen - shows if user not authenticated */}
-			{!user && showFirebaseAuth && (
+			{!user && showFirebaseAuth && !bootingScreen && (
 				<FirebaseAuthScreen onAuthSuccess={handleFirebaseAuthSuccess} />
 			)}
 
 			{/* Lock Screen - for local users or locked Firebase users */}
-			{!showFirebaseAuth && user && userData && userData.approvalStatus === 'approved' && (
+			{((!user && !showFirebaseAuth) || (user && userData && isApproved) || demoMode) && (
 				<LockScreen
 					isLocked={screenLocked}
 					bgImgName={bgImageName}
 					unLockScreen={unLockScreen}
+					demoMode={demoMode}
 				/>
 			)}
 
@@ -192,22 +204,16 @@ export default function Ubuntu() {
 				isShutDown={shutDownScreen}
 				turnOn={turnOn}
 			/>
-
-			{/* Only show Navbar and Desktop for approved users */}
-			{user && userData && userData.approvalStatus === 'approved' && (
-				<>
-					<Navbar
-						lockScreen={lockScreen}
-						shutDown={shutDown}
-						user={currentUser}
-					/>
-					<Desktop
-						bg_image_name={bgImageName}
-						changeBackgroundImage={changeBackgroundImage}
-						user={currentUser}
-					/>
-				</>
-			)}
+			<Navbar
+				lockScreen={lockScreen}
+				shutDown={shutDown}
+				user={currentUser}
+			/>
+			<Desktop
+				bg_image_name={bgImageName}
+				changeBackgroundImage={changeBackgroundImage}
+				user={currentUser}
+			/>
 		</div>
 	);
 }
