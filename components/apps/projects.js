@@ -702,14 +702,14 @@ export class Projects extends Component {
                             <thead className="bg-slate-50 sticky top-0 z-10 shadow-sm border-b border-slate-200">
                                 <tr>
                                     <th className="px-3 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider w-[5%] text-center">S.No</th>
-                                    <th className="px-3 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider w-[15%]">Name</th>
+                                    <th className="px-3 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider w-[12%]">Name</th>
                                     <th className="px-3 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider w-[10%]">Type</th>
                                     <th className="px-3 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider w-[15%] hidden lg:table-cell">Overview</th>
                                     <th className="px-3 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider w-[10%]">Status</th>
                                     <th className="px-3 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider w-[10%] hidden md:table-cell">Timeline</th>
                                     <th className="px-3 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider w-[10%] hidden xl:table-cell">Tagged</th>
-                                    <th className="px-3 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider w-[10%] hidden 2xl:table-cell">Requirements</th>
-                                    <th className="px-3 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider w-[10%] hidden 2xl:table-cell">Modifications</th>
+                                    <th className="px-3 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider w-[12%] whitespace-nowrap hidden 2xl:table-cell">Requirements</th>
+                                    <th className="px-3 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider w-[12%] whitespace-nowrap hidden 2xl:table-cell">Modifications</th>
                                     <th className="px-3 py-3 text-right text-xs font-bold text-slate-600 uppercase tracking-wider w-[8%]">Actions</th>
                                 </tr>
                             </thead>
@@ -733,38 +733,38 @@ export class Projects extends Component {
                                 ) : (
                                     filteredProjects.map((project, index) => (
                                         <tr key={project.id} onClick={() => this.openEdit(project)} className="group hover:bg-slate-50 cursor-pointer transition-colors duration-200">
-                                            <td className="px-3 py-3 align-middle text-center">
+                                            <td className="px-3 py-3 align-middle text-center w-[5%]">
                                                 <span className="text-slate-500 font-medium text-xs">
                                                     {index + 1}
                                                 </span>
                                             </td>
-                                            <td className="px-3 py-3 align-middle">
+                                            <td className="px-3 py-3 align-middle w-[12%]">
                                                 <div className="font-semibold text-slate-900 text-sm truncate" title={project.name || project.title}>
                                                     {project.name || project.title || '-'}
                                                 </div>
                                             </td>
-                                            <td className="px-3 py-3 align-middle">
+                                            <td className="px-3 py-3 align-middle w-[10%]">
                                                 <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide truncate max-w-full ${typeColors[project.type] ? typeColors[project.type].replace('bg-', 'bg-opacity-10 text-') : 'bg-slate-100 text-slate-600'}`}>
                                                     {project.type || 'Dev'}
                                                 </span>
                                             </td>
-                                            <td className="px-3 py-3 align-middle hidden lg:table-cell">
+                                            <td className="px-3 py-3 align-middle hidden lg:table-cell w-[15%]">
                                                 <div className="text-slate-500 text-xs truncate" title={project.overview || project.description}>
                                                     {project.overview || project.description || '-'}
                                                 </div>
                                             </td>
-                                            <td className="px-3 py-3 align-middle">
+                                            <td className="px-3 py-3 align-middle w-[10%]">
                                                 <div className="flex items-center gap-1.5">
                                                     <div className={`w-1.5 h-1.5 rounded-full ${statusColors[project.status]?.split(' ')[0].replace('bg-', 'bg-') || 'bg-slate-400'}`}></div>
                                                     <span className="text-xs font-medium text-slate-700 truncate">{project.status || 'Planning'}</span>
                                                 </div>
                                             </td>
-                                            <td className="px-3 py-3 align-middle hidden md:table-cell">
+                                            <td className="px-3 py-3 align-middle hidden md:table-cell w-[10%]">
                                                 <div className="text-slate-500 text-xs truncate">
                                                     {project.timeline || '-'}
                                                 </div>
                                             </td>
-                                            <td className="px-3 py-3 align-middle hidden xl:table-cell">
+                                            <td className="px-3 py-3 align-middle hidden xl:table-cell w-[10%]">
                                                 <div className="flex flex-wrap gap-1 overflow-hidden h-5">
                                                     {(project.tagged || project.tags || []).slice(0, 2).map(tag => (
                                                         <span key={tag} className="inline-block px-1.5 rounded-[4px] text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200 truncate max-w-[60px]">
@@ -773,17 +773,17 @@ export class Projects extends Component {
                                                     ))}
                                                 </div>
                                             </td>
-                                            <td className="px-3 py-3 align-middle hidden 2xl:table-cell">
+                                            <td className="px-3 py-3 align-middle hidden 2xl:table-cell w-[12%]">
                                                 <div className="text-slate-400 text-xs truncate" title={project.requirements}>
                                                     {project.requirements || '-'}
                                                 </div>
                                             </td>
-                                            <td className="px-3 py-3 align-middle hidden 2xl:table-cell">
+                                            <td className="px-3 py-3 align-middle hidden 2xl:table-cell w-[12%]">
                                                 <div className="text-slate-400 text-xs truncate" title={project.modifications}>
                                                     {project.modifications || '-'}
                                                 </div>
                                             </td>
-                                            <td className="px-3 py-3 align-middle text-right">
+                                            <td className="px-3 py-3 align-middle text-right w-[8%]">
                                                 <button
                                                     onClick={(e) => this.deleteProject(project.id, e)}
                                                     className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-all"
