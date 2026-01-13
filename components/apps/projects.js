@@ -6,6 +6,10 @@ export class Projects extends Component {
     constructor() {
         super();
         this.state = {
+            // SECTION NAVIGATION
+            activeSection: 'Projects', // Quotations, Projects, Documents, Process
+
+            // PROJECTS
             projects: [],
             tasks: [],
             teamMembers: [],
@@ -16,6 +20,36 @@ export class Projects extends Component {
             activeProject: null,
             activeTask: null,
             selectedProject: null,
+
+            // QUOTATIONS
+            quotations: [],
+            showQuotationModal: false,
+            activeQuotation: null,
+            newQuotation: {
+                title: '',
+                client: '',
+                type: 'Service',
+                status: 'Planned',
+                approvedBy: '',
+                timeline: '',
+                description: ''
+            },
+
+            // DOCUMENTS
+            documents: [],
+            showDocumentModal: false,
+            activeDocument: null,
+            newDocument: {
+                title: '',
+                type: 'Contract',
+                projectId: '',
+                uploadedBy: '',
+                uploadedDate: '',
+                fileUrl: '',
+                description: '',
+                status: 'Draft'
+            },
+
             // ENTERPRISE FEATURES
             darkMode: localStorage.getItem('darkMode') === 'true',
             favorites: JSON.parse(localStorage.getItem('favoriteProjects') || '[]'),
@@ -57,6 +91,8 @@ export class Projects extends Component {
     componentDidMount() {
         this.subscribeToProjects();
         this.subscribeToTasks();
+        this.subscribeToQuotations();
+        this.subscribeToDocuments();
         this.loadTeamMembers();
         this.setupKeyboardShortcuts();
     }
@@ -64,6 +100,8 @@ export class Projects extends Component {
     componentWillUnmount() {
         if (this.unsubscribeProjects) this.unsubscribeProjects();
         if (this.unsubscribeTasks) this.unsubscribeTasks();
+        if (this.unsubscribeQuotations) this.unsubscribeQuotations();
+        if (this.unsubscribeDocuments) this.unsubscribeDocuments();
         this.removeKeyboardShortcuts();
     }
 
@@ -222,6 +260,194 @@ export class Projects extends Component {
         });
     }
 
+    // ============ QUOTATIONS METHODS ============
+    subscribeToQuotations = () => {
+        if (!db) {
+            console.log('Firebase not configured - Quotations running in demo mode');
+            this.setState({ quotations: [] });
+            return;
+        }
+
+        const quotationsRef = collection(db, 'quotations');
+        const q = query(quotationsRef, orderBy('updatedAt', 'desc'));
+
+        this.unsubscribeQuotations = onSnapshot(q, (snapshot) => {
+            const quotations = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            this.setState({ quotations });
+        }, (error) => {
+            console.error('Error loading quotations:', error);
+            this.setState({ quotations: [] });
+        });
+    }
+
+    saveQuotation = async () => {
+        if (!db) {
+            alert('Firebase not configured. Running in demo mode - quotations cannot be saved.');
+            return;
+        }
+
+        const q = this.state.newQuotation;
+        if (!q.title) return alert('Quotation title is required');
+
+        try {
+            if (this.state.activeQuotation) {
+                const quotationRef = doc(db, 'quotations', this.state.activeQuotation.id);
+                await updateDoc(quotationRef, {
+                    ...q,
+                    updatedAt: serverTimestamp()
+                });
+            } else {
+                await addDoc(collection(db, 'quotations'), {
+                    ...q,
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp()
+                });
+            }
+
+            this.setState({
+                showQuotationModal: false,
+                activeQuotation: null,
+                newQuotation: {
+                    title: '', client: '', type: 'Service', status: 'Planned',
+                    approvedBy: '', timeline: '', description: ''
+                }
+            });
+        } catch (error) {
+            console.error('Error saving quotation:', error);
+            alert('Failed to save quotation.');
+        }
+    }
+
+    deleteQuotation = async (id, e) => {
+        if (!db) {
+            alert('Firebase not configured. Running in demo mode.');
+            return;
+        }
+
+        e.stopPropagation();
+        if (!window.confirm("Delete this quotation?")) return;
+
+        try {
+            await deleteDoc(doc(db, 'quotations', id));
+        } catch (error) {
+            console.error('Error deleting quotation:', error);
+        }
+    }
+
+    openEditQuotation = (quotation) => {
+        this.setState({
+            activeQuotation: quotation,
+            newQuotation: {
+                title: quotation.title || '',
+                client: quotation.client || '',
+                type: quotation.type || 'Service',
+                status: quotation.status || 'Planned',
+                approvedBy: quotation.approvedBy || '',
+                timeline: quotation.timeline || '',
+                description: quotation.description || ''
+            },
+            showQuotationModal: true
+        });
+    }
+
+    // ============ DOCUMENTS METHODS ============
+    subscribeToDocuments = () => {
+        if (!db) {
+            console.log('Firebase not configured - Documents running in demo mode');
+            this.setState({ documents: [] });
+            return;
+        }
+
+        const documentsRef = collection(db, 'documents');
+        const q = query(documentsRef, orderBy('uploadedDate', 'desc'));
+
+        this.unsubscribeDocuments = onSnapshot(q, (snapshot) => {
+            const documents = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            this.setState({ documents });
+        }, (error) => {
+            console.error('Error loading documents:', error);
+            this.setState({ documents: [] });
+        });
+    }
+
+    saveDocument = async () => {
+        if (!db) {
+            alert('Firebase not configured. Running in demo mode - documents cannot be saved.');
+            return;
+        }
+
+        const d = this.state.newDocument;
+        if (!d.title) return alert('Document title is required');
+
+        try {
+            if (this.state.activeDocument) {
+                const documentRef = doc(db, 'documents', this.state.activeDocument.id);
+                await updateDoc(documentRef, {
+                    ...d,
+                    updatedAt: serverTimestamp()
+                });
+            } else {
+                await addDoc(collection(db, 'documents'), {
+                    ...d,
+                    uploadedDate: new Date().toISOString().split('T')[0],
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp()
+                });
+            }
+
+            this.setState({
+                showDocumentModal: false,
+                activeDocument: null,
+                newDocument: {
+                    title: '', type: 'Contract', projectId: '', uploadedBy: '',
+                    uploadedDate: '', fileUrl: '', description: '', status: 'Draft'
+                }
+            });
+        } catch (error) {
+            console.error('Error saving document:', error);
+            alert('Failed to save document.');
+        }
+    }
+
+    deleteDocument = async (id, e) => {
+        if (!db) {
+            alert('Firebase not configured. Running in demo mode.');
+            return;
+        }
+
+        e.stopPropagation();
+        if (!window.confirm("Delete this document?")) return;
+
+        try {
+            await deleteDoc(doc(db, 'documents', id));
+        } catch (error) {
+            console.error('Error deleting document:', error);
+        }
+    }
+
+    openEditDocument = (document) => {
+        this.setState({
+            activeDocument: document,
+            newDocument: {
+                title: document.title || '',
+                type: document.type || 'Contract',
+                projectId: document.projectId || '',
+                uploadedBy: document.uploadedBy || '',
+                uploadedDate: document.uploadedDate || '',
+                fileUrl: document.fileUrl || '',
+                description: document.description || '',
+                status: document.status || 'Draft'
+            },
+            showDocumentModal: true
+        });
+    }
+
     handleInputChange = (e) => {
         const value = e.target.type === 'range' || e.target.type === 'number'
             ? parseInt(e.target.value) || 0
@@ -257,6 +483,19 @@ export class Projects extends Component {
             ? this.state.newProject.assignedTo.filter(id => id !== memberId)
             : [...this.state.newProject.assignedTo, memberId];
         this.setState({ newProject: { ...this.state.newProject, assignedTo } });
+    }
+
+    handleQuotationInputChange = (e) => {
+        const value = e.target.type === 'number' ? parseFloat(e.target.value) || 0 : e.target.value;
+        this.setState({
+            newQuotation: { ...this.state.newQuotation, [e.target.name]: value }
+        });
+    }
+
+    handleDocumentInputChange = (e) => {
+        this.setState({
+            newDocument: { ...this.state.newDocument, [e.target.name]: e.target.value }
+        });
     }
 
     saveProject = async () => {
@@ -426,6 +665,204 @@ export class Projects extends Component {
         }
 
         return filtered;
+    }
+
+    // ============ RENDER SECTIONS ============
+    renderQuotations = () => {
+        const statusColors = {
+            'Planned': 'bg-slate-100 text-slate-700',
+            'In Progress': 'bg-blue-100 text-blue-700',
+            'Sent': 'bg-emerald-100 text-emerald-700'
+        };
+
+        const typeColors = {
+            'Service': 'bg-purple-100 text-purple-700',
+            'Product': 'bg-blue-100 text-blue-700',
+            'Consulting': 'bg-orange-100 text-orange-700',
+            'Support': 'bg-teal-100 text-teal-700'
+        };
+
+        return (
+            <div className="p-6">
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <table className="w-full">
+                        <thead className="bg-slate-50 border-b border-slate-200">
+                            <tr>
+                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">S.No</th>
+                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Type</th>
+                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Status</th>
+                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Approved By</th>
+                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Timeline</th>
+                                <th className="px-6 py-4 text-right text-xs font-bold text-slate-600 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {this.state.quotations.length === 0 ? (
+                                <tr>
+                                    <td colSpan="6" className="px-6 py-12 text-center text-slate-500">
+                                        <div className="flex flex-col items-center gap-3">
+                                            <svg className="w-16 h-16 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414  5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                            </svg>
+                                            <p className="text-lg font-semibold">No quotations yet</p>
+                                            <p className="text-sm">Click "New Quotation" to create your first quotation</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ) : (
+                                this.state.quotations.map((quotation, index) => (
+                                    <tr key={quotation.id} onClick={() => this.openEditQuotation(quotation)} className="hover:bg-slate-50 cursor-pointer transition">
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-bold text-sm">
+                                                {index + 1}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${typeColors[quotation.type] || 'bg-slate-100 text-slate-600'}`}>
+                                                {quotation.type || 'Service'}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusColors[quotation.status] || 'bg-slate-100 text-slate-600'}`}>
+                                                {quotation.status}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="text-slate-900 font-medium">{quotation.approvedBy || '-'}</div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="text-slate-700 font-medium">{quotation.timeline || '-'}</div>
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <button onClick={(e) => this.deleteQuotation(quotation.id, e)} className="text-slate-400 hover:text-red-500 font-medium text-sm transition">
+                                                Delete
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        );
+    }
+
+    renderDocuments = () => {
+        const typeColors = {
+            'Contract': 'bg-blue-100 text-blue-700',
+            'Invoice': 'bg-emerald-100 text-emerald-700',
+            'Proposal': 'bg-purple-100 text-purple-700',
+            'Report': 'bg-orange-100 text-orange-700'
+        };
+
+        return (
+            <div className="p-6">
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <table className="w-full">
+                        <thead className="bg-slate-50 border-b border-slate-200">
+                            <tr>
+                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Document</th>
+                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Type</th>
+                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Project</th>
+                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Uploaded By</th>
+                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Date</th>
+                                <th className="px-6 py-4 text-right text-xs font-bold text-slate-600 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {this.state.documents.length === 0 ? (
+                                <tr>
+                                    <td colSpan="6" className="px-6 py-12 text-center text-slate-500">
+                                        <div className="flex flex-col items-center gap-3">
+                                            <svg className="w-16 h-16 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                                            </svg>
+                                            <p className="text-lg font-semibold">No documents yet</p>
+                                            <p className="text-sm">Click "New Document" to add your first document</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ) : (
+                                this.state.documents.map(document => (
+                                    <tr key={document.id} onClick={() => this.openEditDocument(document)} className="hover:bg-slate-50 cursor-pointer transition">
+                                        <td className="px-6 py-4">
+                                            <div className="font-semibold text-slate-900">{document.title}</div>
+                                            <p className="text-xs text-slate-500 mt-1">{document.description}</p>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${typeColors[document.type] || 'bg-slate-100 text-slate-600'}`}>
+                                                {document.type}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-600">
+                                            {this.state.projects.find(p => p.id === document.projectId)?.title || '-'}
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-600">{document.uploadedBy || '-'}</td>
+                                        <td className="px-6 py-4 text-slate-600 text-sm">{document.uploadedDate || '-'}</td>
+                                        <td className="px-6 py-4 text-right">
+                                            <button onClick={(e) => this.deleteDocument(document.id, e)} className="text-slate-400 hover:text-red-500 font-medium text-sm transition">
+                                                Delete
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        );
+    }
+
+    renderProcess = () => {
+        return (
+            <div className="w-full h-full flex items-center justify-center p-6">
+                <div className="text-center max-w-md">
+                    <div className="relative inline-block mb-8">
+                        <div className="w-32 h-32 bg-gradient-to-br from-amber-400 via-orange-500 to-pink-500 rounded-full flex items-center justify-center shadow-2xl animate-pulse">
+                            <svg className="w-16 h-16 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            </svg>
+                        </div>
+                        <div className="absolute -top-2 -right-2 w-8 h-8 bg-yellow-400 rounded-full flex items-center justify-center text-xl animate-bounce">
+                            ⚡
+                        </div>
+                    </div>
+
+                    <h2 className="text-4xl font-bold bg-gradient-to-r from-amber-600 via-orange-600 to-pink-600 bg-clip-text text-transparent mb-4">
+                        Coming Soon!
+                    </h2>
+
+                    <p className="text-slate-600 text-lg mb-6">
+                        The Process section is under development and will be available soon with powerful workflow automation features.
+                    </p>
+
+                    <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-xl p-6">
+                        <h3 className="font-bold text-slate-800 mb-3">What's Coming:</h3>
+                        <ul className="text-left text-slate-600 space-y-2 text-sm">
+                            <li className="flex items-start gap-2">
+                                <span className="text-amber-500 mt-0.5">✓</span>
+                                <span>Automated workflow templates</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                                <span className="text-amber-500 mt-0.5">✓</span>
+                                <span>Process visualization and tracking</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                                <span className="text-amber-500 mt-0.5">✓</span>
+                                <span>Team collaboration tools</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                                <span className="text-amber-500 mt-0.5">✓</span>
+                                <span>Performance analytics</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        );
     }
 
     renderAnalytics = () => {
@@ -607,16 +1044,30 @@ export class Projects extends Component {
         }
 
         return (
-            <div className="w-full h-full flex flex-col bg-gradient-to-br from-slate-50 to-slate-100 text-slate-800 relative font-sans">
+            <div className="w-full h-full flex flex-col bg-gradient-to-br from-slate-50 to-slate-100 text-slate-800 font-sans overflow-hidden" style={{ position: 'relative' }}>
                 {/* Header */}
-                <div className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-6 shadow-sm">
-                    <div className="flex items-center gap-3">
+                <div className="flex-shrink-0 bg-white border-b border-slate-200 flex items-center justify-between px-4 py-3 shadow-sm" style={{ minHeight: '60px' }}>
+                    {/* Left: Logo and Section Dropdown */}
+                    <div className="flex items-center gap-4">
                         <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-2.5 rounded-xl shadow-lg">
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                         </div>
-                        <div>
-                            <h1 className="font-bold text-2xl tracking-tight text-slate-800">Project Hub</h1>
-                            <p className="text-xs text-slate-500">Manage your team's projects efficiently</p>
+
+                        {/* Section Dropdown */}
+                        <div className="relative">
+                            <select
+                                value={this.state.activeSection}
+                                onChange={(e) => this.setState({ activeSection: e.target.value })}
+                                className="appearance-none bg-gradient-to-r from-emerald-50 to-blue-50 border-2 border-emerald-200 text-slate-800 font-bold text-xl px-6 py-2 pr-12 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer hover:border-emerald-300 transition shadow-sm"
+                            >
+                                <option value="Quotations">📋 Quotations</option>
+                                <option value="Projects">🚀 Projects</option>
+                                <option value="Documents">📁 Documents</option>
+                                <option value="Process">⚙️ Process</option>
+                            </select>
+                            <svg className="w-5 h-5 absolute right-4 top-1/2 -translate-y-1/2 text-emerald-600 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -653,41 +1104,80 @@ export class Projects extends Component {
                             Export
                         </button>
 
-                        {/* View Toggle */}
-                        <div className="bg-slate-100 p-1 rounded-lg flex text-xs font-semibold">
-                            {['kanban', 'list', 'analytics'].map(v => (
-                                <button
-                                    key={v}
-                                    onClick={() => this.setState({ view: v })}
-                                    className={`px-4 py-1.5 rounded-md transition capitalize ${view === v ? 'bg-white shadow-sm text-emerald-600' : 'text-slate-600 hover:text-slate-800'}`}
-                                >
-                                    {v}
-                                </button>
-                            ))}
-                        </div>
+                        {/* View Toggle - Only for Projects */}
+                        {this.state.activeSection === 'Projects' && (
+                            <div className="bg-slate-100 p-1 rounded-lg flex text-xs font-semibold">
+                                {['kanban', 'list', 'analytics'].map(v => (
+                                    <button
+                                        key={v}
+                                        onClick={() => this.setState({ view: v })}
+                                        className={`px-4 py-1.5 rounded-md transition capitalize ${view === v ? 'bg-white shadow-sm text-emerald-600' : 'text-slate-600 hover:text-slate-800'}`}
+                                    >
+                                        {v}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
 
-                        <button
-                            onClick={() => this.setState({
-                                showModal: true,
-                                activeProject: null,
-                                newProject: {
-                                    title: '', client: '', status: 'Planning', priority: 'Medium',
-                                    startDate: '', endDate: '', description: '', progress: 0,
-                                    budget: 0, spent: 0, tags: [], assignedTo: [],
-                                    hoursEstimated: 0, hoursLogged: 0
-                                }
-                            })}
-                            className="bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white px-5 py-2.5 rounded-lg shadow-lg text-sm font-semibold transition transform hover:scale-105 active:scale-95 flex items-center gap-2"
-                        >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
-                            New Project
-                        </button>
+                        {/* Dynamic New Button */}
+                        {this.state.activeSection === 'Projects' && (
+                            <button
+                                onClick={() => this.setState({
+                                    showModal: true,
+                                    activeProject: null,
+                                    newProject: {
+                                        title: '', client: '', status: 'Planning', priority: 'Medium',
+                                        startDate: '', endDate: '', description: '', progress: 0,
+                                        budget: 0, spent: 0, tags: [], assignedTo: [],
+                                        hoursEstimated: 0, hoursLogged: 0
+                                    }
+                                })}
+                                className="bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white px-5 py-2.5 rounded-lg shadow-lg text-sm font-semibold transition transform hover:scale-105 active:scale-95 flex items-center gap-2"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
+                                New Project
+                            </button>
+                        )}
+
+                        {this.state.activeSection === 'Quotations' && (
+                            <button
+                                onClick={() => this.setState({
+                                    showQuotationModal: true,
+                                    activeQuotation: null,
+                                    newQuotation: {
+                                        title: '', client: '', type: 'Service', status: 'Planned',
+                                        approvedBy: '', timeline: '', description: ''
+                                    }
+                                })}
+                                className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white px-5 py-2.5 rounded-lg shadow-lg text-sm font-semibold transition transform hover:scale-105 active:scale-95 flex items-center gap-2"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
+                                New Quotation
+                            </button>
+                        )}
+
+                        {this.state.activeSection === 'Documents' && (
+                            <button
+                                onClick={() => this.setState({
+                                    showDocumentModal: true,
+                                    activeDocument: null,
+                                    newDocument: {
+                                        title: '', type: 'Contract', projectId: '', uploadedBy: '',
+                                        uploadedDate: '', fileUrl: '', description: '', status: 'Draft'
+                                    }
+                                })}
+                                className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white px-5 py-2.5 rounded-lg shadow-lg text-sm font-semibold transition transform hover:scale-105 active:scale-95 flex items-center gap-2"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
+                                New Document
+                            </button>
+                        )}
                     </div>
                 </div>
 
-                {/* Filters */}
-                {view !== 'analytics' && (
-                    <div className="px-6 py-4 bg-white border-b border-slate-200 flex gap-4">
+                {/* Filters - Only for Projects */}
+                {this.state.activeSection === 'Projects' && view !== 'analytics' && (
+                    <div className="flex-shrink-0 px-4 py-3 bg-white border-b border-slate-200 flex gap-4">
                         <select
                             value={this.state.filterStatus}
                             onChange={(e) => this.setState({ filterStatus: e.target.value })}
@@ -709,192 +1199,195 @@ export class Projects extends Component {
 
                 {/* Content */}
                 <div className="flex-1 overflow-auto">
-                    {view === 'analytics' ? this.renderAnalytics() : view === 'kanban' ? (
-                        <div className="flex gap-6 h-full p-6 min-w-max">
-                            {columns.map(col => (
-                                <div key={col} className="w-80 flex flex-col bg-white rounded-2xl px-3 py-4 h-full shadow-sm border border-slate-200">
-                                    <div className="flex justify-between items-center mb-4 px-2">
-                                        <h3 className="font-bold text-slate-700 text-sm uppercase tracking-wider">{col}</h3>
-                                        <span className="bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full text-xs font-bold">
-                                            {filteredProjects.filter(p => p.status === col).length}
-                                        </span>
-                                    </div>
-                                    <div className="flex-1 overflow-y-auto px-2 space-y-3 scrollbar-thin scrollbar-thumb-slate-300">
-                                        {filteredProjects.filter(p => p.status === col).map(project => (
-                                            <div key={project.id} onClick={() => {
-                                                this.setState({ selectedProject: project });
-                                                this.openEdit(project);
-                                            }}
-                                                className="bg-gradient-to-br from-white to-slate-50 p-4 rounded-xl shadow hover:shadow-lg transition cursor-pointer border border-slate-100 group">
-
-                                                {/* Priority Badge */}
-                                                <div className="flex justify-between items-start mb-3">
-                                                    <span className={`text-xs font-bold px-2 py-1 rounded-full ${project.priority === 'Urgent' ? 'bg-red-100 text-red-700' :
-                                                        project.priority === 'High' ? 'bg-orange-100 text-orange-700' :
-                                                            project.priority === 'Medium' ? 'bg-blue-100 text-blue-700' :
-                                                                'bg-slate-100 text-slate-600'
-                                                        }`}>
-                                                        {project.priority}
+                    {this.state.activeSection === 'Quotations' ? this.renderQuotations() :
+                        this.state.activeSection === 'Documents' ? this.renderDocuments() :
+                            this.state.activeSection === 'Process' ? this.renderProcess() :
+                                view === 'analytics' ? this.renderAnalytics() : view === 'kanban' ? (
+                                    <div className="flex gap-6 h-full p-6 min-w-max">
+                                        {columns.map(col => (
+                                            <div key={col} className="w-80 flex flex-col bg-white rounded-2xl px-3 py-4 h-full shadow-sm border border-slate-200">
+                                                <div className="flex justify-between items-center mb-4 px-2">
+                                                    <h3 className="font-bold text-slate-700 text-sm uppercase tracking-wider">{col}</h3>
+                                                    <span className="bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full text-xs font-bold">
+                                                        {filteredProjects.filter(p => p.status === col).length}
                                                     </span>
-                                                    <button onClick={(e) => this.deleteProject(project.id, e)} className="opacity-0 group-hover:opacity-100 transition text-slate-400 hover:text-red-500">
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                                    </button>
                                                 </div>
+                                                <div className="flex-1 overflow-y-auto px-2 space-y-3 scrollbar-thin scrollbar-thumb-slate-300">
+                                                    {filteredProjects.filter(p => p.status === col).map(project => (
+                                                        <div key={project.id} onClick={() => {
+                                                            this.setState({ selectedProject: project });
+                                                            this.openEdit(project);
+                                                        }}
+                                                            className="bg-gradient-to-br from-white to-slate-50 p-4 rounded-xl shadow hover:shadow-lg transition cursor-pointer border border-slate-100 group">
 
-                                                {/* Title & Client */}
-                                                <h4 className="font-bold text-slate-800 mb-1 leading-tight">{project.title}</h4>
-                                                {project.client && (
-                                                    <p className="text-xs text-emerald-600 font-semibold mb-2">🏢 {project.client}</p>
-                                                )}
-                                                <p className="text-xs text-slate-500 line-clamp-2 mb-3">{project.description}</p>
+                                                            {/* Priority Badge */}
+                                                            <div className="flex justify-between items-start mb-3">
+                                                                <span className={`text-xs font-bold px-2 py-1 rounded-full ${project.priority === 'Urgent' ? 'bg-red-100 text-red-700' :
+                                                                    project.priority === 'High' ? 'bg-orange-100 text-orange-700' :
+                                                                        project.priority === 'Medium' ? 'bg-blue-100 text-blue-700' :
+                                                                            'bg-slate-100 text-slate-600'
+                                                                    }`}>
+                                                                    {project.priority}
+                                                                </span>
+                                                                <button onClick={(e) => this.deleteProject(project.id, e)} className="opacity-0 group-hover:opacity-100 transition text-slate-400 hover:text-red-500">
+                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                                                </button>
+                                                            </div>
 
-                                                {/* Tags */}
-                                                {project.tags && project.tags.length > 0 && (
-                                                    <div className="flex flex-wrap gap-1 mb-3">
-                                                        {project.tags.slice(0, 3).map(tag => (
-                                                            <span key={tag} className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
-                                                                {tag}
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                )}
+                                                            {/* Title & Client */}
+                                                            <h4 className="font-bold text-slate-800 mb-1 leading-tight">{project.title}</h4>
+                                                            {project.client && (
+                                                                <p className="text-xs text-emerald-600 font-semibold mb-2">🏢 {project.client}</p>
+                                                            )}
+                                                            <p className="text-xs text-slate-500 line-clamp-2 mb-3">{project.description}</p>
 
-                                                {/* Progress Bar */}
-                                                <div className="w-full bg-slate-100 rounded-full h-1.5 mb-3">
-                                                    <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 h-1.5 rounded-full transition-all" style={{ width: `${project.progress || 0}%` }}></div>
-                                                </div>
+                                                            {/* Tags */}
+                                                            {project.tags && project.tags.length > 0 && (
+                                                                <div className="flex flex-wrap gap-1 mb-3">
+                                                                    {project.tags.slice(0, 3).map(tag => (
+                                                                        <span key={tag} className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
+                                                                            {tag}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            )}
 
-                                                {/* Meta Info */}
-                                                <div className="flex justify-between items-center text-xs">
-                                                    <div className="flex items-center gap-2 text-slate-500">
-                                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                                                        {project.startDate}
-                                                    </div>
-                                                    <span className="font-bold text-slate-700">{project.progress || 0}%</span>
-                                                </div>
+                                                            {/* Progress Bar */}
+                                                            <div className="w-full bg-slate-100 rounded-full h-1.5 mb-3">
+                                                                <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 h-1.5 rounded-full transition-all" style={{ width: `${project.progress || 0}%` }}></div>
+                                                            </div>
 
-                                                {/* Team Avatars */}
-                                                {project.assignedTo && Array.isArray(project.assignedTo) && project.assignedTo.length > 0 && (
-                                                    <div className="flex -space-x-2 mt-3">
-                                                        {project.assignedTo.slice(0, 3).map(memberId => {
-                                                            const member = teamMembers.find(m => m.id === memberId);
-                                                            return member ? (
-                                                                <div key={memberId} title={member.name} className="w-6 h-6 rounded-full bg-slate-200 border-2 border-white flex items-center justify-center text-xs overflow-hidden">
-                                                                    {member.avatar && member.avatar.startsWith('http') ? (
-                                                                        <img src={member.avatar} alt={member.name} className="w-full h-full object-cover" />
-                                                                    ) : (
-                                                                        <span>{member.avatar || '👤'}</span>
+                                                            {/* Meta Info */}
+                                                            <div className="flex justify-between items-center text-xs">
+                                                                <div className="flex items-center gap-2 text-slate-500">
+                                                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                                                    {project.startDate}
+                                                                </div>
+                                                                <span className="font-bold text-slate-700">{project.progress || 0}%</span>
+                                                            </div>
+
+                                                            {/* Team Avatars */}
+                                                            {project.assignedTo && Array.isArray(project.assignedTo) && project.assignedTo.length > 0 && (
+                                                                <div className="flex -space-x-2 mt-3">
+                                                                    {project.assignedTo.slice(0, 3).map(memberId => {
+                                                                        const member = teamMembers.find(m => m.id === memberId);
+                                                                        return member ? (
+                                                                            <div key={memberId} title={member.name} className="w-6 h-6 rounded-full bg-slate-200 border-2 border-white flex items-center justify-center text-xs overflow-hidden">
+                                                                                {member.avatar && member.avatar.startsWith('http') ? (
+                                                                                    <img src={member.avatar} alt={member.name} className="w-full h-full object-cover" />
+                                                                                ) : (
+                                                                                    <span>{member.avatar || '👤'}</span>
+                                                                                )}
+                                                                            </div>
+                                                                        ) : null;
+                                                                    })}
+                                                                    {project.assignedTo.length > 3 && (
+                                                                        <div className="w-6 h-6 rounded-full bg-slate-300 border-2 border-white flex items-center justify-center text-xs font-bold text-slate-600">
+                                                                            +{project.assignedTo.length - 3}
+                                                                        </div>
                                                                     )}
                                                                 </div>
-                                                            ) : null;
-                                                        })}
-                                                        {project.assignedTo.length > 3 && (
-                                                            <div className="w-6 h-6 rounded-full bg-slate-300 border-2 border-white flex items-center justify-center text-xs font-bold text-slate-600">
-                                                                +{project.assignedTo.length - 3}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                )}
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="p-6">
-                            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                                <table className="w-full">
-                                    <thead className="bg-slate-50 border-b border-slate-200">
-                                        <tr>
-                                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Project</th>
-                                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Client</th>
-                                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Priority</th>
-                                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Status</th>
-                                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Progress</th>
-                                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Budget</th>
-                                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Team</th>
-                                            <th className="px-6 py-4 text-right text-xs font-bold text-slate-600 uppercase tracking-wider">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100">
-                                        {filteredProjects.map(project => (
-                                            <tr key={project.id} onClick={() => {
-                                                this.setState({ selectedProject: project });
-                                                this.openEdit(project);
-                                            }} className="hover:bg-slate-50 cursor-pointer transition">
-                                                <td className="px-6 py-4">
-                                                    <div className="font-semibold text-slate-900">{project.title}</div>
-                                                    {project.tags && project.tags.length > 0 && (
-                                                        <div className="flex gap-1 mt-1">
-                                                            {project.tags.slice(0, 2).map(tag => (
-                                                                <span key={tag} className="text-xs bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full">{tag}</span>
-                                                            ))}
-                                                        </div>
-                                                    )}
-                                                </td>
-                                                <td className="px-6 py-4 text-slate-600">{project.client || '-'}</td>
-                                                <td className="px-6 py-4">
-                                                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${project.priority === 'Urgent' ? 'bg-red-100 text-red-700' :
-                                                        project.priority === 'High' ? 'bg-orange-100 text-orange-700' :
-                                                            project.priority === 'Medium' ? 'bg-blue-100 text-blue-700' :
-                                                                'bg-slate-100 text-slate-600'
-                                                        }`}>
-                                                        {project.priority}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${project.status === 'Completed' ? 'bg-emerald-100 text-emerald-700' :
-                                                        project.status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
-                                                            project.status === 'Review' ? 'bg-purple-100 text-purple-700' :
-                                                                'bg-slate-100 text-slate-600'
-                                                        }`}>
-                                                        {project.status}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="w-32">
-                                                        <div className="flex justify-between text-xs mb-1">
-                                                            <span className="text-slate-600">{project.progress || 0}%</span>
-                                                        </div>
-                                                        <div className="w-full bg-slate-100 rounded-full h-1.5">
-                                                            <div className="bg-emerald-500 h-1.5 rounded-full" style={{ width: `${project.progress || 0}%` }}></div>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4 text-sm">
-                                                    <div className="text-slate-900 font-semibold">${(project.budget || 0).toLocaleString()}</div>
-                                                    <div className="text-xs text-slate-500">Spent: ${(project.spent || 0).toLocaleString()}</div>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="flex -space-x-2">
-                                                        {project.assignedTo && project.assignedTo.slice(0, 3).map(memberId => {
-                                                            const member = teamMembers.find(m => m.id === memberId);
-                                                            return member ? (
-                                                                <div key={memberId} title={member.name} className="w-7 h-7 rounded-full bg-slate-200 border-2 border-white flex items-center justify-center text-sm">
-                                                                    {member.avatar}
+                                ) : (
+                                    <div className="p-6">
+                                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                                            <table className="w-full">
+                                                <thead className="bg-slate-50 border-b border-slate-200">
+                                                    <tr>
+                                                        <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Project</th>
+                                                        <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Client</th>
+                                                        <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Priority</th>
+                                                        <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Status</th>
+                                                        <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Progress</th>
+                                                        <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Budget</th>
+                                                        <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Team</th>
+                                                        <th className="px-6 py-4 text-right text-xs font-bold text-slate-600 uppercase tracking-wider">Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-100">
+                                                    {filteredProjects.map(project => (
+                                                        <tr key={project.id} onClick={() => {
+                                                            this.setState({ selectedProject: project });
+                                                            this.openEdit(project);
+                                                        }} className="hover:bg-slate-50 cursor-pointer transition">
+                                                            <td className="px-6 py-4">
+                                                                <div className="font-semibold text-slate-900">{project.title}</div>
+                                                                {project.tags && project.tags.length > 0 && (
+                                                                    <div className="flex gap-1 mt-1">
+                                                                        {project.tags.slice(0, 2).map(tag => (
+                                                                            <span key={tag} className="text-xs bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full">{tag}</span>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </td>
+                                                            <td className="px-6 py-4 text-slate-600">{project.client || '-'}</td>
+                                                            <td className="px-6 py-4">
+                                                                <span className={`px-2 py-1 rounded-full text-xs font-bold ${project.priority === 'Urgent' ? 'bg-red-100 text-red-700' :
+                                                                    project.priority === 'High' ? 'bg-orange-100 text-orange-700' :
+                                                                        project.priority === 'Medium' ? 'bg-blue-100 text-blue-700' :
+                                                                            'bg-slate-100 text-slate-600'
+                                                                    }`}>
+                                                                    {project.priority}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-6 py-4">
+                                                                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${project.status === 'Completed' ? 'bg-emerald-100 text-emerald-700' :
+                                                                    project.status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
+                                                                        project.status === 'Review' ? 'bg-purple-100 text-purple-700' :
+                                                                            'bg-slate-100 text-slate-600'
+                                                                    }`}>
+                                                                    {project.status}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-6 py-4">
+                                                                <div className="w-32">
+                                                                    <div className="flex justify-between text-xs mb-1">
+                                                                        <span className="text-slate-600">{project.progress || 0}%</span>
+                                                                    </div>
+                                                                    <div className="w-full bg-slate-100 rounded-full h-1.5">
+                                                                        <div className="bg-emerald-500 h-1.5 rounded-full" style={{ width: `${project.progress || 0}%` }}></div>
+                                                                    </div>
                                                                 </div>
-                                                            ) : null;
-                                                        })}
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4 text-right">
-                                                    <button onClick={(e) => this.deleteProject(project.id, e)} className="text-slate-400 hover:text-red-500 font-medium text-sm transition">
-                                                        Delete
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    )}
+                                                            </td>
+                                                            <td className="px-6 py-4 text-sm">
+                                                                <div className="text-slate-900 font-semibold">${(project.budget || 0).toLocaleString()}</div>
+                                                                <div className="text-xs text-slate-500">Spent: ${(project.spent || 0).toLocaleString()}</div>
+                                                            </td>
+                                                            <td className="px-6 py-4">
+                                                                <div className="flex -space-x-2">
+                                                                    {project.assignedTo && project.assignedTo.slice(0, 3).map(memberId => {
+                                                                        const member = teamMembers.find(m => m.id === memberId);
+                                                                        return member ? (
+                                                                            <div key={memberId} title={member.name} className="w-7 h-7 rounded-full bg-slate-200 border-2 border-white flex items-center justify-center text-sm">
+                                                                                {member.avatar}
+                                                                            </div>
+                                                                        ) : null;
+                                                                    })}
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-6 py-4 text-right">
+                                                                <button onClick={(e) => this.deleteProject(project.id, e)} className="text-slate-400 hover:text-red-500 font-medium text-sm transition">
+                                                                    Delete
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                )}
                 </div>
 
                 {/* Project Modal */}
                 {showModal && (
-                    <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 backdrop-blur-sm p-4">
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 backdrop-blur-sm p-4" style={{ position: 'absolute' }}>
                         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[90vh] animate-in fade-in zoom-in duration-200">
                             <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-emerald-50 to-white">
                                 <h3 className="text-xl font-bold text-slate-800">{this.state.activeProject ? 'Edit Project' : 'Create New Project'}</h3>
@@ -1047,6 +1540,153 @@ export class Projects extends Component {
                                 </button>
                                 <button onClick={this.saveProject} className="px-8 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white rounded-lg shadow-lg hover:shadow-xl font-semibold transition transform hover:scale-105 active:scale-95">
                                     {this.state.activeProject ? 'Update Project' : 'Create Project'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Quotation Modal */}
+                {this.state.showQuotationModal && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 backdrop-blur-sm p-4" style={{ position: 'absolute' }}>
+                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh] animate-in fade-in zoom-in duration-200">
+                            <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-blue-50 to-white">
+                                <h3 className="text-xl font-bold text-slate-800">{this.state.activeQuotation ? 'Edit Quotation' : 'Create New Quotation'}</h3>
+                                <button onClick={() => this.setState({ showQuotationModal: false })} className="text-slate-400 hover:text-slate-600 text-2xl">×</button>
+                            </div>
+
+                            <div className="p-6 space-y-5 overflow-y-auto flex-1">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Quotation Title *</label>
+                                        <input name="title" value={this.state.newQuotation.title} onChange={this.handleQuotationInputChange}
+                                            className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition bg-white" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Client</label>
+                                        <input name="client" value={this.state.newQuotation.client} onChange={this.handleQuotationInputChange}
+                                            className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition bg-white" />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Type</label>
+                                        <select name="type" value={this.state.newQuotation.type} onChange={this.handleQuotationInputChange}
+                                            className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition bg-white">
+                                            <option value="Service">Service</option>
+                                            <option value="Product">Product</option>
+                                            <option value="Consulting">Consulting</option>
+                                            <option value="Support">Support</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Status</label>
+                                        <select name="status" value={this.state.newQuotation.status} onChange={this.handleQuotationInputChange}
+                                            className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition bg-white">
+                                            <option value="Planned">Planned</option>
+                                            <option value="In Progress">In Progress</option>
+                                            <option value="Sent">Sent</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Timeline</label>
+                                        <input name="timeline" placeholder="e.g., 2 weeks" value={this.state.newQuotation.timeline} onChange={this.handleQuotationInputChange}
+                                            className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition bg-white" />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Approved By</label>
+                                    <input name="approvedBy" placeholder="Enter approver name" value={this.state.newQuotation.approvedBy} onChange={this.handleQuotationInputChange}
+                                        className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition bg-white" />
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Description</label>
+                                    <textarea name="description" rows="3" value={this.state.newQuotation.description} onChange={this.handleQuotationInputChange}
+                                        className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition resize-none bg-white"></textarea>
+                                </div>
+                            </div>
+
+                            <div className="p-5 border-t border-slate-100 flex justify-end gap-3 bg-slate-50 rounded-b-2xl">
+                                <button onClick={() => this.setState({ showQuotationModal: false })} className="px-6 py-2.5 text-slate-600 hover:bg-slate-200 rounded-lg font-semibold transition">
+                                    Cancel
+                                </button>
+                                <button onClick={this.saveQuotation} className="px-8 py-2.5 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-lg shadow-lg hover:shadow-xl font-semibold transition transform hover:scale-105 active:scale-95">
+                                    {this.state.activeQuotation ? 'Update Quotation' : 'Create Quotation'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Document Modal */}
+                {this.state.showDocumentModal && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 backdrop-blur-sm p-4" style={{ position: 'absolute' }}>
+                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh] animate-in fade-in zoom-in duration-200">
+                            <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-purple-50 to-white">
+                                <h3 className="text-xl font-bold text-slate-800">{this.state.activeDocument ? 'Edit Document' : 'Add New Document'}</h3>
+                                <button onClick={() => this.setState({ showDocumentModal: false })} className="text-slate-400 hover:text-slate-600 text-2xl">×</button>
+                            </div>
+
+                            <div className="p-6 space-y-5 overflow-y-auto flex-1">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Document Title *</label>
+                                        <input name="title" value={this.state.newDocument.title} onChange={this.handleDocumentInputChange}
+                                            className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none transition bg-white" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Type</label>
+                                        <select name="type" value={this.state.newDocument.type} onChange={this.handleDocumentInputChange}
+                                            className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none transition bg-white">
+                                            <option value="Contract">Contract</option>
+                                            <option value="Invoice">Invoice</option>
+                                            <option value="Proposal">Proposal</option>
+                                            <option value="Report">Report</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Related Project</label>
+                                        <select name="projectId" value={this.state.newDocument.projectId} onChange={this.handleDocumentInputChange}
+                                            className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none transition bg-white">
+                                            <option value="">None</option>
+                                            {this.state.projects.map(p => (
+                                                <option key={p.id} value={p.id}>{p.title}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Uploaded By</label>
+                                        <input name="uploadedBy" value={this.state.newDocument.uploadedBy} onChange={this.handleDocumentInputChange}
+                                            className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none transition bg-white" />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-600 uppercase mb-2">File URL</label>
+                                    <input name="fileUrl" value={this.state.newDocument.fileUrl} onChange={this.handleDocumentInputChange}
+                                        placeholder="https://drive.google.com/..."
+                                        className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none transition bg-white" />
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Description</label>
+                                    <textarea name="description" rows="3" value={this.state.newDocument.description} onChange={this.handleDocumentInputChange}
+                                        className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none transition resize-none bg-white"></textarea>
+                                </div>
+                            </div>
+
+                            <div className="p-5 border-t border-slate-100 flex justify-end gap-3 bg-slate-50 rounded-b-2xl">
+                                <button onClick={() => this.setState({ showDocumentModal: false })} className="px-6 py-2.5 text-slate-600 hover:bg-slate-200 rounded-lg font-semibold transition">
+                                    Cancel
+                                </button>
+                                <button onClick={this.saveDocument} className="px-8 py-2.5 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg shadow-lg hover:shadow-xl font-semibold transition transform hover:scale-105 active:scale-95">
+                                    {this.state.activeDocument ? 'Update Document' : 'Add Document'}
                                 </button>
                             </div>
                         </div>
