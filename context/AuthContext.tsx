@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import {
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
@@ -6,19 +6,53 @@ import {
     onAuthStateChanged,
     GoogleAuthProvider,
     signInWithPopup,
-    updateProfile
+    updateProfile,
+    User
 } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 
-const AuthContext = createContext({});
+interface UserData {
+    uid: string;
+    email: string;
+    displayName: string;
+    photoURL: string;
+    role: 'super_admin' | 'user';
+    approvalStatus: 'approved' | 'pending';
+    createdAt: string;
+    settings: {
+        wallpaper: string;
+        theme: string;
+    };
+    files: any[];
+    apps: any[];
+    [key: string]: any; // Allow other properties
+}
+
+interface AuthContextType {
+    user: User | null;
+    userData: UserData | null;
+    loading: boolean;
+    signup: (email: string, password: string, displayName?: string) => Promise<User>;
+    login: (email: string, password: string) => Promise<User>;
+    loginWithGoogle: () => Promise<User>;
+    logout: () => Promise<void>;
+    updateUserData: (data: Partial<UserData>) => Promise<void>;
+    loadUserData: (uid: string) => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
 export const useAuth = () => useContext(AuthContext);
 
-export const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(null);
+interface AuthProviderProps {
+    children: ReactNode;
+}
+
+export const AuthProvider = ({ children }: AuthProviderProps) => {
+    const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
-    const [userData, setUserData] = useState(null);
+    const [userData, setUserData] = useState<UserData | null>(null);
 
     useEffect(() => {
         // Check if Firebase is configured
@@ -43,7 +77,7 @@ export const AuthProvider = ({ children }) => {
         return unsubscribe;
     }, []);
 
-    const loadUserData = async (uid) => {
+    const loadUserData = async (uid: string) => {
         if (!db) {
             console.warn('Firestore not available in demo mode');
             return;
@@ -52,7 +86,7 @@ export const AuthProvider = ({ children }) => {
         try {
             const userDoc = await getDoc(doc(db, 'users', uid));
             if (userDoc.exists()) {
-                setUserData(userDoc.data());
+                setUserData(userDoc.data() as UserData);
             }
         } catch (error) {
             console.error('Error loading user data:', error);
@@ -61,7 +95,7 @@ export const AuthProvider = ({ children }) => {
 
     const SUPER_ADMIN_EMAIL = 'alpherymail@gmail.com';
 
-    const signup = async (email, password, displayName) => {
+    const signup = async (email: string, password: string, displayName?: string) => {
         if (!auth || !db) {
             throw new Error('Firebase not configured. Cannot sign up in demo mode.');
         }
@@ -80,14 +114,13 @@ export const AuthProvider = ({ children }) => {
             const isSuperAdmin = email.toLowerCase() === SUPER_ADMIN_EMAIL;
             const approvalStatus = isSuperAdmin ? 'approved' : 'pending';
 
-            // Create user document in Firestore
-            await setDoc(doc(db, 'users', credential.user.uid), {
+            const newUserData: UserData = {
                 uid: credential.user.uid,
                 email: email,
                 displayName: displayName || 'User',
                 photoURL: './images/logos/boy.png',
                 role: isSuperAdmin ? 'super_admin' : 'user',
-                approvalStatus: approvalStatus,
+                approvalStatus: approvalStatus as 'approved' | 'pending',
                 createdAt: new Date().toISOString(),
                 settings: {
                     wallpaper: 'wall-1',
@@ -95,17 +128,20 @@ export const AuthProvider = ({ children }) => {
                 },
                 files: [],
                 apps: []
-            });
+            };
+
+            // Create user document in Firestore
+            await setDoc(doc(db, 'users', credential.user.uid), newUserData);
 
             console.log('[AUTH] Signup successful for user:', credential.user.uid);
             return credential.user;
-        } catch (error) {
+        } catch (error: any) {
             console.error('[AUTH] Signup failed:', error.code, error.message);
             throw error;
         }
     };
 
-    const login = async (email, password) => {
+    const login = async (email: string, password: string) => {
         if (!auth) {
             throw new Error('Firebase not configured. Cannot login in demo mode.');
         }
@@ -115,7 +151,7 @@ export const AuthProvider = ({ children }) => {
             const credential = await signInWithEmailAndPassword(auth, email, password);
             console.log('[AUTH] Login successful for user:', credential.user.uid);
             return credential.user;
-        } catch (error) {
+        } catch (error: any) {
             console.error('[AUTH] Login failed:', error.code, error.message);
 
             // Provide user-friendly error messages
@@ -140,7 +176,7 @@ export const AuthProvider = ({ children }) => {
                     errorMessage = error.message;
             }
 
-            const enhancedError = new Error(errorMessage);
+            const enhancedError: any = new Error(errorMessage);
             enhancedError.code = error.code;
             throw enhancedError;
         }
@@ -161,6 +197,8 @@ export const AuthProvider = ({ children }) => {
 
             const credential = await signInWithPopup(auth, provider);
 
+            if (!credential.user.email) throw new Error("No email provided by Google");
+
             // Check if user document exists, if not create it
             const userDoc = await getDoc(doc(db, 'users', credential.user.uid));
 
@@ -169,13 +207,13 @@ export const AuthProvider = ({ children }) => {
                 const isSuperAdmin = credential.user.email.toLowerCase() === SUPER_ADMIN_EMAIL;
                 const approvalStatus = isSuperAdmin ? 'approved' : 'pending';
 
-                await setDoc(doc(db, 'users', credential.user.uid), {
+                const newUserData: UserData = {
                     uid: credential.user.uid,
                     email: credential.user.email,
                     displayName: credential.user.displayName || 'User',
                     photoURL: credential.user.photoURL || './images/logos/boy.png',
                     role: isSuperAdmin ? 'super_admin' : 'user',
-                    approvalStatus: approvalStatus,
+                    approvalStatus: approvalStatus as 'approved' | 'pending',
                     createdAt: new Date().toISOString(),
                     settings: {
                         wallpaper: 'wall-1',
@@ -183,12 +221,14 @@ export const AuthProvider = ({ children }) => {
                     },
                     files: [],
                     apps: []
-                });
+                };
+
+                await setDoc(doc(db, 'users', credential.user.uid), newUserData);
             }
 
             console.log('[AUTH] Google login successful for user:', credential.user.uid);
             return credential.user;
-        } catch (error) {
+        } catch (error: any) {
             console.error('[AUTH] Google login failed:', error.code, error.message);
             throw error;
         }
@@ -212,7 +252,7 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    const updateUserData = async (data) => {
+    const updateUserData = async (data: Partial<UserData>) => {
         if (!user) return;
 
         if (!db) {
@@ -221,8 +261,11 @@ export const AuthProvider = ({ children }) => {
         }
 
         try {
-            await setDoc(doc(db, 'users', user.uid), data, { merge: true });
-            setUserData(data);
+            const userRef = doc(db, 'users', user.uid);
+            await setDoc(userRef, data, { merge: true });
+
+            // We need to merge the new data with existing state locally
+            setUserData(prev => prev ? ({ ...prev, ...data }) : null);
         } catch (error) {
             console.error('Error updating user data:', error);
             throw error;

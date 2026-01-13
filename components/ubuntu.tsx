@@ -9,15 +9,23 @@ import Navbar from './screen/navbar';
 import ReactGA from 'react-ga';
 import SessionManager from './util components/session';
 
+// Define a local user interface that matches how it's used in the component
+interface LocalUser {
+	username: string | null;
+	displayName: string | null;
+	image: string | null;
+	password?: string;
+}
+
 export default function Ubuntu() {
 	const { user, userData, updateUserData } = useAuth();
-	const [screenLocked, setScreenLocked] = useState(false);
-	const [bgImageName, setBgImageName] = useState('wall-8');
-	const [bootingScreen, setBootingScreen] = useState(true);
-	const [shutDownScreen, setShutDownScreen] = useState(false);
-	const [currentUser, setCurrentUser] = useState(null);
-	const [showFirebaseAuth, setShowFirebaseAuth] = useState(false);
-	const [demoMode, setDemoMode] = useState(false);
+	const [screenLocked, setScreenLocked] = useState<boolean>(false);
+	const [bgImageName, setBgImageName] = useState<string>('wall-8');
+	const [bootingScreen, setBootingScreen] = useState<boolean>(true);
+	const [shutDownScreen, setShutDownScreen] = useState<boolean>(false);
+	const [currentUser, setCurrentUser] = useState<LocalUser | null>(null);
+	const [showFirebaseAuth, setShowFirebaseAuth] = useState<boolean>(false);
+	const [demoMode, setDemoMode] = useState<boolean>(false);
 
 	useEffect(() => {
 		getLocalData();
@@ -104,10 +112,10 @@ export default function Ubuntu() {
 		}, 100);
 	};
 
-	const unLockScreen = (localUser) => {
+	const unLockScreen = (localUser: LocalUser) => {
 		ReactGA.pageview('/desktop');
-		window.removeEventListener('click', unLockScreen);
-		window.removeEventListener('keypress', unLockScreen);
+		window.removeEventListener('click', unLockScreen as any);
+		window.removeEventListener('keypress', unLockScreen as any);
 
 		// Set Session for local users
 		if (localUser && localUser.username) {
@@ -120,7 +128,7 @@ export default function Ubuntu() {
 		setScreenLocked(false);
 	};
 
-	const handleFirebaseAuthSuccess = (options = {}) => {
+	const handleFirebaseAuthSuccess = (options: { demoMode?: boolean } = {}) => {
 		ReactGA.pageview('/desktop');
 		setShowFirebaseAuth(false);
 
@@ -136,7 +144,7 @@ export default function Ubuntu() {
 		}
 	};
 
-	const changeBackgroundImage = async (imgName) => {
+	const changeBackgroundImage = async (imgName: string) => {
 		setBgImageName(imgName);
 
 		// Save to Firebase if user is logged in
@@ -163,10 +171,10 @@ export default function Ubuntu() {
 		});
 
 		if (document.getElementById('status-bar')) {
-			document.getElementById('status-bar').blur();
+			document.getElementById('status-bar')?.blur();
 		}
 		setShutDownScreen(true);
-		localStorage.setItem('shut-down', true);
+		localStorage.setItem('shut-down', 'true');
 	};
 
 	const turnOn = () => {
@@ -174,7 +182,7 @@ export default function Ubuntu() {
 		setShutDownScreen(false);
 		setBootingScreen(true);
 		setTimeOutBootScreen();
-		localStorage.setItem('shut-down', false);
+		localStorage.setItem('shut-down', 'false');
 	};
 
 	return (
