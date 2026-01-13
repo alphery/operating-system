@@ -1,11 +1,11 @@
 
-import React, { Component } from 'react';
+import React, { Component, useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 
 // Helper to get user context
 function AppStoreWithAuth(props) {
-    const { user } = useAuth();
-    return <AppStore user={user} {...props} />;
+    const { user, updateUserData } = useAuth();
+    return <AppStore user={user} updateUserData={updateUserData} {...props} />;
 }
 
 // --- CONSTANTS & MOCK DATA ---
@@ -43,8 +43,17 @@ class AppStore extends Component {
             view: 'browse', // 'browse' | 'details'
             selectedApp: null,
             installing: {}, // { appId: progress% }
+            hasError: false
         }
         this._isMounted = false;
+    }
+
+    static getDerivedStateFromError(error) {
+        return { hasError: true };
+    }
+
+    componentDidCatch(error, errorInfo) {
+        console.error("AppStore Crashed:", error, errorInfo);
     }
 
     componentDidMount() {
@@ -67,7 +76,6 @@ class AppStore extends Component {
     }
 
     componentDidUpdate(prevProps) {
-        // Safe check for user prop changes
         const prevUid = prevProps.user ? prevProps.user.uid : null;
         const currUid = this.props.user ? this.props.user.uid : null;
 
@@ -89,6 +97,7 @@ class AppStore extends Component {
         const key = `disabled_apps_${userId}`;
         try {
             const data = localStorage.getItem(key);
+            console.log(`[AppStore] Reading disabled apps for ${userId}:`, data);
             return data ? JSON.parse(data) : [];
         } catch (e) {
             console.error("Error parsing disabled apps:", e);
@@ -123,18 +132,24 @@ class AppStore extends Component {
     }
 
     uninstallApp = (app) => {
-        // Use a small timeout to ensure UI is ready doesn't block
+        // Use timeout to detach from current stack
         setTimeout(() => {
-            if (window.confirm(`Are you sure you want to uninstall ${app.title}?`)) {
-                this.updateAppStorage(app.id, true); // true = disable app
+            try {
+                if (window.confirm(`Are you sure you want to uninstall ${app.title}?`)) {
+                    this.updateAppStorage(app.id, true); // true = disable app
+                }
+            } catch (e) {
+                console.error("Error in uninstall flow:", e);
             }
-        }, 50);
+        }, 10);
     }
 
     updateAppStorage = (appId, disable) => {
         try {
             const userId = this.getUserId();
             let disabled = this.getDisabledApps();
+
+            console.log(`[AppStore] Updating storage for ${userId}. App: ${appId}, Disable via Uninstal: ${disable}`);
 
             if (disable) {
                 if (!disabled.includes(appId)) disabled.push(appId);
@@ -150,8 +165,15 @@ class AppStore extends Component {
             }
 
             // Dispatch event for other components (Desktop, Dock)
+            console.log(`[AppStore] Dispatching app_status_changed event for ${userId}`);
             const event = new CustomEvent('app_status_changed', { detail: { userId: userId } });
             window.dispatchEvent(event);
+
+            // Sync with Firestore if user is authenticated
+            if (this.props.user && this.props.updateUserData) {
+                this.props.updateUserData({ disabledApps: disabled })
+                    .catch(err => console.warn("Failed to sync disabled apps to cloud:", err));
+            }
 
         } catch (e) {
             console.error("Error updating app storage:", e);
@@ -178,6 +200,15 @@ class AppStore extends Component {
     }
 
     render() {
+        if (this.state.hasError) {
+            return (
+                <div className="h-full w-full flex items-center justify-center flex-col p-4 bg-slate-50">
+                    <h2 className="text-xl font-bold text-red-600 mb-2">Something went wrong</h2>
+                    <button onClick={() => this.setState({ hasError: false })} className="text-blue-600 hover:underline">Try Reloading</button>
+                </div>
+            );
+        }
+
         if (!this.state.apps) return <div className="p-4">Loading Apps...</div>;
 
         const { apps, disabled_apps, activeCategory, searchQuery, view, selectedApp, installing } = this.state;
@@ -198,12 +229,10 @@ class AppStore extends Component {
 
         // Featured Apps (random selection for 'all')
         const featuredApps = enrichedApps.filter(a => ['vscode', 'spotify', 'discord', 'chrome'].includes(a.id) || a.rating > 4.7).slice(0, 3);
-
         const systemApps = ['app-store', 'settings', 'users', 'messenger'];
 
         return (
             <div className="flex h-full w-full bg-slate-50 font-sans select-none text-slate-900 overflow-hidden">
-
                 {/* --- Sidebar --- */}
                 <div className="w-64 bg-slate-100 border-r border-slate-200 flex flex-col p-4 z-20">
                     <div className="flex items-center gap-3 mb-8 px-2">
@@ -237,20 +266,12 @@ class AppStore extends Component {
                             </button>
                         ))}
                     </div>
-
-                    <div className="mt-auto pt-6 border-t border-slate-200 px-2">
-                        <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl p-4 text-white shadow-lg">
-                            <h3 className="font-bold text-sm mb-1">Developer?</h3>
-                            <button className="text-xs bg-white text-blue-600 px-3 py-1.5 rounded-md font-bold shadow-sm hover:bg-blue-50 transition w-full">Get Started</button>
-                        </div>
-                    </div>
                 </div>
 
                 {/* --- Main Content --- */}
                 <div className="flex-1 overflow-y-auto bg-white relative">
                     {view === 'browse' ? (
                         <div className="p-8 max-w-6xl mx-auto">
-
                             {/* Hero Carousel */}
                             {activeCategory === 'all' && !searchQuery && (
                                 <div className="mb-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -262,13 +283,7 @@ class AppStore extends Component {
                                         >
                                             <div className={`absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105 ${app.screens[0]} opacity-30 mix-blend-overlay`}></div>
                                             <div className="absolute inset-0 p-6 flex flex-col justify-end text-white z-10 bg-gradient-to-t from-black/60 to-transparent">
-                                                <div className="flex items-center gap-3 mb-2 translate-y-2 group-hover:translate-y-0 transition-transform duration-300">
-                                                    <img src={app.icon} className="w-10 h-10 rounded-lg bg-white/10 backdrop-blur-md shadow-sm" alt={app.title} />
-                                                    <div>
-                                                        <span className="text-xs font-bold uppercase tracking-wider opacity-80">Featured</span>
-                                                        <h3 className="text-2xl font-bold leading-none">{app.title}</h3>
-                                                    </div>
-                                                </div>
+                                                <h3 className="text-2xl font-bold leading-none">{app.title}</h3>
                                             </div>
                                         </div>
                                     ))}
@@ -305,7 +320,6 @@ class AppStore extends Component {
                                                     </div>
                                                 </div>
                                             </div>
-                                            <p className="text-xs text-slate-500 mb-4 line-clamp-2 cursor-pointer" onClick={() => this.openDetails(app)}>{app.description}</p>
                                             <div className="mt-auto flex items-center justify-between">
                                                 {this.renderStars(app.rating)}
                                                 <div className="flex gap-2">
@@ -340,10 +354,7 @@ class AppStore extends Component {
                         <div className="animate-fade-in bg-white min-h-full">
                             <div className="h-64 relative bg-slate-900 text-white overflow-hidden">
                                 <div className={`absolute inset-0 opacity-40 bg-gradient-to-br ${selectedApp.screens[0].replace('bg-', 'from-').replace('100', '900')} to-slate-900`}></div>
-                                <button
-                                    onClick={() => this.setState({ view: 'browse' })}
-                                    className="absolute top-6 left-6 w-10 h-10 bg-black/20 hover:bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-all z-20"
-                                >←</button>
+                                <button onClick={() => this.setState({ view: 'browse' })} className="absolute top-6 left-6 w-10 h-10 bg-black/20 hover:bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-all z-20">←</button>
                                 <div className="absolute -bottom-12 left-10 flex items-end gap-6 z-10 w-full max-w-4xl">
                                     <img src={selectedApp.icon} alt={selectedApp.title} className="w-32 h-32 rounded-3xl bg-white shadow-2xl p-2 md:p-0 object-contain" />
                                     <div className="mb-4 text-shadow">
@@ -354,7 +365,6 @@ class AppStore extends Component {
                                     </div>
                                 </div>
                             </div>
-
                             <div className="pt-16 px-10 max-w-5xl mx-auto pb-20">
                                 <div className="flex flex-col md:flex-row gap-12">
                                     <div className="flex-1 space-y-8">
@@ -364,7 +374,6 @@ class AppStore extends Component {
                                                     <span className="text-3xl font-bold text-slate-800">{selectedApp.rating}</span>
                                                     <div className="text-yellow-400 text-xl">★★★★☆</div>
                                                 </div>
-                                                <p className="text-xs text-slate-400">Average Rating</p>
                                             </div>
                                             <div className="flex gap-4">
                                                 {!systemApps.includes(selectedApp.id) && !disabled_apps.includes(selectedApp.id) && (
@@ -388,13 +397,6 @@ class AppStore extends Component {
                                         <div>
                                             <h3 className="text-xl font-bold text-slate-800 mb-3">About this app</h3>
                                             <p className="text-slate-600 leading-relaxed text-lg">{selectedApp.description}</p>
-                                        </div>
-                                    </div>
-                                    <div className="w-full md:w-64 space-y-6">
-                                        <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 space-y-4">
-                                            <h4 className="font-bold text-slate-800">Information</h4>
-                                            <div className="flex justify-between text-sm"><span className="text-slate-500">Provider</span><span className="font-medium">Alphery Inc.</span></div>
-                                            <div className="flex justify-between text-sm"><span className="text-slate-500">Category</span><span className="font-medium capitalize">{selectedApp.category}</span></div>
                                         </div>
                                     </div>
                                 </div>

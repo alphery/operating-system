@@ -44,11 +44,13 @@ export class Desktop extends Component {
 
     componentDidMount() {
         // ReactGA.pageview("/desktop"); // Removed: GA not initialized
+        this.fetchAppsData = this.fetchAppsData.bind(this);
         this.fetchAppsData();
         this.setContextListeners();
         this.setEventListeners();
         this.checkForNewFolders();
         window.addEventListener('app_status_changed', this.fetchAppsData);
+        console.log("[Desktop] Component mounted, listening for app_status_changed");
     }
 
     componentWillUnmount() {
@@ -150,6 +152,7 @@ export class Desktop extends Component {
         const username = this.props.user ? this.props.user.username : 'guest';
         const storageKey = `disabled_apps_${userUid}`;
         const disabledFromStorage = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem(storageKey) || '[]') : [];
+        console.log(`[Desktop] fetchAppsData for ${userUid}. Storage Key: ${storageKey}. Disabled Apps:`, disabledFromStorage);
 
         // Get user-specific favorites/desktop settings
         const userFavorites = JSON.parse(localStorage.getItem(`${username}_dock_apps_v2`) || '{}');
