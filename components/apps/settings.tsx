@@ -1,19 +1,87 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 
+// Types
+interface SettingsProps {
+    currBgImgName?: string;
+    bg_image_name?: string;
+    changeBackgroundImage?: (video: string) => void;
+    [key: string]: any;
+}
+
+interface SettingsState {
+    // Appearance
+    wallpaper: string;
+    darkMode: boolean;
+    accentColor: string;
+    iconSize: 'small' | 'medium' | 'large';
+    transparency: boolean;
+    theme: 'dark' | 'light' | 'auto';
+    // Display
+    brightness: number;
+    nightLight: boolean;
+    fontSize: 'small' | 'medium' | 'large';
+    scaleFactor: number;
+    // Sound
+    volume: number;
+    notificationSounds: boolean;
+    alertVolume: number;
+    muteSound: boolean;
+    // System
+    animations: boolean;
+    autoUpdate: boolean;
+    showDesktopIcons: boolean;
+    doubleClickSpeed: 'slow' | 'medium' | 'fast';
+    // Privacy
+    locationServices: boolean;
+    analytics: boolean;
+    // Network
+    wifiEnabled: boolean;
+    bluetoothEnabled: boolean;
+    // Power
+    powerMode: 'power-saver' | 'balanced' | 'performance';
+    screenTimeout: number; // minutes
+    // Accessibility
+    highContrast: boolean;
+    reduceMotion: boolean;
+    screenReader: boolean;
+    largeText: boolean;
+    cursorSize: 'small' | 'medium' | 'large';
+    // Notifications
+    doNotDisturb: boolean;
+    showPreviews: boolean;
+    notificationPosition: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
+    // Keyboard
+    keyboardLayout: string;
+    enableShortcuts: boolean;
+    // Language & Region
+    language: string;
+    timeFormat: '12h' | '24h';
+    dateFormat: string;
+    temperature: 'celsius' | 'fahrenheit';
+}
+
+interface Section {
+    id: SectionId;
+    label: string;
+    icon: string;
+}
+
+type SectionId = 'appearance' | 'display' | 'sound' | 'notifications' | 'network' | 'power' | 'accessibility' | 'keyboard' | 'language' | 'system' | 'privacy' | 'about';
 
 // Error Boundary Component
-class ErrorBoundary extends React.Component {
-    constructor(props) {
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: Error | null; errorInfo: React.ErrorInfo | null }> {
+    constructor(props: { children: React.ReactNode }) {
         super(props);
         this.state = { hasError: false, error: null, errorInfo: null };
     }
 
-    static getDerivedStateFromError(error) {
+    static getDerivedStateFromError(error: Error) {
         return { hasError: true };
     }
 
-    componentDidCatch(error, errorInfo) {
+    componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
         console.error("Settings App Crash:", error, errorInfo);
         this.setState({ error, errorInfo });
     }
@@ -46,13 +114,13 @@ class ErrorBoundary extends React.Component {
     }
 }
 
-export function Settings(props) {
+export function Settings(props: SettingsProps) {
 
-    const { user, userData } = useAuth();
-    const [activeSection, setActiveSection] = useState('appearance');
+    const { user } = useAuth();
+    const [activeSection, setActiveSection] = useState<SectionId>('appearance');
 
     // Default settings object
-    const getDefaultSettings = () => ({
+    const getDefaultSettings = (): SettingsState => ({
         // Appearance
         wallpaper: props.currBgImgName || props.bg_image_name || 'wall-8',
         darkMode: true,
@@ -69,6 +137,7 @@ export function Settings(props) {
         volume: 70,
         notificationSounds: true,
         alertVolume: 80,
+        muteSound: false,
         // System
         animations: true,
         autoUpdate: true,
@@ -104,7 +173,7 @@ export function Settings(props) {
     });
 
     // Initialize settings from localStorage or defaults
-    const [settings, setSettings] = useState(() => {
+    const [settings, setSettings] = useState<SettingsState>(() => {
         try {
             const saved = localStorage.getItem('system_settings');
             if (saved) {
@@ -118,7 +187,7 @@ export function Settings(props) {
         return getDefaultSettings();
     });
 
-    const wallpapers = {
+    const wallpapers: Record<string, string> = {
         "wall-1": "./images/wallpapers/wallpaper1.jpg",
         "wall-2": "./images/wallpapers/wallpaper2.jpg",
         "wall-4": "./images/wallpapers/wallpaper4.jpg",
@@ -147,24 +216,24 @@ export function Settings(props) {
         }
     }, [settings]);
 
-    const updateSetting = (key, value) => {
+    const updateSetting = <K extends keyof SettingsState>(key: K, value: SettingsState[K]) => {
         applySettings(key, value);
         setSettings(prev => ({ ...prev, [key]: value }));
     };
 
-    const applySettings = (key, value) => {
+    const applySettings = <K extends keyof SettingsState>(key: K, value: SettingsState[K]) => {
         const root = document.documentElement;
 
         switch (key) {
             case 'wallpaper':
                 if (props.changeBackgroundImage && value !== props.currBgImgName) {
-                    props.changeBackgroundImage(value);
+                    props.changeBackgroundImage(value as string);
                 }
                 break;
 
             case 'accentColor':
-                root.style.setProperty('--accent-color', value);
-                root.style.setProperty('--ub-orange', value);
+                root.style.setProperty('--accent-color', value as string);
+                root.style.setProperty('--ub-orange', value as string);
                 break;
 
             case 'theme':
@@ -231,22 +300,23 @@ export function Settings(props) {
                 break;
 
             case 'brightness':
-                root.style.setProperty('--brightness', `${value}%`);
-                document.body.style.filter = `brightness(${value / 100})`;
+                const brightnessVal = value as number;
+                root.style.setProperty('--brightness', `${brightnessVal}%`);
+                document.body.style.filter = `brightness(${brightnessVal / 100})`;
                 break;
 
             case 'fontSize':
                 const fontSizes = { small: '14px', medium: '16px', large: '18px' };
-                root.style.setProperty('--base-font-size', fontSizes[value]);
+                root.style.setProperty('--base-font-size', fontSizes[value as 'small' | 'medium' | 'large']);
                 break;
 
             case 'scaleFactor':
-                root.style.setProperty('--scale-factor', `${value / 100}`);
+                root.style.setProperty('--scale-factor', `${(value as number) / 100}`);
                 break;
 
             case 'iconSize':
                 const iconSizes = { small: '32px', medium: '48px', large: '64px' };
-                root.style.setProperty('--icon-size', iconSizes[value]);
+                root.style.setProperty('--icon-size', iconSizes[value as 'small' | 'medium' | 'large']);
                 break;
 
             case 'animations':
@@ -265,17 +335,17 @@ export function Settings(props) {
                 break;
 
             case 'volume':
-                localStorage.setItem('system_volume', value);
+                localStorage.setItem('system_volume', String(value));
                 window.dispatchEvent(new CustomEvent('system_volume_change', { detail: value }));
                 break;
 
-            case 'wifiEnable':
-                localStorage.setItem('system_wifi', value);
+            case 'wifiEnabled':
+                localStorage.setItem('system_wifi', String(value));
                 window.dispatchEvent(new CustomEvent('system_wifi_change', { detail: value }));
                 break;
 
-            case 'bluetoothEnable':
-                localStorage.setItem('system_bluetooth', value);
+            case 'bluetoothEnabled':
+                localStorage.setItem('system_bluetooth', String(value));
                 window.dispatchEvent(new CustomEvent('system_bluetooth_change', { detail: value }));
                 break;
 
@@ -302,7 +372,7 @@ export function Settings(props) {
                 break;
 
             case 'screenReader':
-                localStorage.setItem('system_screen_reader', value);
+                localStorage.setItem('system_screen_reader', String(value));
                 if (value) {
                     document.body.setAttribute('aria-live', 'polite');
                 } else {
@@ -326,46 +396,48 @@ export function Settings(props) {
                     medium: '1.5',
                     large: '2'
                 };
-                root.style.setProperty('--cursor-size', cursorSizes[value] || '1');
-                document.body.style.cursor = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="${24 * (cursorSizes[value] || 1)}" height="${24 * (cursorSizes[value] || 1)}" viewBox="0 0 24 24"><path fill="white" stroke="black" d="M5 3l14 9-6 1-3 6z"/></svg>'), auto`;
+                const size = value as 'small' | 'medium' | 'large';
+                root.style.setProperty('--cursor-size', cursorSizes[size] || '1');
+                // Note: Actual cursor change with SVG data URI might need specific image handling, keeping simple for now
                 break;
 
             case 'muteSound':
-                localStorage.setItem('system_mute', value);
+                localStorage.setItem('system_mute', String(value));
                 window.dispatchEvent(new CustomEvent('system_mute_change', { detail: value }));
                 break;
 
             case 'alertVolume':
-                localStorage.setItem('system_alert_volume', value);
+                localStorage.setItem('system_alert_volume', String(value));
                 break;
 
             case 'doNotDisturb':
-                localStorage.setItem('system_dnd', value);
+                localStorage.setItem('system_dnd', String(value));
                 window.dispatchEvent(new CustomEvent('system_dnd_change', { detail: value }));
                 break;
 
             case 'showPreviews':
-            case 'soundAlerts':
             case 'notificationPosition':
-                localStorage.setItem(`system_${key}`, value);
+                localStorage.setItem(`system_${key}`, String(value));
                 window.dispatchEvent(new CustomEvent(`system_${key}_change`, { detail: value }));
                 break;
 
             default:
                 // For any other settings, just store in localStorage
-                localStorage.setItem(`system_${key}`, typeof value === 'object' ? JSON.stringify(value) : value);
+                if (typeof value !== 'undefined') {
+                    localStorage.setItem(`system_${key}`, typeof value === 'object' ? JSON.stringify(value) : String(value));
+                }
                 break;
         }
     };
 
     // Apply all settings on mount
     useEffect(() => {
-        Object.keys(settings).forEach(key => {
+        (Object.keys(settings) as Array<keyof SettingsState>).forEach(key => {
             applySettings(key, settings[key]);
         });
     }, []);
 
-    const sections = [
+    const sections: Section[] = [
         { id: 'appearance', label: 'Appearance', icon: '🎨' },
         { id: 'display', label: 'Display', icon: '🖥️' },
         { id: 'sound', label: 'Sound', icon: '🔊' },
@@ -405,7 +477,7 @@ export function Settings(props) {
             <div>
                 <h3 className="text-lg font-semibold text-white mb-3">Theme</h3>
                 <div className="grid grid-cols-3 gap-2">
-                    {['dark', 'light', 'auto'].map((theme) => (
+                    {(['dark', 'light', 'auto'] as const).map((theme) => (
                         <button
                             key={theme}
                             onClick={() => updateSetting('theme', theme)}
@@ -457,7 +529,7 @@ export function Settings(props) {
             <div>
                 <h3 className="text-lg font-semibold text-white mb-3">Icon Size</h3>
                 <div className="flex gap-2">
-                    {['small', 'medium', 'large'].map((size) => (
+                    {(['small', 'medium', 'large'] as const).map((size) => (
                         <button
                             key={size}
                             onClick={() => updateSetting('iconSize', size)}
@@ -510,7 +582,7 @@ export function Settings(props) {
             <div>
                 <h3 className="text-lg font-semibold text-white mb-3">Font Size</h3>
                 <div className="flex gap-2">
-                    {['small', 'medium', 'large'].map((size) => (
+                    {(['small', 'medium', 'large'] as const).map((size) => (
                         <button
                             key={size}
                             onClick={() => updateSetting('fontSize', size)}
@@ -653,7 +725,7 @@ export function Settings(props) {
                     ].map((mode) => (
                         <button
                             key={mode.id}
-                            onClick={() => updateSetting('powerMode', mode.id)}
+                            onClick={() => updateSetting('powerMode', mode.id as any)}
                             className={`px-4 py-3 rounded-xl font-medium transition-all flex flex-col items-center gap-1 ${settings.powerMode === mode.id
                                 ? 'bg-blue-600 text-white'
                                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
@@ -736,7 +808,7 @@ export function Settings(props) {
             <div>
                 <h3 className="text-lg font-semibold text-white mb-3">Double-Click Speed</h3>
                 <div className="flex gap-2">
-                    {['slow', 'medium', 'fast'].map((speed) => (
+                    {(['slow', 'medium', 'fast'] as const).map((speed) => (
                         <button
                             key={speed}
                             onClick={() => updateSetting('doubleClickSpeed', speed)}
@@ -830,7 +902,7 @@ export function Settings(props) {
                     {user && (
                         <div className="mt-4 pt-4 border-t border-gray-700">
                             <p className="font-medium">Logged in as:</p>
-                            <p className="text-gray-400">{user.email || user.username}</p>
+                            <p className="text-gray-400">{user.email || user.displayName}</p>
                         </div>
                     )}
                 </div>
@@ -845,11 +917,11 @@ export function Settings(props) {
                     </div>
                     <div className="flex justify-between">
                         <span className="text-gray-400">Memory</span>
-                        <span className="text-white">{navigator.deviceMemory ? `${navigator.deviceMemory} GB` : '16 GB'}</span>
+                        <span className="text-white">{(navigator as any).deviceMemory ? `${(navigator as any).deviceMemory} GB` : '16 GB'}</span>
                     </div>
                     <div className="flex justify-between">
                         <span className="text-gray-400">Browser</span>
-                        <span className="text-white">{navigator.userAgentData?.brands?.[0]?.brand || 'Modern Browser'}</span>
+                        <span className="text-white">{(navigator as any).userAgentData?.brands?.[0]?.brand || 'Modern Browser'}</span>
                     </div>
                     <div className="flex justify-between">
                         <span className="text-gray-400">Platform</span>
@@ -926,7 +998,7 @@ export function Settings(props) {
                     ].map((pos) => (
                         <button
                             key={pos.id}
-                            onClick={() => updateSetting('notificationPosition', pos.id)}
+                            onClick={() => updateSetting('notificationPosition', pos.id as any)}
                             className={`px-4 py-3 rounded-lg font-medium transition-all ${settings.notificationPosition === pos.id
                                 ? 'bg-blue-600 text-white'
                                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
@@ -1009,7 +1081,7 @@ export function Settings(props) {
             <div>
                 <h3 className="text-lg font-semibold text-white mb-3">Cursor Size</h3>
                 <div className="flex gap-2">
-                    {['small', 'medium', 'large'].map((size) => (
+                    {(['small', 'medium', 'large'] as const).map((size) => (
                         <button
                             key={size}
                             onClick={() => updateSetting('cursorSize', size)}
@@ -1105,7 +1177,7 @@ export function Settings(props) {
             <div>
                 <h3 className="text-lg font-semibold text-white mb-3">Time Format</h3>
                 <div className="flex gap-2">
-                    {['12h', '24h'].map((format) => (
+                    {(['12h', '24h'] as const).map((format) => (
                         <button
                             key={format}
                             onClick={() => updateSetting('timeFormat', format)}
@@ -1143,7 +1215,7 @@ export function Settings(props) {
                     ].map((unit) => (
                         <button
                             key={unit.id}
-                            onClick={() => updateSetting('temperature', unit.id)}
+                            onClick={() => updateSetting('temperature', unit.id as any)}
                             className={`flex-1 px-6 py-2 rounded-lg font-medium transition-all ${settings.temperature === unit.id
                                 ? 'bg-blue-600 text-white'
                                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
@@ -1215,5 +1287,9 @@ export function Settings(props) {
 export default Settings;
 
 export const displaySettings = () => {
+    // Assuming this function is called by the OS logic to render the app
+    // We can't pass props here easily if it's just a static function call without context
+    // But typically the OS renders the component associated with the app ID.
+    // If this export is used as 'screen', we should export the component itself or a wrapper.
     return <Settings />;
 };
