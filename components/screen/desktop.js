@@ -153,7 +153,7 @@ export class Desktop extends Component {
 
         // Get user-specific favorites/desktop settings
         const userFavorites = JSON.parse(localStorage.getItem(`${username}_dock_apps_v2`) || '{}');
-        const userDesktop = JSON.parse(localStorage.getItem(`${username}_desktop_apps`) || '[]');
+        const userDesktop = JSON.parse(localStorage.getItem(`${username}_desktop_apps_v2`) || '[]');
 
         apps.forEach((app) => {
             const user = this.props.user;

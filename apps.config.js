@@ -22,7 +22,7 @@ const apps = [
         icon: './themes/Yaru/apps/messenger.png',
         disabled: false,
         favourite: true,
-        desktop_shortcut: true,
+        desktop_shortcut: false,
         screen: displayMessenger,
     },
     {
@@ -31,7 +31,7 @@ const apps = [
         icon: './themes/Yaru/apps/users.png',
         disabled: false,
         favourite: false,
-        desktop_shortcut: true,
+        desktop_shortcut: false,
         screen: displayUserManager,
     },
     {
@@ -40,7 +40,7 @@ const apps = [
         icon: './themes/Yaru/apps/projects.png',
         disabled: false,
         favourite: true,
-        desktop_shortcut: true,
+        desktop_shortcut: false,
         screen: displayProject,
     },
     {
@@ -49,7 +49,7 @@ const apps = [
         icon: './themes/Yaru/system/folder.png',
         disabled: false,
         favourite: true,
-        desktop_shortcut: true,
+        desktop_shortcut: false,
         screen: displayFileManager,
     },
     {
@@ -58,7 +58,7 @@ const apps = [
         icon: './themes/Yaru/apps/chrome.png',
         disabled: false,
         favourite: false,
-        desktop_shortcut: true,
+        desktop_shortcut: false,
         screen: displayChrome,
     },
     {
@@ -67,7 +67,7 @@ const apps = [
         icon: './themes/Yaru/apps/calc.png',
         disabled: false,
         favourite: false,
-        desktop_shortcut: true,
+        desktop_shortcut: false,
         screen: displayCalculator,
     },
     {
@@ -103,7 +103,7 @@ const apps = [
         icon: './themes/Yaru/system/user-home.png',
         disabled: false,
         favourite: false,
-        desktop_shortcut: true,
+        desktop_shortcut: false,
         screen: displayAboutAjith,
     },
     {
@@ -112,7 +112,7 @@ const apps = [
         icon: './themes/Yaru/apps/gedit.png',
         disabled: false,
         favourite: true,
-        desktop_shortcut: true,
+        desktop_shortcut: false,
         screen: displayGedit,
     },
     {
@@ -121,7 +121,7 @@ const apps = [
         icon: './themes/Yaru/apps/todo.svg',
         disabled: false,
         favourite: false,
-        desktop_shortcut: true,
+        desktop_shortcut: false,
         screen: displayTodo,
     },
     {
@@ -130,7 +130,7 @@ const apps = [
         icon: './themes/Yaru/apps/weather.svg',
         disabled: false,
         favourite: true,
-        desktop_shortcut: true,
+        desktop_shortcut: false,
         screen: displayWeather,
     },
     {
@@ -139,7 +139,7 @@ const apps = [
         icon: './themes/Yaru/apps/calendar.svg',
         disabled: false,
         favourite: true,
-        desktop_shortcut: true,
+        desktop_shortcut: false,
         screen: displayCalendar,
     },
     {
@@ -148,7 +148,7 @@ const apps = [
         icon: './themes/Yaru/system/user-trash-full.png',
         disabled: false,
         favourite: true,
-        desktop_shortcut: true,
+        desktop_shortcut: false,
         screen: displayTrash,
     },
     {
@@ -157,7 +157,7 @@ const apps = [
         icon: './themes/Yaru/apps/app_store.png',
         disabled: false,
         favourite: false,
-        desktop_shortcut: true,
+        desktop_shortcut: false,
         screen: displayAppStore,
     }
 ]
