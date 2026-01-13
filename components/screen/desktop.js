@@ -148,11 +148,16 @@ export class Desktop extends Component {
         let focused_windows = {}, closed_windows = {}, disabled_apps = {}, favourite_apps = {}, overlapped_windows = {}, minimized_windows = {};
         let desktop_apps = [];
 
-        const userUid = this.props.user ? this.props.user.uid : 'guest';
-        const username = this.props.user ? this.props.user.username : 'guest';
+        // Safe access to UID with fallback
+        const userUid = (this.props.user && this.props.user.uid) ? this.props.user.uid : 'guest';
+        const username = (this.props.user && this.props.user.username) ? this.props.user.username : 'guest';
         const storageKey = `disabled_apps_${userUid}`;
-        const disabledFromStorage = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem(storageKey) || '[]') : [];
+        let disabledFromStorage = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem(storageKey) || '[]') : [];
         console.log(`[Desktop] fetchAppsData for ${userUid}. Storage Key: ${storageKey}. Disabled Apps:`, disabledFromStorage);
+
+        // SYSTEM APPS SAFEGUARD: Ensure these are never disabled
+        const SYSTEM_APPS = ['app-store', 'settings', 'users', 'messenger', 'trash'];
+        disabledFromStorage = disabledFromStorage.filter(id => !SYSTEM_APPS.includes(id));
 
         // Get user-specific favorites/desktop settings
         const userFavorites = JSON.parse(localStorage.getItem(`${username}_dock_apps_v2`) || '{}');

@@ -15,6 +15,7 @@ interface LocalUser {
 	displayName: string | null;
 	image: string | null;
 	password?: string;
+	uid?: string; // Added uid for correct app management
 }
 
 export default function Ubuntu() {
@@ -54,13 +55,14 @@ export default function Ubuntu() {
 
 		if (user && userData && isApproved) {
 			// User is approved - proceed normally
-			const firebaseUser = {
+			const firebaseUser: LocalUser = {
+				uid: user.uid, // PASS UID HERE
 				username: user.email,
 				displayName: userData.displayName || user.displayName,
 				image: userData.photoURL || user.photoURL,
 				password: '' // Not needed for Firebase users
 			};
-			console.log('[UBUNTU] User approved, setting current user');
+			console.log('[UBUNTU] User approved, setting current user:', firebaseUser);
 			setCurrentUser(firebaseUser);
 			setScreenLocked(false);
 			setShowFirebaseAuth(false);

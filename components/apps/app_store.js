@@ -37,7 +37,7 @@ class AppStore extends Component {
         super(props);
         this.state = {
             apps: [],
-            disabled_apps: [],
+            disabled_apps: [], // Initialize empty, will populate in mount
             activeCategory: 'all',
             searchQuery: '',
             view: 'browse', // 'browse' | 'details'
@@ -334,9 +334,9 @@ class AppStore extends Component {
                                                         onClick={(e) => { e.stopPropagation(); if (!isInstalled) this.installApp(app); }}
                                                         disabled={isSystem || isInstalling}
                                                         className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all transform active:scale-95 ${isSystem ? 'bg-slate-100 text-slate-400 cursor-not-allowed' :
-                                                                isInstalling ? 'bg-slate-100 text-slate-500 cursor-wait' :
-                                                                    isInstalled ? 'bg-slate-50 text-slate-600 border border-slate-200 cursor-default' :
-                                                                        'bg-blue-600 text-white hover:bg-blue-700 shadow-md hover:shadow-lg'
+                                                            isInstalling ? 'bg-slate-100 text-slate-500 cursor-wait' :
+                                                                isInstalled ? 'bg-slate-50 text-slate-600 border border-slate-200 cursor-default' :
+                                                                    'bg-blue-600 text-white hover:bg-blue-700 shadow-md hover:shadow-lg'
                                                             }`}
                                                     >
                                                         {isSystem ? 'System' : isInstalling ? '...' : isInstalled ? 'OWNED' : 'GET'}
@@ -386,8 +386,8 @@ class AppStore extends Component {
                                                     onClick={() => !disabled_apps.includes(selectedApp.id) ? {} : this.installApp(selectedApp)}
                                                     disabled={systemApps.includes(selectedApp.id) || installing[selectedApp.id] !== undefined || (!disabled_apps.includes(selectedApp.id))}
                                                     className={`px-10 py-3 rounded-full text-base font-bold transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1 ${systemApps.includes(selectedApp.id) ? 'bg-slate-100 text-slate-400' :
-                                                            !disabled_apps.includes(selectedApp.id) ? 'bg-slate-100 text-slate-400 cursor-default shadow-none' :
-                                                                'bg-blue-600 text-white hover:bg-blue-700'
+                                                        !disabled_apps.includes(selectedApp.id) ? 'bg-slate-100 text-slate-400 cursor-default shadow-none' :
+                                                            'bg-blue-600 text-white hover:bg-blue-700'
                                                         }`}
                                                 >
                                                     {!disabled_apps.includes(selectedApp.id) ? 'Already Installed' : 'INSTALL'}
