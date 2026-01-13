@@ -13,6 +13,7 @@ module.exports = {
       'ub-med-abrgn': "#5E2750",
       'ub-drk-abrgn': "#2C001E",
       'ub-window-title': "#201f1f",
+      'ub-title-bar': "#201f1f",
       'ub-gedit-dark': "#021B33",
       'ub-gedit-light': "#003B70",
       'ub-gedit-darker': "#010D1A",

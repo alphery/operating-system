@@ -153,34 +153,34 @@ const Window: React.FC<WindowProps> = (props) => {
             >
                 {/* Title Bar - Draggable Handle */}
                 <div
-                    className="window-title-bar relative bg-ub-window-title flex justify-center items-center py-1.5 select-none text-sm font-bold text-white border-b border-white border-opacity-10 cursor-move"
+                    className="window-title-bar relative bg-ub-title-bar flex justify-center items-center h-10 select-none text-sm font-bold text-white border-b border-white border-opacity-10 cursor-move z-10"
                     onDoubleClick={maximizeWindow}
                 >
                     {props.title}
 
                     {/* Window Controls */}
-                    <div className="window-controls absolute right-3 top-1/2 transform -translate-y-1/2 flex gap-2">
+                    <div className="window-controls absolute right-0 top-0 h-full flex items-center pr-3 gap-2">
                         <button
-                            className="w-5 h-5 rounded-full bg-white bg-opacity-10 hover:bg-opacity-20 flex items-center justify-center focus:outline-none transition-colors"
+                            className="w-6 h-6 rounded-full hover:bg-white hover:bg-opacity-10 flex items-center justify-center focus:outline-none transition-colors"
                             onClick={(e) => { e.stopPropagation(); minimizeWindow(); }}
                         >
-                            <img src="./themes/Yaru/window/window-minimize-symbolic.svg" alt="minimize" className="w-3 h-3" />
+                            <img src="./themes/Yaru/window/window-minimize-symbolic.svg" alt="minimize" className="w-3.5 h-3.5" />
                         </button>
                         <button
-                            className="w-5 h-5 rounded-full bg-white bg-opacity-10 hover:bg-opacity-20 flex items-center justify-center focus:outline-none transition-colors"
+                            className="w-6 h-6 rounded-full hover:bg-white hover:bg-opacity-10 flex items-center justify-center focus:outline-none transition-colors"
                             onClick={(e) => { e.stopPropagation(); maximizeWindow(); }}
                         >
                             {isMaximized ? (
-                                <img src="./themes/Yaru/window/window-restore-symbolic.svg" alt="restore" className="w-3 h-3" />
+                                <img src="./themes/Yaru/window/window-restore-symbolic.svg" alt="restore" className="w-3.5 h-3.5" />
                             ) : (
-                                <img src="./themes/Yaru/window/window-maximize-symbolic.svg" alt="maximize" className="w-3 h-3" />
+                                <img src="./themes/Yaru/window/window-maximize-symbolic.svg" alt="maximize" className="w-3.5 h-3.5" />
                             )}
                         </button>
                         <button
-                            className="w-5 h-5 rounded-full bg-ub-orange hover:bg-red-500 flex items-center justify-center focus:outline-none transition-colors"
+                            className="w-6 h-6 rounded-full bg-[#FF5D5B] hover:bg-[#FF8585] flex items-center justify-center focus:outline-none transition-colors"
                             onClick={(e) => { e.stopPropagation(); closeWindow(); }}
                         >
-                            <img src="./themes/Yaru/window/window-close-symbolic.svg" alt="close" className="w-3 h-3" />
+                            <img src="./themes/Yaru/window/window-close-symbolic.svg" alt="close" className="w-3.5 h-3.5" style={{ filter: "brightness(0)" }} />
                         </button>
                     </div>
                 </div>
