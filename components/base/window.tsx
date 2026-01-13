@@ -137,7 +137,7 @@ const Window: React.FC<WindowProps> = (props) => {
             disableDragging={isMaximized}
             style={{
                 zIndex: props.isFocused ? 30 : 20,
-                display: props.minimized ? 'none' : 'block' // Hide if minimized
+                display: props.minimized ? 'none' : 'block', // Hide if minimized
             }}
             className={`absolute ${isClosed ? "scale-0 opacity-0" : "scale-100 opacity-100"} transition-opacity duration-200`}
         >
@@ -145,6 +145,11 @@ const Window: React.FC<WindowProps> = (props) => {
                 className={`flex flex-col h-full w-full bg-ub-cool-grey shadow-2xl rounded-lg overflow-hidden border border-black border-opacity-40
                 ${props.isFocused ? "shadow-2xl" : "shadow-md opacity-95"}
                 ${isMaximized ? "rounded-none" : "rounded-lg"}`}
+                style={{
+                    transform: 'translate3d(0,0,0)', // Force GPU acceleration
+                    backfaceVisibility: 'hidden',
+                    willChange: 'transform' // Hint browser for 60fps dragging
+                }}
             >
                 {/* Title Bar - Draggable Handle */}
                 <div
@@ -198,7 +203,7 @@ const Window: React.FC<WindowProps> = (props) => {
     );
 };
 
-export default Window;
+export default React.memo(Window);
 
 // Window's Main Screen
 interface WindowMainScreenProps {

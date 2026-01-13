@@ -448,16 +448,14 @@ export class Desktop extends Component {
                     removeFromDock={this.removeAppFromDock}
                 />
 
-                {this.state.allAppsView ?
-                    <div onClick={this.showAllApps}>
-                        <AllApplications apps={apps}
-                            recentApps={this.app_stack}
-                            openApp={this.openApp}
-                            onAppContextMenu={this.handleAppContextMenu}
-                            closeMenu={this.showAllApps}
-                            disabled_apps={this.state.disabled_apps}
-                        />
-                    </div> : null}
+                <AllApplications apps={apps}
+                    recentApps={this.app_stack}
+                    openApp={this.openApp}
+                    onAppContextMenu={this.handleAppContextMenu}
+                    visible={this.state.allAppsView}
+                    closeMenu={this.showAllApps}
+                    disabled_apps={this.state.disabled_apps}
+                />
             </div>
         )
     }

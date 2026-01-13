@@ -1513,8 +1513,8 @@ export class Projects extends Component {
                 {/* Project Modal */}
                 {
                     showModal && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 backdrop-blur-sm p-4" style={{ position: 'absolute' }}>
-                            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[90vh] animate-in fade-in zoom-in duration-200">
+                        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 backdrop-blur-sm p-4">
+                            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col h-[90%] animate-in fade-in zoom-in duration-200">
                                 <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-emerald-50 to-white">
                                     <h3 className="text-xl font-bold text-slate-800">{this.state.activeProject ? 'Edit Project' : 'Create New Project'}</h3>
                                     <button onClick={() => this.setState({ showModal: false })} className="text-slate-400 hover:text-slate-600 text-2xl">×</button>
@@ -1617,8 +1617,8 @@ export class Projects extends Component {
                 {/* Quotation Modal */}
                 {
                     this.state.showQuotationModal && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 backdrop-blur-sm p-4" style={{ position: 'absolute' }}>
-                            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh] animate-in fade-in zoom-in duration-200">
+                        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 backdrop-blur-sm p-4">
+                            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col h-[90%] animate-in fade-in zoom-in duration-200">
                                 <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-blue-50 to-white">
                                     <h3 className="text-xl font-bold text-slate-800">{this.state.activeQuotation ? 'Edit Quotation' : 'Create New Quotation'}</h3>
                                     <button onClick={() => this.setState({ showQuotationModal: false })} className="text-slate-400 hover:text-slate-600 text-2xl">×</button>
@@ -1694,8 +1694,8 @@ export class Projects extends Component {
                 {/* Document Modal */}
                 {
                     this.state.showDocumentModal && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 backdrop-blur-sm p-4" style={{ position: 'absolute' }}>
-                            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh] animate-in fade-in zoom-in duration-200">
+                        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 backdrop-blur-sm p-4">
+                            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col h-[90%] animate-in fade-in zoom-in duration-200">
                                 <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-purple-50 to-white">
                                     <h3 className="text-xl font-bold text-slate-800">{this.state.activeDocument ? 'Edit Document' : 'Add New Document'}</h3>
                                     <button onClick={() => this.setState({ showDocumentModal: false })} className="text-slate-400 hover:text-slate-600 text-2xl">×</button>
