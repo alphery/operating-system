@@ -152,7 +152,7 @@ export class Desktop extends Component {
         const disabledFromStorage = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem(storageKey) || '[]') : [];
 
         // Get user-specific favorites/desktop settings
-        const userFavorites = JSON.parse(localStorage.getItem(`${username}_favourite_apps`) || '{}');
+        const userFavorites = JSON.parse(localStorage.getItem(`${username}_dock_apps_v2`) || '{}');
         const userDesktop = JSON.parse(localStorage.getItem(`${username}_desktop_apps`) || '[]');
 
         apps.forEach((app) => {
@@ -381,7 +381,7 @@ export class Desktop extends Component {
         let favourite_apps = { ...this.state.favourite_apps };
         favourite_apps[appId] = true;
         this.setState({ favourite_apps });
-        localStorage.setItem(`${username}_favourite_apps`, JSON.stringify(favourite_apps));
+        localStorage.setItem(`${username}_dock_apps`, JSON.stringify(favourite_apps));
     }
 
     removeAppFromDock = (appId) => {
@@ -389,7 +389,7 @@ export class Desktop extends Component {
         let favourite_apps = { ...this.state.favourite_apps };
         favourite_apps[appId] = false;
         this.setState({ favourite_apps });
-        localStorage.setItem(`${username}_favourite_apps`, JSON.stringify(favourite_apps));
+        localStorage.setItem(`${username}_dock_apps`, JSON.stringify(favourite_apps));
     }
 
     handleAppContextMenu = (e, appId) => {
