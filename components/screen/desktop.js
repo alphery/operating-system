@@ -437,17 +437,6 @@ export class Desktop extends Component {
                     displaySize={this.state.displaySize}
                 />
                 <DefaultMenu active={this.state.context_menus.default} />
-                <AppContextMenu
-                    active={this.state.context_menus.app}
-                    appId={this.state.selectedAppId}
-                    isFavourite={this.state.selectedAppId && this.state.favourite_apps[this.state.selectedAppId]}
-                    isOnDesktop={this.state.selectedAppId && this.state.desktop_apps.includes(this.state.selectedAppId)}
-                    addToDesktop={this.addAppToDesktop}
-                    removeFromDesktop={this.removeAppFromDesktop}
-                    addToDock={this.addAppToDock}
-                    removeFromDock={this.removeAppFromDock}
-                />
-
                 <AllApplications apps={apps}
                     recentApps={this.app_stack}
                     openApp={this.openApp}
@@ -456,19 +445,31 @@ export class Desktop extends Component {
                     closeMenu={this.showAllApps}
                     disabled_apps={this.state.disabled_apps}
                 />
+
+                <AppContextMenu
+                    active={this.state.context_menus.app}
+                    appId={this.state.selectedAppId}
+                    isFavourite={this.state.selectedAppId && this.state.favourite_apps[this.state.selectedAppId] !== false}
+                    isOnDesktop={this.state.selectedAppId && this.state.desktop_apps.includes(this.state.selectedAppId)}
+                    addToDesktop={this.addAppToDesktop}
+                    removeFromDesktop={this.removeAppFromDesktop}
+                    addToDock={this.addAppToDock}
+                    removeFromDock={this.removeAppFromDock}
+                    closeMenu={this.hideAllContextMenu}
+                />
             </div>
         )
     }
 }
 
-function AppContextMenu({ active, appId, isFavourite, isOnDesktop, addToDesktop, removeFromDesktop, addToDock, removeFromDock }) {
-    const handleAddToDesktop = (e) => { e.stopPropagation(); if (appId) addToDesktop(appId); };
-    const handleRemoveFromDesktop = (e) => { e.stopPropagation(); if (appId) removeFromDesktop(appId); };
-    const handleAddToDock = (e) => { e.stopPropagation(); if (appId) addToDock(appId); };
-    const handleRemoveFromDock = (e) => { e.stopPropagation(); if (appId) removeFromDock(appId); };
+function AppContextMenu({ active, appId, isFavourite, isOnDesktop, addToDesktop, removeFromDesktop, addToDock, removeFromDock, closeMenu }) {
+    const handleAddToDesktop = (e) => { e.stopPropagation(); if (appId) addToDesktop(appId); closeMenu(); };
+    const handleRemoveFromDesktop = (e) => { e.stopPropagation(); if (appId) removeFromDesktop(appId); closeMenu(); };
+    const handleAddToDock = (e) => { e.stopPropagation(); if (appId) addToDock(appId); closeMenu(); };
+    const handleRemoveFromDock = (e) => { e.stopPropagation(); if (appId) removeFromDock(appId); closeMenu(); };
 
     return (
-        <div id="app-menu" className={(active ? " block " : " hidden ") + " cursor-default w-52 context-menu-bg border text-left font-light border-gray-900 rounded text-white py-2 absolute z-50 text-sm shadow-xl backdrop-blur-md bg-opacity-80"}>
+        <div id="app-menu" style={{ zIndex: 9999 }} className={(active ? " block " : " hidden ") + " cursor-default w-52 context-menu-bg border text-left font-light border-gray-900 rounded text-white py-2 absolute text-sm shadow-xl backdrop-blur-md bg-opacity-80"}>
             {!isOnDesktop ? (
                 <div onClick={handleAddToDesktop} className="w-full py-1.5 px-4 hover:bg-white hover:bg-opacity-10 cursor-pointer flex items-center gap-2">
                     <span className="w-4 h-4 text-xs flex items-center justify-center">+</span>
@@ -484,12 +485,12 @@ function AppContextMenu({ active, appId, isFavourite, isOnDesktop, addToDesktop,
             {!isFavourite ? (
                 <div onClick={handleAddToDock} className="w-full py-1.5 px-4 hover:bg-white hover:bg-opacity-10 cursor-pointer flex items-center gap-2">
                     <span className="w-4 h-4 text-xs flex items-center justify-center">★</span>
-                    <span>Add to Dock</span>
+                    <span>Pin to Dock</span>
                 </div>
             ) : (
                 <div onClick={handleRemoveFromDock} className="w-full py-1.5 px-4 hover:bg-white hover:bg-opacity-10 cursor-pointer flex items-center gap-2">
                     <span className="w-4 h-4 text-xs flex items-center justify-center">☆</span>
-                    <span>Remove from Dock</span>
+                    <span>Unpin from Dock</span>
                 </div>
             )}
         </div>
