@@ -62,7 +62,10 @@ export class Projects extends Component {
                 timeline: '',
                 tagged: [],
                 requirements: '',
-                modifications: ''
+                modifications: '',
+                currentProgress: '',
+                pendingChanges: '',
+                finisherTimeline: ''
             },
             newTask: {
                 title: '',
@@ -532,18 +535,26 @@ export class Projects extends Component {
         }
 
         const p = this.state.newProject;
-        if (!p.title) return alert('Project title is required');
+        const projectTitle = p.name || p.title;
+
+        if (!projectTitle) return alert('Project title is required');
+
+        const projectData = {
+            ...p,
+            title: projectTitle,
+            name: projectTitle
+        };
 
         try {
             if (this.state.activeProject) {
                 const projectRef = doc(db, 'projects', this.state.activeProject.id);
                 await updateDoc(projectRef, {
-                    ...p,
+                    ...projectData,
                     updatedAt: serverTimestamp()
                 });
             } else {
                 await addDoc(collection(db, 'projects'), {
-                    ...p,
+                    ...projectData,
                     createdAt: serverTimestamp(),
                     updatedAt: serverTimestamp(),
                     comments: [],
@@ -556,7 +567,8 @@ export class Projects extends Component {
                 activeProject: null,
                 newProject: {
                     name: '', type: 'Development', overview: '', status: 'Planning',
-                    timeline: '', tagged: [], requirements: '', modifications: ''
+                    timeline: '', tagged: [], requirements: '', modifications: '',
+                    currentProgress: '', pendingChanges: '', finisherTimeline: ''
                 }
             });
         } catch (error) {
@@ -607,7 +619,10 @@ export class Projects extends Component {
             timeline: project.timeline || '',
             tagged: Array.isArray(project.tagged) ? project.tagged : (Array.isArray(project.tags) ? project.tags : []),
             requirements: project.requirements || '',
-            modifications: project.modifications || ''
+            modifications: project.modifications || '',
+            currentProgress: project.currentProgress || '',
+            pendingChanges: project.pendingChanges || '',
+            finisherTimeline: project.finisherTimeline || ''
         };
 
         this.setState({
@@ -743,6 +758,9 @@ export class Projects extends Component {
                                     <th className="px-3 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider w-[10%] hidden xl:table-cell">Tagged</th>
                                     <th className="px-3 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider w-[12%] whitespace-nowrap hidden 2xl:table-cell">Requirements</th>
                                     <th className="px-3 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider w-[12%] whitespace-nowrap hidden 2xl:table-cell">Modifications</th>
+                                    <th className="px-3 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider w-[10%] whitespace-nowrap hidden 2xl:table-cell">Current Progress</th>
+                                    <th className="px-3 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider w-[10%] whitespace-nowrap hidden 2xl:table-cell">Pending Changes</th>
+                                    <th className="px-3 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider w-[10%] whitespace-nowrap hidden 2xl:table-cell">Finisher TL</th>
                                     <th className="px-3 py-3 text-right text-xs font-bold text-slate-600 uppercase tracking-wider w-[8%]">Actions</th>
                                 </tr>
                             </thead>
@@ -814,6 +832,21 @@ export class Projects extends Component {
                                             <td className="px-3 py-3 align-middle hidden 2xl:table-cell w-[12%]">
                                                 <div className="text-slate-400 text-xs truncate" title={project.modifications}>
                                                     {project.modifications || '-'}
+                                                </div>
+                                            </td>
+                                            <td className="px-3 py-3 align-middle hidden 2xl:table-cell w-[10%]">
+                                                <div className="text-slate-400 text-xs truncate" title={project.currentProgress}>
+                                                    {project.currentProgress || '-'}
+                                                </div>
+                                            </td>
+                                            <td className="px-3 py-3 align-middle hidden 2xl:table-cell w-[10%]">
+                                                <div className="text-slate-400 text-xs truncate" title={project.pendingChanges}>
+                                                    {project.pendingChanges || '-'}
+                                                </div>
+                                            </td>
+                                            <td className="px-3 py-3 align-middle hidden 2xl:table-cell w-[10%]">
+                                                <div className="text-slate-400 text-xs truncate" title={project.finisherTimeline}>
+                                                    {project.finisherTimeline || '-'}
                                                 </div>
                                             </td>
                                             <td className="px-3 py-3 align-middle text-right w-[8%]">
@@ -1619,6 +1652,24 @@ export class Projects extends Component {
                                         <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Modifications</label>
                                         <textarea name="modifications" rows="3" value={newProject.modifications} onChange={this.handleInputChange}
                                             className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none transition resize-none bg-white"></textarea>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Current Progress</label>
+                                        <textarea name="currentProgress" rows="2" value={newProject.currentProgress} onChange={this.handleInputChange}
+                                            className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none transition resize-none bg-white"></textarea>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Pending Changes</label>
+                                        <textarea name="pendingChanges" rows="2" value={newProject.pendingChanges} onChange={this.handleInputChange}
+                                            className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none transition resize-none bg-white"></textarea>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Finisher Timeline</label>
+                                        <input name="finisherTimeline" value={newProject.finisherTimeline} onChange={this.handleInputChange}
+                                            className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none transition bg-white" />
                                     </div>
 
                                     {/* Tags */}
