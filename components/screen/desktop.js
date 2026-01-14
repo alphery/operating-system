@@ -98,19 +98,14 @@ export class Desktop extends Component {
     }
 
     checkContextMenu = (e) => {
-        e.preventDefault();
-        this.hideAllContextMenu();
-        switch (e.target.dataset.context) {
-            case "desktop-area":
-                ReactGA.event({ category: `Context Menu`, action: `Opened Desktop Context Menu` });
-                this.showContextMenu(e, "desktop");
-                break;
-            default:
-                // DISABLED: Don't show default context menu everywhere
-                // ReactGA.event({ category: `Context Menu`, action: `Opened Default Context Menu` });
-                // this.showContextMenu(e, "default");
-                break;
+        // Only handle right-clicks on specific areas with custom menus
+        if (e.target.dataset.context === "desktop-area") {
+            e.preventDefault();
+            this.hideAllContextMenu();
+            ReactGA.event({ category: `Context Menu`, action: `Opened Desktop Context Menu` });
+            this.showContextMenu(e, "desktop");
         }
+        // For everything else, allow native browser right-click menu
     }
 
     showContextMenu = (e, menuName) => {
