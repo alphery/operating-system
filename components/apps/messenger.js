@@ -1,8 +1,9 @@
 import React, { Component } from 'react';
 import { db, storage } from '../../config/firebase';
-import { collection, query, where, or, and, orderBy, onSnapshot, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, or, and, orderBy, onSnapshot, addDoc, getDocs, serverTimestamp, updateDoc, doc, getDoc, deleteField } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { useAuth } from '../../context/AuthContext';
+import EmojiPicker from 'emoji-picker-react';
 
 // Wrapper to use hooks in class component
 function MessengerWithAuth(props) {
@@ -27,6 +28,10 @@ class Messenger extends Component {
             // Context menu state
             contextMenu: null, // { type: 'user' | 'message', x, y, item }
             hiddenUsers: [], // List of user IDs hidden by current user
+            // NEW: Feature states
+            showEmojiPicker: false,
+            editingMessageId: null,
+            editingMessageText: '',
         };
         this.unsubscribeMessages = null;
         this.fileInputRef = React.createRef();
@@ -40,8 +45,13 @@ class Messenger extends Component {
             this.setState({ hiddenUsers });
         }
 
-        // Close context menu on any click
-        document.addEventListener('click', this.closeContextMenu);
+        // Close context menu and emoji picker on any click
+        document.addEventListener('click', () => {
+            this.closeContextMenu();
+            if (this.state.showEmojiPicker) {
+                this.setState({ showEmojiPicker: false });
+            }
+        });
 
         if (this.props.user && this.props.userData) {
             this.initializeMessenger();
@@ -283,6 +293,71 @@ class Messenger extends Component {
         }, 50);
     }
 
+    // ============ EMOJI PICKER ============
+    addEmoji = (emojiObject) => {
+        this.setState({
+            messageText: this.state.messageText + emojiObject.emoji,
+            showEmojiPicker: false
+        });
+    }
+
+    // ============ MESSAGE REACTIONS ============
+    addReaction = async (messageId, emoji) => {
+        if (!this.state.currentUser) return;
+
+        try {
+            const messageRef = doc(db, 'messages', messageId);
+            const messageDoc = await getDoc(messageRef);
+
+            if (!messageDoc.exists()) return;
+
+            const currentReactions = messageDoc.data().reactions || {};
+            const emojiReactions = currentReactions[emoji] || [];
+            const userId = this.state.currentUser.uid;
+
+            const newReactions = emojiReactions.includes(userId)
+                ? emojiReactions.filter(id => id !== userId)
+                : [...emojiReactions, userId];
+
+            if (newReactions.length > 0) {
+                await updateDoc(messageRef, { [`reactions.${emoji}`]: newReactions });
+            } else {
+                await updateDoc(messageRef, { [`reactions.${emoji}`]: deleteField() });
+            }
+        } catch (error) {
+            console.error('Error adding reaction:', error);
+        }
+    }
+
+    // ============ MESSAGE EDITING ============
+    startEditMessage = (message) => {
+        this.setState({
+            editingMessageId: message.id,
+            editingMessageText: message.text
+        });
+    }
+
+    saveEditMessage = async () => {
+        const { editingMessageId, editingMessageText } = this.state;
+        if (!editingMessageText.trim()) return;
+
+        try {
+            const messageRef = doc(db, 'messages', editingMessageId);
+            await updateDoc(messageRef, {
+                text: editingMessageText.trim(),
+                edited: true,
+                editedAt: serverTimestamp()
+            });
+
+            this.setState({ editingMessageId: null, editingMessageText: '' });
+        } catch (error) {
+            console.error('Error editing message:', error);
+        }
+    }
+
+    cancelEdit = () => {
+        this.setState({ editingMessageId: null, editingMessageText: '' });
+    }
 
 
     closeContextMenu = () => {
@@ -484,15 +559,93 @@ class Messenger extends Component {
         }
 
         // Text message
+        const { editingMessageId, editingMessageText } = this.state;
+        const isEditing = editingMessageId === msg.id;
+
         return (
-            <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-3`}>
-                <div className={`max-w-xs md:max-w-md px-4 py-2 rounded-2xl shadow-sm text-sm
-                    ${isMe ? 'bg-teal-600 text-white rounded-br-none' : 'bg-white text-gray-800 rounded-bl-none'}`}>
-                    <p>{msg.text}</p>
-                    <p className={`text-[10px] mt-1 text-right ${isMe ? 'text-teal-200' : 'text-gray-400'}`}>
-                        {msg.timestamp ? new Date(msg.timestamp.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Sending...'}
-                    </p>
+            <div key={msg.id} className="relative group mb-3">
+                {/* Reaction Picker (shows on hover) */}
+                <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 hidden group-hover:flex bg-white rounded-full shadow-xl border border-gray-300 p-2 gap-1 z-10">
+                    {['❤️', '👍', '😂', '😮', '😢', '🔥'].map(emoji => (
+                        <button
+                            key={emoji}
+                            onClick={() => this.addReaction(msg.id, emoji)}
+                            className="w-8 h-8 hover:bg-gray-100 rounded-full flex items-center justify-center text-lg transition"
+                        >
+                            {emoji}
+                        </button>
+                    ))}
                 </div>
+
+                {/* Message Content */}
+                <div className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                    <div
+                        className={`max-w-xs md:max-w-md px-4 py-2 rounded-2xl shadow-sm text-sm ${isMe ? 'bg-teal-600 text-white rounded-br-none' : 'bg-white text-gray-800 rounded-bl-none'
+                            }`}
+                        onContextMenu={(e) => this.handleMessageContextMenu(e, msg)}
+                    >
+                        {/* Editing Mode */}
+                        {isEditing ? (
+                            <div className="flex gap-2">
+                                <input
+                                    value={editingMessageText}
+                                    onChange={(e) => this.setState({ editingMessageText: e.target.value })}
+                                    className="flex-1 px-2 py-1 border rounded text-gray-800"
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') this.saveEditMessage();
+                                        if (e.key === 'Escape') this.cancelEdit();
+                                    }}
+                                />
+                                <button onClick={this.saveEditMessage} className="text-green-600 hover:text-green-700">✓</button>
+                                <button onClick={this.cancelEdit} className="text-red-600 hover:text-red-700">✕</button>
+                            </div>
+                        ) : (
+                            <>
+                                <p>{msg.text}</p>
+                                {msg.edited && (
+                                    <span className={`text-[10px] ml-2 ${isMe ? 'text-teal-200' : 'text-gray-400'}`}>
+                                        (edited)
+                                    </span>
+                                )}
+                            </>
+                        )}
+
+                        <p className={`text-[10px] mt-1 text-right ${isMe ? 'text-teal-200' : 'text-gray-400'}`}>
+                            {msg.timestamp ? new Date(msg.timestamp.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Sending...'}
+                        </p>
+
+                        {/* Edit Button (for own messages) */}
+                        {!isEditing && isMe && (
+                            <button
+                                onClick={() => this.startEditMessage(msg)}
+                                className="absolute top-0 right-0 hidden group-hover:block p-1 hover:bg-teal-700 rounded text-xs"
+                                title="Edit message"
+                            >
+                                ✏️
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                {/* Reactions Display */}
+                {msg.reactions && Object.keys(msg.reactions).length > 0 && (
+                    <div className={`flex gap-1 mt-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                        {Object.entries(msg.reactions).map(([emoji, users]) => (
+                            <button
+                                key={emoji}
+                                onClick={() => this.addReaction(msg.id, emoji)}
+                                className={`px-2 py-0.5 rounded-full text-xs flex items-center gap-1 transition ${users.includes(currentUser.uid)
+                                    ? 'bg-blue-100 border-2 border-blue-400'
+                                    : 'bg-gray-100 border border-gray-300 hover:border-gray-400'
+                                    }`}
+                            >
+                                <span>{emoji}</span>
+                                <span className="text-gray-600 font-medium">{users.length}</span>
+                            </button>
+                        ))}
+                    </div>
+                )}
             </div>
         );
     }
@@ -676,6 +829,19 @@ class Messenger extends Component {
                                         onChange={this.handleFileSelect}
                                         accept="*/*"
                                     />
+
+                                    {/* Emoji Button */}
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            this.setState({ showEmojiPicker: !this.state.showEmojiPicker });
+                                        }}
+                                        className="w-10 h-10 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center transition text-xl"
+                                    >
+                                        😊
+                                    </button>
+
                                     <input
                                         className="flex-1 bg-gray-100 border-0 rounded-full px-4 py-2 focus:ring-2 focus:ring-teal-500 outline-none transition"
                                         placeholder="Type a message..."
@@ -692,6 +858,17 @@ class Messenger extends Component {
                                         <svg className="w-5 h-5 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
                                     </button>
                                 </form>
+
+                                {/* Emoji Picker */}
+                                {this.state.showEmojiPicker && (
+                                    <div className="absolute bottom-20 right-4 z-50" onClick={(e) => e.stopPropagation()}>
+                                        <EmojiPicker
+                                            onEmojiClick={this.addEmoji}
+                                            width={320}
+                                            height={400}
+                                        />
+                                    </div>
+                                )}
                             </div>
                         </>
                     ) : (

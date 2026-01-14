@@ -20,6 +20,10 @@
   "homepage": "https://github.com/ANURAG-PATHAK/Web-OS#readme",
   "dependencies": {
     "@emailjs/browser": "^3.11.0",
+    "@giphy/js-fetch-api": "^5.7.0",
+    "@giphy/react-components": "^10.1.1",
+    "date-fns": "^4.1.0",
+    "emoji-picker-react": "^4.16.1",
     "expr-eval": "^2.0.2",
     "firebase": "^12.7.0",
     "jquery": "^3.6.1",
@@ -29,7 +33,10 @@
     "react-dom": "^18.2.0",
     "react-draggable": "^4.4.5",
     "react-ga": "^3.3.1",
+    "react-markdown": "^10.1.0",
+    "react-mic": "^12.4.6",
     "react-onclickoutside": "^6.12.2",
+    "react-quill": "^2.0.0",
     "react-rnd": "^10.5.2",
     "react-youtube": "^10.1.0"
   },
