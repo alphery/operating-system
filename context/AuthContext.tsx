@@ -195,9 +195,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             console.log('[AUTH] Google login attempt');
             const provider = new GoogleAuthProvider();
 
-            // Request Google Drive access
-            provider.addScope('https://www.googleapis.com/auth/drive.file');
-            provider.addScope('https://www.googleapis.com/auth/drive');
+            // Removed sensitive Google Drive scopes to prevent "Google hasn't verified this app" warning
+            // provider.addScope('https://www.googleapis.com/auth/drive.file');
+            // provider.addScope('https://www.googleapis.com/auth/drive');
 
             const credential = await signInWithPopup(auth, provider);
 

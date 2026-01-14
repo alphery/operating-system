@@ -147,7 +147,7 @@ export class Desktop extends Component {
 
         // Safe access to UID with fallback
         const userUid = (this.props.user && this.props.user.uid) ? this.props.user.uid : 'guest';
-        const username = (this.props.user && this.props.user.username) ? this.props.user.username : 'guest';
+        // Cleanup old redundant variable if needed, but keeping logic consistent
         const storageKey = `disabled_apps_${userUid}`;
         let disabledFromStorage = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem(storageKey) || '[]') : [];
         console.log(`[Desktop] fetchAppsData for ${userUid}. Storage Key: ${storageKey}. Disabled Apps:`, disabledFromStorage);
@@ -156,9 +156,9 @@ export class Desktop extends Component {
         const SYSTEM_APPS = ['app-store', 'settings', 'users', 'messenger', 'trash'];
         disabledFromStorage = disabledFromStorage.filter(id => !SYSTEM_APPS.includes(id));
 
-        // Get user-specific favorites/desktop settings
-        const userFavorites = JSON.parse(localStorage.getItem(`${username}_dock_apps_v2`) || '{}');
-        const userDesktop = JSON.parse(localStorage.getItem(`${username}_desktop_apps_v2`) || '[]');
+        // Get user-specific favorites/desktop settings - MIGRATED TO UID and V3 to reset defaults
+        const userFavorites = JSON.parse(localStorage.getItem(`${userUid}_dock_apps_v3`) || '{}');
+        const userDesktop = JSON.parse(localStorage.getItem(`${userUid}_desktop_apps_v3`) || '[]');
 
         apps.forEach((app) => {
             const user = this.props.user;
@@ -365,36 +365,36 @@ export class Desktop extends Component {
     addNewFolder = () => { this.setState({ showNameBar: true }); }
 
     addToDesktop = (appId) => {
-        const username = this.props.user ? this.props.user.username : 'guest';
+        const userUid = (this.props.user && this.props.user.uid) ? this.props.user.uid : 'guest';
         let desktop_apps = [...this.state.desktop_apps];
         if (!desktop_apps.includes(appId)) desktop_apps.push(appId);
         this.setState({ desktop_apps });
-        localStorage.setItem(`${username}_desktop_apps`, JSON.stringify(desktop_apps));
+        localStorage.setItem(`${userUid}_desktop_apps_v3`, JSON.stringify(desktop_apps));
     }
 
     addAppToDesktop = (appId) => { this.addToDesktop(appId); }
 
     removeAppFromDesktop = (appId) => {
-        const username = this.props.user ? this.props.user.username : 'guest';
+        const userUid = (this.props.user && this.props.user.uid) ? this.props.user.uid : 'guest';
         let desktop_apps = this.state.desktop_apps.filter(id => id !== appId);
         this.setState({ desktop_apps });
-        localStorage.setItem(`${username}_desktop_apps`, JSON.stringify(desktop_apps));
+        localStorage.setItem(`${userUid}_desktop_apps_v3`, JSON.stringify(desktop_apps));
     }
 
     addAppToDock = (appId) => {
-        const username = this.props.user ? this.props.user.username : 'guest';
+        const userUid = (this.props.user && this.props.user.uid) ? this.props.user.uid : 'guest';
         let favourite_apps = { ...this.state.favourite_apps };
         favourite_apps[appId] = true;
         this.setState({ favourite_apps });
-        localStorage.setItem(`${username}_dock_apps`, JSON.stringify(favourite_apps));
+        localStorage.setItem(`${userUid}_dock_apps_v3`, JSON.stringify(favourite_apps));
     }
 
     removeAppFromDock = (appId) => {
-        const username = this.props.user ? this.props.user.username : 'guest';
+        const userUid = (this.props.user && this.props.user.uid) ? this.props.user.uid : 'guest';
         let favourite_apps = { ...this.state.favourite_apps };
         favourite_apps[appId] = false;
         this.setState({ favourite_apps });
-        localStorage.setItem(`${username}_dock_apps`, JSON.stringify(favourite_apps));
+        localStorage.setItem(`${userUid}_dock_apps_v3`, JSON.stringify(favourite_apps));
     }
 
     handleAppContextMenu = (e, appId) => {

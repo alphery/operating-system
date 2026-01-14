@@ -114,7 +114,7 @@ const apps = [
         title: "Text Editor",
         icon: './themes/Yaru/apps/gedit.png',
         disabled: false,
-        favourite: true,
+        favourite: false,
         desktop_shortcut: false,
         screen: displayGedit,
     },
