@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 import { db, storage } from '../../config/firebase';
-import { collection, query, where, or, and, orderBy, onSnapshot, addDoc, getDocs, serverTimestamp, updateDoc, doc, getDoc, deleteField, setDoc } from 'firebase/firestore';
+import { collection, query, where, or, and, orderBy, onSnapshot, addDoc, getDocs, serverTimestamp, updateDoc, doc, getDoc, deleteField, setDoc, deleteDoc } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { useAuth } from '../../context/AuthContext';
 import EmojiPicker from 'emoji-picker-react';
@@ -33,10 +33,19 @@ class Messenger extends Component {
             editingMessageId: null,
             editingMessageText: '',
             onlineUsers: new Set(), // Track online users
+
+            // NEW: Typing & Reply & Search states
+            otherUserTyping: false,
+            typingTimeout: null,
+            replyingTo: null,
+            searchResults: [],
+            isSearching: false,
         };
         this.unsubscribeMessages = null;
         this.unsubscribePresence = null;
+        this.unsubscribeTyping = null;
         this.fileInputRef = React.createRef();
+        this.searchInputRef = React.createRef();
     }
 
     componentDidMount() {
@@ -133,8 +142,15 @@ class Messenger extends Component {
     }
 
     selectUser = (user) => {
-        this.setState({ selectedUser: user, messages: [] });
+        // Unsubscribe from previous typing status
+        if (this.unsubscribeTyping) {
+            this.unsubscribeTyping();
+        }
+
+        this.setState({ selectedUser: user, messages: [], replyingTo: null });
         this.loadMessagesForUser(user);
+        // Subscribe to new user's typing status
+        setTimeout(() => this.subscribeToTypingStatus(), 0);
     }
 
     loadMessagesForUser = (selectedUser) => {
@@ -181,11 +197,15 @@ class Messenger extends Component {
 
     handleSend = async (e) => {
         e.preventDefault();
-        const { messageText, currentUser, selectedUser } = this.state;
+        const { messageText, currentUser, selectedUser, replyingTo } = this.state;
 
         if (!messageText.trim() || !selectedUser || !currentUser) return;
 
         try {
+            // Stop typing indicator immediately
+            this.updateTypingStatus(false);
+            if (this.state.typingTimeout) clearTimeout(this.state.typingTimeout);
+
             await addDoc(collection(db, 'messages'), {
                 from: currentUser.uid,
                 to: selectedUser.uid,
@@ -194,10 +214,14 @@ class Messenger extends Component {
                 timestamp: serverTimestamp(),
                 fromName: currentUser.displayName,
                 toName: selectedUser.displayName,
-                readBy: [currentUser.uid] // Sender has read it
+                readBy: [currentUser.uid], // Sender has read it
+                // Reply fields
+                replyTo: replyingTo ? replyingTo.id : null,
+                replyToText: replyingTo ? replyingTo.text : null,
+                replyToFrom: replyingTo ? (replyingTo.fromName || 'User') : null
             });
 
-            this.setState({ messageText: '' });
+            this.setState({ messageText: '', replyingTo: null });
         } catch (error) {
             console.error('Error sending message:', error);
             alert('Failed to send message. Please try again.');
@@ -444,6 +468,95 @@ class Messenger extends Component {
         });
     }
 
+    // ============ TYPING INDICATORS ============
+    updateTypingStatus = async (isTyping) => {
+        if (!this.state.selectedUser || !this.state.currentUser) return;
+
+        const typingDocId = `${this.state.currentUser.uid}_${this.state.selectedUser.uid}`;
+        const typingRef = doc(db, 'typing_status', typingDocId);
+
+        try {
+            if (isTyping) {
+                await setDoc(typingRef, {
+                    userId: this.state.currentUser.uid,
+                    chatWith: this.state.selectedUser.uid,
+                    isTyping: true,
+                    lastUpdate: serverTimestamp()
+                });
+            } else {
+                await deleteDoc(typingRef);
+            }
+        } catch (error) {
+            console.error('Error updating typing status:', error);
+        }
+    }
+
+    handleTyping = (e) => {
+        this.setState({ messageText: e.target.value });
+        this.updateTypingStatus(true);
+
+        if (this.state.typingTimeout) {
+            clearTimeout(this.state.typingTimeout);
+        }
+
+        const timeout = setTimeout(() => {
+            this.updateTypingStatus(false);
+        }, 2000);
+
+        this.setState({ typingTimeout: timeout });
+    }
+
+    subscribeToTypingStatus = () => {
+        if (!this.state.selectedUser || !this.state.currentUser) return;
+
+        const typingDocId = `${this.state.selectedUser.uid}_${this.state.currentUser.uid}`;
+        const typingRef = doc(db, 'typing_status', typingDocId);
+
+        this.unsubscribeTyping = onSnapshot(typingRef, (doc) => {
+            this.setState({
+                otherUserTyping: doc.exists() && doc.data().isTyping
+            });
+        });
+    }
+
+    // ============ MESSAGE REPLIES ============
+    setReplyTo = (message) => {
+        this.setState({ replyingTo: message });
+        const input = document.querySelector('input[placeholder="Type a message..."]');
+        if (input) input.focus();
+    }
+
+    clearReply = () => {
+        this.setState({ replyingTo: null });
+    }
+
+    // ============ MESSAGE SEARCH ============
+    handleSearch = (query) => {
+        this.setState({ searchQuery: query, isSearching: query.length > 0 });
+
+        if (!query) {
+            this.setState({ searchResults: [] });
+            return;
+        }
+
+        const results = this.state.messages.filter(msg =>
+            msg.text && msg.text.toLowerCase().includes(query.toLowerCase())
+        );
+
+        this.setState({ searchResults: results });
+    }
+
+    scrollToMessage = (messageId) => {
+        this.setState({ searchQuery: '', searchResults: [] });
+        const element = document.getElementById(`msg-${messageId}`);
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            element.classList.add('bg-yellow-100', 'transition-colors', 'duration-1000');
+            setTimeout(() => element.classList.remove('bg-yellow-100'), 2000);
+        }
+    }
+
+
 
     closeContextMenu = () => {
         if (this.state.contextMenu) {
@@ -669,6 +782,15 @@ class Messenger extends Component {
                             }`}
                         onContextMenu={(e) => this.handleMessageContextMenu(e, msg)}
                     >
+                        {/* Reply Preview */}
+                        {msg.replyTo && (
+                            <div className={`mb-2 pb-2 border-l-4 pl-2 text-xs ${isMe ? 'border-teal-300 bg-teal-700 bg-opacity-30' : 'border-gray-300 bg-gray-100'
+                                } cursor-pointer`} onClick={() => this.scrollToMessage(msg.replyTo)}>
+                                <p className="font-semibold">{msg.replyToFrom}</p>
+                                <p className="opacity-75 truncate">{msg.replyToText}</p>
+                            </div>
+                        )}
+
                         {/* Editing Mode */}
                         {isEditing ? (
                             <div className="flex gap-2">
@@ -710,15 +832,26 @@ class Messenger extends Component {
                             )}
                         </div>
 
-                        {/* Edit Button (for own messages) */}
-                        {!isEditing && isMe && (
-                            <button
-                                onClick={() => this.startEditMessage(msg)}
-                                className="absolute top-0 right-0 hidden group-hover:block p-1 hover:bg-teal-700 rounded text-xs"
-                                title="Edit message"
-                            >
-                                ✏️
-                            </button>
+                        {/* Action Buttons */}
+                        {!isEditing && (
+                            <div className="absolute top-0 right-0 hidden group-hover:flex gap-1 bg-white/80 backdrop-blur-sm rounded-bl shadow-sm p-0.5">
+                                <button
+                                    onClick={() => this.setReplyTo(msg)}
+                                    className="p-1 hover:bg-black/10 rounded text-xs text-gray-600"
+                                    title="Reply"
+                                >
+                                    💬
+                                </button>
+                                {isMe && (
+                                    <button
+                                        onClick={() => this.startEditMessage(msg)}
+                                        className="p-1 hover:bg-black/10 rounded text-xs text-gray-600"
+                                        title="Edit"
+                                    >
+                                        ✏️
+                                    </button>
+                                )}
+                            </div>
                         )}
                     </div>
                 </div>
@@ -847,19 +980,55 @@ class Messenger extends Component {
                             {/* Chat Header */}
                             <div className="h-16 flex items-center justify-between px-6 border-b border-gray-200 bg-white shadow-sm z-10">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-400 to-blue-500 overflow-hidden flex items-center justify-center text-white font-bold text-sm">
+                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-400 to-blue-500 overflow-hidden flex items-center justify-center text-white font-bold text-sm relative">
                                         {selectedUser.photoURL ? (
                                             <img src={selectedUser.photoURL} alt="" className="w-full h-full object-cover" />
                                         ) : (
                                             <span>{(selectedUser.displayName || selectedUser.email || 'U')[0].toUpperCase()}</span>
                                         )}
+                                        {this.state.onlineUsers.has(selectedUser.uid) && (
+                                            <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full"></div>
+                                        )}
                                     </div>
                                     <div>
                                         <h3 className="font-bold text-gray-800">{selectedUser.displayName || 'Anonymous'}</h3>
-                                        <div className="flex items-center text-xs text-green-500">
-                                            <span className="w-1.5 h-1.5 bg-green-500 rounded-full mr-1"></span> Online
+                                        <div className="text-xs">
+                                            {this.state.onlineUsers.has(selectedUser.uid) ? (
+                                                <span className="text-green-500 flex items-center gap-1">● Online</span>
+                                            ) : (
+                                                <span className="text-gray-400">Offline</span>
+                                            )}
                                         </div>
                                     </div>
+                                </div>
+
+                                {/* Message Search */}
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        placeholder="Search in chat..."
+                                        value={this.state.searchQuery}
+                                        onChange={(e) => this.handleSearch(e.target.value)}
+                                        className="pl-3 pr-8 py-1.5 text-sm bg-gray-100 border-transparent focus:bg-white focus:border-teal-500 border rounded-full outline-none transition w-40 focus:w-60"
+                                    />
+                                    <svg className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 transform -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                    </svg>
+
+                                    {this.state.searchResults.length > 0 && (
+                                        <div className="absolute top-10 right-0 w-64 bg-white shadow-xl rounded-lg border border-gray-100 max-h-60 overflow-y-auto z-50">
+                                            {this.state.searchResults.map(msg => (
+                                                <div
+                                                    key={msg.id}
+                                                    onClick={() => this.scrollToMessage(msg.id)}
+                                                    className="p-3 border-b border-gray-50 hover:bg-gray-50 cursor-pointer text-xs"
+                                                >
+                                                    <p className="truncate font-medium text-gray-700">{msg.text}</p>
+                                                    <p className="text-gray-400 mt-1">{msg.timestamp?.toDate().toLocaleString()}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -898,6 +1067,34 @@ class Messenger extends Component {
 
                             {/* Input */}
                             <div className="p-4 bg-white border-t border-gray-200">
+                                {/* Reply Preview */}
+                                {this.state.replyingTo && (
+                                    <div className="mb-2 p-2 bg-gray-100 rounded-lg flex items-center justify-between border-l-4 border-teal-500">
+                                        <div className="flex-1 text-sm overflow-hidden">
+                                            <p className="font-semibold text-teal-600 text-xs mb-0.5">Replying to {this.state.replyingTo.fromName || 'User'}</p>
+                                            <p className="text-gray-600 truncate text-xs">{this.state.replyingTo.text}</p>
+                                        </div>
+                                        <button
+                                            onClick={this.clearReply}
+                                            className="p-1 hover:bg-gray-200 rounded-full text-gray-500"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* Typing Indicator */}
+                                {this.state.otherUserTyping && (
+                                    <div className="flex items-center gap-2 mb-2 ml-4 text-xs text-gray-500 font-medium animate-pulse">
+                                        <div className="flex gap-0.5">
+                                            <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                                            <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                                            <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                                        </div>
+                                        {selectedUser.displayName} is typing...
+                                    </div>
+                                )}
+
                                 <form onSubmit={this.handleSend} className="flex gap-2">
                                     <div className="relative">
                                         <button
@@ -946,7 +1143,7 @@ class Messenger extends Component {
                                         className="flex-1 bg-gray-100 border-0 rounded-full px-4 py-2 focus:ring-2 focus:ring-teal-500 outline-none transition"
                                         placeholder="Type a message..."
                                         value={messageText}
-                                        onChange={(e) => this.setState({ messageText: e.target.value })}
+                                        onChange={this.handleTyping}
                                         autoFocus
                                         disabled={uploading}
                                     />
