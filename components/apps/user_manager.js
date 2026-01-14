@@ -127,6 +127,18 @@ class UserManager extends Component {
         }
     }
 
+    changeUserRole = async (userId, newRole) => {
+        if (!db) return;
+        try {
+            await updateDoc(doc(db, 'users', userId), {
+                role: newRole
+            });
+        } catch (error) {
+            console.error('Error updating status:', error);
+            alert('Failed to update user role');
+        }
+    }
+
     getFilteredUsers = () => {
         const { users, filter } = this.state;
         if (filter === 'all') return users;
@@ -313,6 +325,18 @@ class UserManager extends Component {
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end gap-2">
+                                                {/* Role Selection for Approved Users */}
+                                                {user.approvalStatus === 'approved' && user.role !== 'super_admin' && (
+                                                    <select
+                                                        value={user.role === 'team' ? 'team' : 'user'}
+                                                        onChange={(e) => this.changeUserRole(user.id, e.target.value)}
+                                                        className="px-2 py-1 text-xs border border-gray-300 rounded bg-white mr-2"
+                                                    >
+                                                        <option value="user">User</option>
+                                                        <option value="team">Team</option>
+                                                    </select>
+                                                )}
+
                                                 {/* Show approve/reject for pending users OR users without status (old accounts) */}
                                                 {(!user.approvalStatus || user.approvalStatus === 'pending') && user.role !== 'super_admin' && (
                                                     <>
@@ -336,7 +360,7 @@ class UserManager extends Component {
                                                         onClick={() => this.revokeUser(user.id)}
                                                         className="px-3 py-1 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-medium transition"
                                                     >
-                                                        Revoke Access
+                                                        Revoke
                                                     </button>
                                                 )}
                                                 {/* Show delete for rejected users */}

@@ -850,15 +850,17 @@ export class Projects extends Component {
                                                 </div>
                                             </td>
                                             <td className="px-3 py-3 align-middle text-right w-[8%]">
-                                                <button
-                                                    onClick={(e) => this.deleteProject(project.id, e)}
-                                                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-all"
-                                                    title="Delete"
-                                                >
-                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                                    </svg>
-                                                </button>
+                                                {this.canEdit() && (
+                                                    <button
+                                                        onClick={(e) => this.deleteProject(project.id, e)}
+                                                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-all"
+                                                        title="Delete"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                                        </svg>
+                                                    </button>
+                                                )}
                                             </td>
                                         </tr>
                                     ))
@@ -937,9 +939,11 @@ export class Projects extends Component {
                                             <div className="text-slate-700 font-medium">{quotation.timeline || '-'}</div>
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            <button onClick={(e) => this.deleteQuotation(quotation.id, e)} className="text-slate-400 hover:text-red-500 font-medium text-sm transition">
-                                                Delete
-                                            </button>
+                                            {this.canEdit() && (
+                                                <button onClick={(e) => this.deleteQuotation(quotation.id, e)} className="text-slate-400 hover:text-red-500 font-medium text-sm transition">
+                                                    Delete
+                                                </button>
+                                            )}
                                         </td>
                                     </tr>
                                 ))
@@ -1004,9 +1008,11 @@ export class Projects extends Component {
                                         <td className="px-6 py-4 text-slate-600">{document.uploadedBy || '-'}</td>
                                         <td className="px-6 py-4 text-slate-600 text-sm">{document.uploadedDate || '-'}</td>
                                         <td className="px-6 py-4 text-right">
-                                            <button onClick={(e) => this.deleteDocument(document.id, e)} className="text-slate-400 hover:text-red-500 font-medium text-sm transition">
-                                                Delete
-                                            </button>
+                                            {this.canEdit() && (
+                                                <button onClick={(e) => this.deleteDocument(document.id, e)} className="text-slate-400 hover:text-red-500 font-medium text-sm transition">
+                                                    Delete
+                                                </button>
+                                            )}
                                         </td>
                                     </tr>
                                 ))
@@ -1172,6 +1178,12 @@ export class Projects extends Component {
         );
     }
 
+    canEdit = () => {
+        const { userData, user } = this.props;
+        const currentUser = userData || user;
+        return currentUser && (currentUser.role === 'super_admin' || currentUser.role === 'team');
+    }
+
     render() {
         const { view, showModal, showTaskModal, newProject, newTask, loading, teamMembers, selectedProject, tasks } = this.state;
         const columns = ['Planning', 'In Progress', 'Review', 'Completed'];
@@ -1324,14 +1336,15 @@ export class Projects extends Component {
                             )}
 
                             {/* Dynamic New Button */}
-                            {this.state.activeSection === 'Projects' && (
+                            {this.state.activeSection === 'Projects' && this.canEdit() && (
                                 <button
                                     onClick={() => this.setState({
                                         showModal: true,
                                         activeProject: null,
                                         newProject: {
                                             name: '', type: 'Development', overview: '', status: 'Planning',
-                                            timeline: '', tagged: [], requirements: '', modifications: ''
+                                            timeline: '', tagged: [], requirements: '', modifications: '',
+                                            currentProgress: '', pendingChanges: '', finisherTimeline: ''
                                         }
                                     })}
                                     className="bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white px-5 py-2.5 rounded-lg shadow-lg text-sm font-semibold transition transform hover:scale-105 active:scale-95 flex items-center gap-2"
@@ -1341,7 +1354,7 @@ export class Projects extends Component {
                                 </button>
                             )}
 
-                            {this.state.activeSection === 'Quotations' && (
+                            {this.state.activeSection === 'Quotations' && this.canEdit() && (
                                 <button
                                     onClick={() => this.setState({
                                         showQuotationModal: true,
@@ -1358,7 +1371,7 @@ export class Projects extends Component {
                                 </button>
                             )}
 
-                            {this.state.activeSection === 'Documents' && (
+                            {this.state.activeSection === 'Documents' && this.canEdit() && (
                                 <button
                                     onClick={() => this.setState({
                                         showDocumentModal: true,
@@ -1703,9 +1716,11 @@ export class Projects extends Component {
                                     <button onClick={() => this.setState({ showModal: false })} className="px-6 py-2.5 text-slate-600 hover:bg-slate-200 rounded-lg font-semibold transition">
                                         Cancel
                                     </button>
-                                    <button onClick={this.saveProject} className="px-8 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white rounded-lg shadow-lg hover:shadow-xl font-semibold transition transform hover:scale-105 active:scale-95">
-                                        {this.state.activeProject ? 'Update Project' : 'Create Project'}
-                                    </button>
+                                    {this.canEdit() && (
+                                        <button onClick={this.saveProject} className="px-8 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white rounded-lg shadow-lg hover:shadow-xl font-semibold transition transform hover:scale-105 active:scale-95">
+                                            {this.state.activeProject ? 'Update Project' : 'Create Project'}
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -1780,9 +1795,11 @@ export class Projects extends Component {
                                     <button onClick={() => this.setState({ showQuotationModal: false })} className="px-6 py-2.5 text-slate-600 hover:bg-slate-200 rounded-lg font-semibold transition">
                                         Cancel
                                     </button>
-                                    <button onClick={this.saveQuotation} className="px-8 py-2.5 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-lg shadow-lg hover:shadow-xl font-semibold transition transform hover:scale-105 active:scale-95">
-                                        {this.state.activeQuotation ? 'Update Quotation' : 'Create Quotation'}
-                                    </button>
+                                    {this.canEdit() && (
+                                        <button onClick={this.saveQuotation} className="px-8 py-2.5 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-lg shadow-lg hover:shadow-xl font-semibold transition transform hover:scale-105 active:scale-95">
+                                            {this.state.activeQuotation ? 'Update Quotation' : 'Create Quotation'}
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -1854,9 +1871,11 @@ export class Projects extends Component {
                                     <button onClick={() => this.setState({ showDocumentModal: false })} className="px-6 py-2.5 text-slate-600 hover:bg-slate-200 rounded-lg font-semibold transition">
                                         Cancel
                                     </button>
-                                    <button onClick={this.saveDocument} className="px-8 py-2.5 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg shadow-lg hover:shadow-xl font-semibold transition transform hover:scale-105 active:scale-95">
-                                        {this.state.activeDocument ? 'Update Document' : 'Add Document'}
-                                    </button>
+                                    {this.canEdit() && (
+                                        <button onClick={this.saveDocument} className="px-8 py-2.5 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-lg shadow-lg hover:shadow-xl font-semibold transition transform hover:scale-105 active:scale-95">
+                                            {this.state.activeDocument ? 'Update Document' : 'Add Document'}
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         </div>
