@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 import { db, storage } from '../../config/firebase';
-import { collection, query, where, or, and, orderBy, onSnapshot, addDoc, getDocs, serverTimestamp, updateDoc, doc, getDoc, deleteField } from 'firebase/firestore';
+import { collection, query, where, or, and, orderBy, onSnapshot, addDoc, getDocs, serverTimestamp, updateDoc, doc, getDoc, deleteField, setDoc } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { useAuth } from '../../context/AuthContext';
 import EmojiPicker from 'emoji-picker-react';
@@ -32,8 +32,10 @@ class Messenger extends Component {
             showEmojiPicker: false,
             editingMessageId: null,
             editingMessageText: '',
+            onlineUsers: new Set(), // Track online users
         };
         this.unsubscribeMessages = null;
+        this.unsubscribePresence = null;
         this.fileInputRef = React.createRef();
     }
 
@@ -55,6 +57,14 @@ class Messenger extends Component {
 
         if (this.props.user && this.props.userData) {
             this.initializeMessenger();
+            // Start online presence tracking
+            this.subscribeToPresence();
+            this.updateMyPresence('online');
+
+            // Mark as offline on page unload
+            window.addEventListener('beforeunload', () => {
+                this.updateMyPresence('offline');
+            });
         }
     }
 
@@ -69,6 +79,11 @@ class Messenger extends Component {
         if (this.unsubscribeMessages) {
             this.unsubscribeMessages();
         }
+        if (this.unsubscribePresence) {
+            this.unsubscribePresence();
+        }
+        // Mark as offline when leaving
+        this.updateMyPresence('offline');
     }
 
     initializeMessenger = async () => {
@@ -154,7 +169,11 @@ class Messenger extends Component {
                 ...doc.data()
             }));
 
-            this.setState({ messages }, this.scrollToBottom);
+            this.setState({ messages }, () => {
+                this.scrollToBottom();
+                // Mark incoming messages as read
+                setTimeout(() => this.markMessagesAsRead(), 500);
+            });
         }, (error) => {
             console.error('Error loading messages:', error);
         });
@@ -174,7 +193,8 @@ class Messenger extends Component {
                 type: 'text',
                 timestamp: serverTimestamp(),
                 fromName: currentUser.displayName,
-                toName: selectedUser.displayName
+                toName: selectedUser.displayName,
+                readBy: [currentUser.uid] // Sender has read it
             });
 
             this.setState({ messageText: '' });
@@ -357,6 +377,71 @@ class Messenger extends Component {
 
     cancelEdit = () => {
         this.setState({ editingMessageId: null, editingMessageText: '' });
+    }
+
+    // ============ ONLINE STATUS ============
+    updateMyPresence = async (status) => {
+        if (!this.state.currentUser || !db) return;
+
+        try {
+            const presenceRef = doc(db, 'user_presence', this.state.currentUser.uid);
+            await setDoc(presenceRef, {
+                status: status,
+                lastSeen: serverTimestamp()
+            });
+        } catch (error) {
+            console.error('Error updating presence:', error);
+        }
+    }
+
+    subscribeToPresence = () => {
+        if (!db) return;
+
+        try {
+            const presenceRef = collection(db, 'user_presence');
+            this.unsubscribePresence = onSnapshot(presenceRef, (snapshot) => {
+                const onlineUsers = new Set();
+                snapshot.docs.forEach(doc => {
+                    if (doc.data().status === 'online') {
+                        onlineUsers.add(doc.id);
+                    }
+                });
+                this.setState({ onlineUsers });
+            });
+        } catch (error) {
+            console.error('Error subscribing to presence:', error);
+        }
+    }
+
+    // ============ READ RECEIPTS ============
+    markAsRead = async (messageId) => {
+        if (!this.state.currentUser) return;
+
+        try {
+            const messageRef = doc(db, 'messages', messageId);
+            const messageDoc = await getDoc(messageRef);
+
+            if (!messageDoc.exists()) return;
+
+            const readBy = messageDoc.data().readBy || [];
+            if (!readBy.includes(this.state.currentUser.uid)) {
+                await updateDoc(messageRef, {
+                    readBy: [...readBy, this.state.currentUser.uid],
+                    readAt: serverTimestamp()
+                });
+            }
+        } catch (error) {
+            console.error('Error marking as read:', error);
+        }
+    }
+
+    markMessagesAsRead = () => {
+        // Mark all visible messages as read
+        this.state.messages.forEach(msg => {
+            if (msg.from !== this.state.currentUser.uid) {
+                this.markAsRead(msg.id);
+            }
+        });
     }
 
 
@@ -611,9 +696,19 @@ class Messenger extends Component {
                             </>
                         )}
 
-                        <p className={`text-[10px] mt-1 text-right ${isMe ? 'text-teal-200' : 'text-gray-400'}`}>
-                            {msg.timestamp ? new Date(msg.timestamp.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Sending...'}
-                        </p>
+                        {/* Timestamp & Read Receipts */}
+                        <div className="flex items-center justify-end gap-1 mt-1">
+                            <p className={`text-[10px] ${isMe ? 'text-teal-200' : 'text-gray-400'}`}>
+                                {msg.timestamp ? new Date(msg.timestamp.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Sending...'}
+                            </p>
+
+                            {/* Read Receipts (for messages you sent) */}
+                            {isMe && msg.readBy && (
+                                <span className={`text-xs ${msg.readBy.length > 1 ? 'text-blue-300' : 'text-teal-200'}`}>
+                                    {msg.readBy.length > 1 ? '✓✓' : '✓'}
+                                </span>
+                            )}
+                        </div>
 
                         {/* Edit Button (for own messages) */}
                         {!isEditing && isMe && (
@@ -721,7 +816,12 @@ class Messenger extends Component {
                                             <span>{(user.displayName || user.email || 'U')[0].toUpperCase()}</span>
                                         )}
                                     </div>
-                                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
+                                    {/* Online Status Indicator */}
+                                    {this.state.onlineUsers.has(user.uid) ? (
+                                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
+                                    ) : (
+                                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-gray-400 border-2 border-white rounded-full"></div>
+                                    )}
                                 </div>
                                 <div className="ml-3 overflow-hidden">
                                     <p className="font-semibold text-gray-800 truncate">{user.displayName || 'Anonymous'}</p>
