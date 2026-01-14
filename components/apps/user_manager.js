@@ -309,7 +309,7 @@ class UserManager extends Component {
                                         <td className="px-6 py-4">
                                             <span className={`px-2 py-1 rounded-full text-xs font-semibold
                                                 ${user.role === 'super_admin' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>
-                                                {user.role === 'super_admin' ? 'Super Admin' : 'User'}
+                                                {user.role === 'super_admin' ? 'Super Admin' : (user.role === 'team' ? 'Team' : 'Projects')}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4">
@@ -332,7 +332,7 @@ class UserManager extends Component {
                                                         onChange={(e) => this.changeUserRole(user.id, e.target.value)}
                                                         className="px-2 py-1 text-xs border border-gray-300 rounded bg-white mr-2"
                                                     >
-                                                        <option value="user">User</option>
+                                                        <option value="user">Projects</option>
                                                         <option value="team">Team</option>
                                                     </select>
                                                 )}

@@ -65,7 +65,8 @@ export class Projects extends Component {
                 modifications: '',
                 currentProgress: '',
                 pendingChanges: '',
-                finisherTimeline: ''
+                finisherTimeline: '',
+                progress: 0
             },
             newTask: {
                 title: '',
@@ -278,7 +279,8 @@ export class Projects extends Component {
                     id: user.id,
                     name: user.displayName || user.email?.split('@')[0] || 'Unknown',
                     email: user.email,
-                    role: user.role === 'super_admin' ? 'Admin' : 'User',
+                    role: user.role === 'super_admin' ? 'Admin' : (user.role === 'team' ? 'Team' : 'User'),
+                    rawRole: user.role,
                     avatar: user.photoURL || (user.displayName ? user.displayName[0].toUpperCase() : '👤')
                 }));
 
@@ -568,7 +570,7 @@ export class Projects extends Component {
                 newProject: {
                     name: '', type: 'Development', overview: '', status: 'Planning',
                     timeline: '', tagged: [], requirements: '', modifications: '',
-                    currentProgress: '', pendingChanges: '', finisherTimeline: ''
+                    currentProgress: '', pendingChanges: '', finisherTimeline: '', progress: 0
                 }
             });
         } catch (error) {
@@ -622,7 +624,8 @@ export class Projects extends Component {
             modifications: project.modifications || '',
             currentProgress: project.currentProgress || '',
             pendingChanges: project.pendingChanges || '',
-            finisherTimeline: project.finisherTimeline || ''
+            finisherTimeline: project.finisherTimeline || '',
+            progress: project.progress || 0
         };
 
         this.setState({
@@ -749,19 +752,13 @@ export class Projects extends Component {
                         <table className="w-full text-left border-collapse table-fixed">
                             <thead className="bg-slate-50 sticky top-0 z-10 shadow-sm border-b border-slate-200">
                                 <tr>
-                                    <th className="px-3 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider w-[5%] text-center">S.No</th>
-                                    <th className="px-3 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider w-[12%]">Name</th>
-                                    <th className="px-3 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider w-[10%]">Type</th>
-                                    <th className="px-3 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider w-[15%] hidden lg:table-cell">Overview</th>
-                                    <th className="px-3 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider w-[10%]">Status</th>
-                                    <th className="px-3 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider w-[10%] hidden md:table-cell">Timeline</th>
-                                    <th className="px-3 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider w-[10%] hidden xl:table-cell">Tagged</th>
-                                    <th className="px-3 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider w-[12%] whitespace-nowrap hidden 2xl:table-cell">Requirements</th>
-                                    <th className="px-3 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider w-[12%] whitespace-nowrap hidden 2xl:table-cell">Modifications</th>
-                                    <th className="px-3 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider w-[10%] whitespace-nowrap hidden 2xl:table-cell">Current Progress</th>
-                                    <th className="px-3 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider w-[10%] whitespace-nowrap hidden 2xl:table-cell">Pending Changes</th>
-                                    <th className="px-3 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider w-[10%] whitespace-nowrap hidden 2xl:table-cell">Finisher TL</th>
-                                    <th className="px-3 py-3 text-right text-xs font-bold text-slate-600 uppercase tracking-wider w-[8%]">Actions</th>
+                                    <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider w-[5%] text-center">S.No</th>
+                                    <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider w-[25%]">Name</th>
+                                    <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider w-[15%]">Type</th>
+                                    <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider w-[15%]">Status</th>
+                                    <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider w-[20%]">Progress</th>
+                                    <th className="px-4 py-3 text-xs font-bold text-slate-600 uppercase tracking-wider w-[20%]">Tagged</th>
+                                    <th className="px-4 py-3 text-right text-xs font-bold text-slate-600 uppercase tracking-wider w-[10%]">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
@@ -784,72 +781,51 @@ export class Projects extends Component {
                                 ) : (
                                     filteredProjects.map((project, index) => (
                                         <tr key={project.id} onClick={() => this.openEdit(project)} className="group hover:bg-slate-50 cursor-pointer transition-colors duration-200">
-                                            <td className="px-3 py-3 align-middle text-center w-[5%]">
+                                            <td className="px-4 py-3 align-middle text-center">
                                                 <span className="text-slate-500 font-medium text-xs">
                                                     {index + 1}
                                                 </span>
                                             </td>
-                                            <td className="px-3 py-3 align-middle w-[12%]">
+                                            <td className="px-4 py-3 align-middle">
                                                 <div className="font-semibold text-slate-900 text-sm truncate" title={project.name || project.title}>
                                                     {project.name || project.title || '-'}
                                                 </div>
                                             </td>
-                                            <td className="px-3 py-3 align-middle w-[10%]">
+                                            <td className="px-4 py-3 align-middle">
                                                 <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide truncate max-w-full ${typeColors[project.type] ? typeColors[project.type].replace('bg-', 'bg-opacity-10 text-') : 'bg-slate-100 text-slate-600'}`}>
                                                     {project.type || 'Dev'}
                                                 </span>
                                             </td>
-                                            <td className="px-3 py-3 align-middle hidden lg:table-cell w-[15%]">
-                                                <div className="text-slate-500 text-xs truncate" title={project.overview || project.description}>
-                                                    {project.overview || project.description || '-'}
-                                                </div>
-                                            </td>
-                                            <td className="px-3 py-3 align-middle w-[10%]">
+                                            <td className="px-4 py-3 align-middle">
                                                 <div className="flex items-center gap-1.5">
-                                                    <div className={`w-1.5 h-1.5 rounded-full ${statusColors[project.status]?.split(' ')[0].replace('bg-', 'bg-') || 'bg-slate-400'}`}></div>
                                                     <span className="text-xs font-medium text-slate-700 truncate">{project.status || 'Planning'}</span>
                                                 </div>
                                             </td>
-                                            <td className="px-3 py-3 align-middle hidden md:table-cell w-[10%]">
-                                                <div className="text-slate-500 text-xs truncate">
-                                                    {project.timeline || '-'}
+                                            <td className="px-4 py-3 align-middle">
+                                                <div className="flex flex-col gap-1 w-full max-w-[140px]">
+                                                    <div className="flex justify-between items-center text-[10px] text-slate-500 font-medium">
+                                                        <span>{project.progress || 0}%</span>
+                                                    </div>
+                                                    <div className="w-full bg-slate-100 rounded-full h-1.5">
+                                                        <div className="bg-emerald-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${project.progress || 0}%` }}></div>
+                                                    </div>
                                                 </div>
                                             </td>
-                                            <td className="px-3 py-3 align-middle hidden xl:table-cell w-[10%]">
+                                            <td className="px-4 py-3 align-middle">
                                                 <div className="flex flex-wrap gap-1 overflow-hidden h-5">
-                                                    {(project.tagged || project.tags || []).slice(0, 2).map(tag => (
-                                                        <span key={tag} className="inline-block px-1.5 rounded-[4px] text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200 truncate max-w-[60px]">
+                                                    {(project.tagged || project.tags || []).slice(0, 3).map(tag => (
+                                                        <span key={tag} className="inline-block px-1.5 rounded-[4px] text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200 truncate max-w-[80px]">
                                                             {tag}
                                                         </span>
                                                     ))}
+                                                    {(project.tagged || project.tags || []).length > 3 && (
+                                                        <span className="inline-block px-1.5 rounded-[4px] text-[10px] font-medium bg-slate-50 text-slate-400 border border-slate-100">
+                                                            +{(project.tagged || project.tags || []).length - 3}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </td>
-                                            <td className="px-3 py-3 align-middle hidden 2xl:table-cell w-[12%]">
-                                                <div className="text-slate-400 text-xs truncate" title={project.requirements}>
-                                                    {project.requirements || '-'}
-                                                </div>
-                                            </td>
-                                            <td className="px-3 py-3 align-middle hidden 2xl:table-cell w-[12%]">
-                                                <div className="text-slate-400 text-xs truncate" title={project.modifications}>
-                                                    {project.modifications || '-'}
-                                                </div>
-                                            </td>
-                                            <td className="px-3 py-3 align-middle hidden 2xl:table-cell w-[10%]">
-                                                <div className="text-slate-400 text-xs truncate" title={project.currentProgress}>
-                                                    {project.currentProgress || '-'}
-                                                </div>
-                                            </td>
-                                            <td className="px-3 py-3 align-middle hidden 2xl:table-cell w-[10%]">
-                                                <div className="text-slate-400 text-xs truncate" title={project.pendingChanges}>
-                                                    {project.pendingChanges || '-'}
-                                                </div>
-                                            </td>
-                                            <td className="px-3 py-3 align-middle hidden 2xl:table-cell w-[10%]">
-                                                <div className="text-slate-400 text-xs truncate" title={project.finisherTimeline}>
-                                                    {project.finisherTimeline || '-'}
-                                                </div>
-                                            </td>
-                                            <td className="px-3 py-3 align-middle text-right w-[8%]">
+                                            <td className="px-4 py-3 align-middle text-right">
                                                 {this.canEdit() && (
                                                     <button
                                                         onClick={(e) => this.deleteProject(project.id, e)}
@@ -1605,7 +1581,7 @@ export class Projects extends Component {
 
                 {/* Project Modal */}
                 {
-                    showModal && (
+                    this.state.showModal && (
                         <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 backdrop-blur-sm p-4">
                             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col h-[90%] animate-in fade-in zoom-in duration-200">
                                 <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-emerald-50 to-white">
@@ -1649,6 +1625,22 @@ export class Projects extends Component {
                                         </div>
                                     </div>
 
+                                    <div className="mb-4">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <label className="block text-xs font-bold text-slate-600 uppercase">Progress</label>
+                                            <span className="text-xs font-bold text-emerald-600">{newProject.progress || 0}%</span>
+                                        </div>
+                                        <input
+                                            name="progress"
+                                            type="range"
+                                            min="0"
+                                            max="100"
+                                            value={newProject.progress || 0}
+                                            onChange={this.handleInputChange}
+                                            className="w-full accent-emerald-500 bg-slate-200 rounded-lg appearance-none h-1.5 cursor-pointer"
+                                        />
+                                    </div>
+
                                     <div>
                                         <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Overview</label>
                                         <textarea name="overview" rows="3" value={newProject.overview} onChange={this.handleInputChange}
@@ -1688,26 +1680,44 @@ export class Projects extends Component {
                                     {/* Tags */}
                                     <div>
                                         <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Tagged</label>
-                                        <div className="flex gap-2 mb-2">
-                                            <input
-                                                type="text"
-                                                placeholder="Add tag..."
-                                                value={this.state.newTag}
-                                                onChange={(e) => this.setState({ newTag: e.target.value })}
-                                                onKeyPress={(e) => e.key === 'Enter' && this.addTag()}
-                                                className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none transition bg-white"
-                                            />
-                                            <button onClick={this.addTag} className="px-4 py-2 bg-emerald-100 text-emerald-700 rounded-lg font-medium hover:bg-emerald-200 transition">
-                                                Add
-                                            </button>
-                                        </div>
-                                        <div className="flex flex-wrap gap-2">
+
+                                        {this.canEdit() && (
+                                            <div className="mb-3">
+                                                <select
+                                                    value=""
+                                                    onChange={(e) => {
+                                                        if (e.target.value) {
+                                                            this.toggleTag(e.target.value);
+                                                            // Reset is handled by value=""
+                                                        }
+                                                    }}
+                                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none transition bg-white"
+                                                >
+                                                    <option value="">Select a team member to tag...</option>
+                                                    {this.state.teamMembers
+                                                        .filter(m => (m.rawRole === 'team' || m.rawRole === 'super_admin') && !newProject.tagged.includes(m.name))
+                                                        .map(m => (
+                                                            <option key={m.id} value={m.name}>{m.name}</option>
+                                                        ))
+                                                    }
+                                                </select>
+                                            </div>
+                                        )}
+
+                                        <div className="flex flex-wrap gap-2 min-h-[32px]">
                                             {newProject.tagged && newProject.tagged.map(tag => (
-                                                <span key={tag} onClick={() => this.toggleTag(tag)}
-                                                    className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm font-medium cursor-pointer hover:bg-purple-200 transition">
-                                                    {tag} ×
+                                                <span key={tag}
+                                                    onClick={() => this.canEdit() && this.toggleTag(tag)}
+                                                    className={`px-3 py-1 rounded-full text-sm font-medium transition ${this.canEdit()
+                                                        ? 'bg-purple-100 text-purple-700 cursor-pointer hover:bg-purple-200'
+                                                        : 'bg-slate-100 text-slate-600'
+                                                        }`}>
+                                                    {tag} {this.canEdit() && '×'}
                                                 </span>
                                             ))}
+                                            {(!newProject.tagged || newProject.tagged.length === 0) && !this.canEdit() && (
+                                                <span className="text-slate-400 text-sm italic">No tags</span>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -1879,8 +1889,9 @@ export class Projects extends Component {
                                 </div>
                             </div>
                         </div>
-                    )}
-            </div>
+                    )
+                }
+            </div >
         );
     }
 
