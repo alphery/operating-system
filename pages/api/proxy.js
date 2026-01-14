@@ -11,6 +11,11 @@ export default async function handler(req, res) {
     try {
         const targetUrl = decodeURIComponent(url);
 
+        // Prevent loops: Don't proxy localhost
+        if (targetUrl.includes('localhost') || targetUrl.includes('127.0.0.1')) {
+            return res.status(400).json({ error: 'Cannot proxy localhost' });
+        }
+
         // Fetch the website
         const response = await fetch(targetUrl, {
             headers: {
@@ -22,10 +27,14 @@ export default async function handler(req, res) {
         const contentType = response.headers.get('content-type') || 'text/html';
         let content = await response.text();
 
+        // Set cookie for sticky sessions (URL resolution fallback)
+        // We use the origin of the target URL as the context
+        const baseUrl = new URL(targetUrl);
+        const origin = baseUrl.origin;
+        res.setHeader('Set-Cookie', `proxy_url=${encodeURIComponent(origin)}; Path=/; SameSite=Lax`);
+
         // Only rewrite HTML content
         if (contentType.includes('text/html')) {
-            const baseUrl = new URL(targetUrl);
-            const origin = baseUrl.origin;
 
             // 1. INJECT MAGIC SCRIPT TO INTERCEPT FETCH/XHR
             const magicScript = `
@@ -40,6 +49,7 @@ export default async function handler(req, res) {
 
                         function rewriteUrl(url) {
                             if (!url) return url;
+                            if (typeof url !== 'string') return url;
                             if (url.startsWith('/api/proxy')) return url;
                             if (url.startsWith('data:')) return url;
                             if (url.startsWith('blob:')) return url;
@@ -62,12 +72,15 @@ export default async function handler(req, res) {
                         window.fetch = function(input, init) {
                             if (typeof input === 'string') {
                                 input = rewriteUrl(input);
+                            } else if (input instanceof Request) {
+                                input = new Request(rewriteUrl(input.url), input);
                             }
                             return originalFetch(input, init);
                         };
 
                         // Override XHR
                         XMLHttpRequest.prototype.open = function(method, url, ...args) {
+                            this._originalUrl = url;
                             return originalXHROpen.call(this, method, rewriteUrl(url), ...args);
                         };
                     })();
@@ -78,28 +91,42 @@ export default async function handler(req, res) {
             content = content.replace('<head>', '<head>' + magicScript);
 
             // 2. REWRITE HTML ATTRIBUTES (Server-Side)
-            // Rewrite src="..." and href="..."
-            const rewriteRegex = /(src|href|action)=["']([^"']+)["']/g;
+            // Rewrite src, href, action, srcset, data-src, poster
+            const rewriteRegex = /(src|href|action|srcset|data-src|poster)=["']([^"']+)["']/g;
             content = content.replace(rewriteRegex, (match, attr, link) => {
-                if (link.startsWith('http') || link.startsWith('/')) {
-                    try {
-                        const absoluteUrl = link.startsWith('http') ? link : origin + link;
-                        return `${attr}="/api/proxy?url=${encodeURIComponent(absoluteUrl)}"`;
-                    } catch (e) { return match; }
-                }
-                return match;
+                if (link.startsWith('data:') || link.startsWith('blob:') || link.startsWith('#')) return match;
+
+                try {
+                    let absoluteUrl = link;
+                    if (link.startsWith('/')) {
+                        absoluteUrl = origin + link;
+                    } else if (link.startsWith('http')) {
+                        absoluteUrl = link;
+                    } else {
+                        // Relative link
+                        absoluteUrl = new URL(link, targetUrl).href;
+                    }
+
+                    return `${attr}="/api/proxy?url=${encodeURIComponent(absoluteUrl)}"`;
+                } catch (e) { return match; }
             });
 
-            // Remove Integrity checks (subresource integrity) because rewriting breaks hash
+            // Remove Integrity checks
             content = content.replace(/integrity=["'][^"']*["']/g, '');
+            // Remove CSP
+            content = content.replace(/<meta[^>]*http-equiv=["']Content-Security-Policy["'][^>]*>/gi, '');
         }
 
         // Set headers
         res.setHeader('Content-Type', contentType);
         res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
         // Remove restrictive headers
         res.removeHeader('X-Frame-Options');
         res.removeHeader('Content-Security-Policy');
+        res.removeHeader('X-Content-Type-Options');
 
         res.send(content);
 

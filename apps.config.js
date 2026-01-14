@@ -1,8 +1,8 @@
-import displayVsCode from './components/apps/vscode';
+import { displayVsCode } from './components/apps/vscode';
 import { displayTerminal } from './components/apps/terminal';
 import { displaySettings } from './components/apps/settings';
 import { displayChrome } from './components/apps/chrome';
-import { displayFlash } from './components/apps/flash';
+
 import { displayTrash } from './components/apps/trash';
 import { displayGedit } from './components/apps/gedit';
 import { displayAboutAjith } from './components/apps/anurag';
@@ -59,19 +59,11 @@ const apps = [
         title: "Google Chrome",
         icon: './themes/Yaru/apps/chrome.png',
         disabled: false,
-        favourite: false,
+        favourite: true,
         desktop_shortcut: false,
         screen: displayChrome,
     },
-    {
-        id: "flash",
-        title: "Flash Browser",
-        icon: './themes/Yaru/apps/chrome.png',
-        disabled: false,
-        favourite: true,
-        desktop_shortcut: false,
-        screen: displayFlash,
-    },
+
     {
         id: "calc",
         title: "Calculator",
