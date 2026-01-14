@@ -113,20 +113,23 @@ class Messenger extends Component {
             return;
         }
 
+        const currentUser = {
+            uid: user.uid,
+            email: user.email,
+            displayName: userData.displayName || user.displayName,
+            photoURL: userData.photoURL || user.photoURL
+        };
+
         this.setState({
-            currentUser: {
-                uid: user.uid,
-                email: user.email,
-                displayName: userData.displayName || user.displayName,
-                photoURL: userData.photoURL || user.photoURL
-            }
+            currentUser: currentUser
+        }, async () => {
+            // Start online presence tracking immediately after user is set
+            this.subscribeToPresence();
+            await this.updateMyPresence('online');
+
+            // Load users afterwards
+            this.loadUsers();
         });
-
-        await this.loadUsers();
-
-        // Start online presence tracking
-        this.subscribeToPresence();
-        this.updateMyPresence('online');
     }
 
     loadUsers = async () => {
@@ -357,6 +360,8 @@ class Messenger extends Component {
 
     // ============ EMOJI PICKER ============
     addEmoji = (emojiObject) => {
+        if (!emojiObject || !emojiObject.emoji) return;
+
         this.setState({
             messageText: this.state.messageText + emojiObject.emoji,
             showEmojiPicker: false
@@ -622,8 +627,10 @@ class Messenger extends Component {
                 .map(doc => ({ uid: doc.id, ...doc.data() }))
                 .filter(u =>
                     u.uid !== this.props.user.uid &&
-                    u.email &&
-                    u.email.toLowerCase().includes(email.toLowerCase())
+                    (
+                        (u.email && u.email.toLowerCase().includes(email.toLowerCase())) ||
+                        (u.displayName && u.displayName.toLowerCase().includes(email.toLowerCase()))
+                    )
                 );
 
             this.setState({ searchedUsers: results });
@@ -1028,7 +1035,7 @@ class Messenger extends Component {
                         </div>
                         <div className="px-4 pb-3">
                             <input
-                                className="w-full bg-gray-100 border border-transparent focus:bg-white focus:border-teal-500 rounded-md px-3 py-1.5 text-xs outline-none transition"
+                                className="w-full bg-gray-100 border border-transparent focus:bg-white focus:border-teal-500 rounded-md px-3 py-1.5 text-xs outline-none transition text-gray-900"
                                 placeholder="Search conversations..."
                                 value={this.state.searchQuery || ''}
                                 onChange={(e) => this.setState({ searchQuery: e.target.value })}
@@ -1156,7 +1163,7 @@ class Messenger extends Component {
                                         placeholder="Search in chat..."
                                         value={this.state.searchQuery}
                                         onChange={(e) => this.handleSearch(e.target.value)}
-                                        className="pl-3 pr-8 py-1.5 text-sm bg-gray-100 border-transparent focus:bg-white focus:border-teal-500 border rounded-full outline-none transition w-40 focus:w-60"
+                                        className="pl-3 pr-8 py-1.5 text-sm bg-gray-100 border-transparent focus:bg-white focus:border-teal-500 border rounded-full outline-none transition w-40 focus:w-60 text-gray-900"
                                     />
                                     <svg className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 transform -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
@@ -1287,7 +1294,7 @@ class Messenger extends Component {
                                     </button>
 
                                     <input
-                                        className="flex-1 bg-gray-100 border-0 rounded-full px-4 py-2 focus:ring-2 focus:ring-teal-500 outline-none transition"
+                                        className="flex-1 bg-gray-100 border-0 rounded-full px-4 py-2 focus:ring-2 focus:ring-teal-500 outline-none transition text-gray-900"
                                         placeholder="Type a message..."
                                         value={messageText}
                                         onChange={this.handleTyping}
@@ -1402,7 +1409,7 @@ class Messenger extends Component {
                                             this.setState({ searchEmail: e.target.value });
                                             this.searchUserByEmail(e.target.value);
                                         }}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none text-sm"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none text-sm text-gray-900"
                                         autoFocus
                                     />
                                     <svg className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 transform -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

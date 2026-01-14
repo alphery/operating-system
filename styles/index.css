@@ -2,13 +2,13 @@
     --base-font-size: 16px;
     --accent-color: #E95420;
     --ub-orange: #E95420;
-    
+
     /* Theme Variables (Default Dark) */
     --bg-primary: #201f1f;
     --bg-secondary: #333333;
     --text-primary: #F6F6F5;
     --text-secondary: #AEA79F;
-    
+
     /* Effects */
     --window-transparency: 1;
     --backdrop-blur: 0px;
@@ -21,7 +21,7 @@ html {
 
 body {
     /* Apple San Francisco font family - exact macOS match */
-    font-family: "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-family: "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
     font-weight: 400;
     letter-spacing: -0.01em;
     font-display: swap;

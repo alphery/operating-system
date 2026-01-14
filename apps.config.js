@@ -166,7 +166,7 @@ const apps = [
     {
         id: "user-permissions",
         title: "User Permissions",
-        icon: './themes/Yaru/apps/users.png',
+        icon: './themes/Yaru/apps/permissions.png',
         disabled: false,
         favourite: false,
         desktop_shortcut: false,
