@@ -231,7 +231,9 @@ class AppStore extends Component {
         const user = this.props.user;
         const userData = this.props.userData;
         const isSuperAdmin = userData && userData.role === 'super_admin';
-        const systemApps = ['app-store', 'settings', 'users', 'messenger'];
+        // System apps that are always visible (Settings, App Store, Messenger)
+        // Removed 'users' and 'user-permissions' so they can be controlled via permissions
+        const systemApps = ['app-store', 'settings', 'messenger'];
 
         if (!isSuperAdmin && userData) {
             if (userData.allowedApps && userData.allowedApps.length > 0) {

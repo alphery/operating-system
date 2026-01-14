@@ -19,17 +19,17 @@ export function UserPermissionsManager() {
     // Available apps in the system
     const SYSTEM_APPS = [
         { id: 'projects', name: 'Alphery Projects', icon: '📋', category: 'Productivity' },
+        { id: 'users', name: 'Alphery Users', icon: '👥', category: 'Admin' },
+        { id: 'user-permissions', name: 'User Permissions', icon: '🔐', category: 'Admin' },
         { id: 'chrome', name: 'Chrome Browser', icon: '🌐', category: 'Utility' },
         { id: 'vscode', name: 'VS Code', icon: '💻', category: 'Development' },
         { id: 'terminal', name: 'Terminal', icon: '⌨️', category: 'Development' },
-        { id: 'calculator', name: 'Calculator', icon: '🔢', category: 'Utility' },
+        { id: 'calc', name: 'Calculator', icon: '🔢', category: 'Utility' },
         { id: 'calendar', name: 'Calendar', icon: '📅', category: 'Productivity' },
         { id: 'weather', name: 'Weather', icon: '🌤️', category: 'Utility' },
         { id: 'todo', name: 'To-Do List', icon: '✓', category: 'Productivity' },
-        { id: 'spotify', name: 'Spotify', icon: '🎵', category: 'Entertainment' },
-        { id: 'file-manager', name: 'File Manager', icon: '📁', category: 'Utility' },
-        { id: 'mail', name: 'Mail', icon: '✉️', category: 'Productivity' },
-        { id: 'messenger', name: 'Messenger', icon: '💬', category: 'Social' },
+        { id: 'files', name: 'File Manager', icon: '📁', category: 'Utility' },
+        { id: 'gedit', name: 'Text Editor', icon: '📝', category: 'Utility' },
     ];
 
     // Check if current user is super admin
@@ -181,8 +181,8 @@ export function UserPermissionsManager() {
                                             key={u.id}
                                             onClick={() => handleUserSelect(u)}
                                             className={`w-full p-3 rounded-lg border  transition-all text-left ${isSelected
-                                                    ? 'bg-blue-50 border-blue-300 shadow-sm'
-                                                    : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow'
+                                                ? 'bg-blue-50 border-blue-300 shadow-sm'
+                                                : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow'
                                                 }`}
                                         >
                                             <div className="flex items-center gap-3">
@@ -252,8 +252,8 @@ export function UserPermissionsManager() {
                                                         <label
                                                             key={project.id}
                                                             className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${hasAccess || isAdminUser
-                                                                    ? 'bg-green-50 border-green-300'
-                                                                    : 'bg-white border-slate-200 hover:border-slate-300'
+                                                                ? 'bg-green-50 border-green-300'
+                                                                : 'bg-white border-slate-200 hover:border-slate-300'
                                                                 }`}
                                                         >
                                                             <input
@@ -294,8 +294,8 @@ export function UserPermissionsManager() {
                                                     <label
                                                         key={app.id}
                                                         className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${hasAccess || isAdminUser
-                                                                ? 'bg-blue-50 border-blue-300'
-                                                                : 'bg-white border-slate-200 hover:border-slate-300'
+                                                            ? 'bg-blue-50 border-blue-300'
+                                                            : 'bg-white border-slate-200 hover:border-slate-300'
                                                             }`}
                                                     >
                                                         <input
