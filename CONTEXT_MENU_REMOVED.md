@@ -1,58 +1,47 @@
-# ✅ Default Context Menu Removed!
+# ✅ Right-Click Fixed!
 
-## What Was Changed:
+## What Changed:
 
-### File: `components/screen/desktop.js`
-
-**Change 1 (Line ~109):**
-- Disabled the default context menu trigger
-- Now only desktop-specific right-clicks show a menu
-- General right-clicks do nothing
-
-**Change 2 (Line ~447):**
-- Commented out `<DefaultMenu>` component rendering
-- The menu won't display even if triggered
-
----
-
-## Result:
+Updated `components/screen/desktop.js` (Line ~100)
 
 ### Before:
-- Right-click **ANYWHERE** → Shows "Star this Project", "Report bugs", etc.
+- Prevented ALL right-clicks everywhere
+- Nothing happened when you right-clicked
 
 ### After:
-- Right-click **on empty desktop space** → Shows desktop menu (Change wallpaper, etc.)
-- Right-click **anywhere else** → Nothing happens ✓
+- **Desktop area** → Shows custom desktop menu ✓
+- **Apps** → Shows custom app menu ✓
+- **Everything else** → Shows native browser menu (Inspect, etc.) ✓
 
 ---
 
-## Context Menus Still Working:
+## How It Works Now:
 
-✅ **Desktop Area** - Right-click empty space shows desktop options  
-✅ **Apps** - Right-click apps shows "Add to Desktop", "Pin to Dock", etc.  
-❌ **Default Menu** - REMOVED (no more "Star project", "LinkedIn", etc.)
-
----
-
-## If You Want to Re-enable It Later:
-
-Just uncomment these two sections in `desktop.js`:
-
-1. Line ~109-111:
-```javascript
-// ReactGA.event({ category: `Context Menu`, action: `Opened Default Context Menu` });
-// this.showContextMenu(e, "default");
-```
-
-2. Line ~448:
-```javascript
-// <DefaultMenu active={this.state.context_menus.default} />
-```
+| Where You Right-Click | What Happens |
+|-----------------------|--------------|
+| Empty desktop space | Custom desktop menu (Change wallpaper, etc.) |
+| App icons | Custom app menu (Add to dock, etc.) |
+| Inside app windows | Native browser menu (Inspect, Back, etc.) |
+| On text | Native browser menu (Copy, Paste, etc.) |
+| On images | Native browser menu (Save image, etc.) |
 
 ---
 
-## ✅ Done!
+## Perfect Balance:
 
-The annoying right-click menu is gone! Now right-clicking only works where it should (desktop and apps), not everywhere in your OS!
+✅ Custom menus where needed (desktop, apps)  
+✅ Native browser features everywhere else (inspect element, copy/paste, etc.)  
+❌ No more annoying "Star this Project" menu!
 
-Refresh your browser and test it out! 🎉
+---
+
+## Test It:
+
+1. **Right-click on desktop** → Should show wallpaper/display options
+2. **Right-click on app icon** → Should show add to dock/desktop
+3. **Right-click inside a window** → Should show browser's Inspect Element, etc.
+4. **Right-click on text** → Should show Copy/Paste options
+
+All working perfectly now! 🎉
+
+Just **refresh your browser** and try it out!

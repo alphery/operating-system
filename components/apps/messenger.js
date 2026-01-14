@@ -549,12 +549,15 @@ class Messenger extends Component {
                     </div>
                     <div className="flex-1 overflow-y-auto">
                         {otherUsers.filter(u =>
-                            !this.state.searchQuery ||
-                            (u.displayName && u.displayName.toLowerCase().includes(this.state.searchQuery.toLowerCase())) ||
-                            (u.email && u.email.toLowerCase().includes(this.state.searchQuery.toLowerCase()))
+                            !this.state.hiddenUsers.includes(u.uid) && (
+                                !this.state.searchQuery ||
+                                (u.displayName && u.displayName.toLowerCase().includes(this.state.searchQuery.toLowerCase())) ||
+                                (u.email && u.email.toLowerCase().includes(this.state.searchQuery.toLowerCase()))
+                            )
                         ).map(user => (
                             <div key={user.uid}
                                 onClick={() => this.selectUser(user)}
+                                onContextMenu={(e) => this.handleUserContextMenu(e, user)}
                                 className={`flex items-center px-4 py-3 cursor-pointer transition border-b border-gray-100 group
                                 ${selectedUser && selectedUser.uid === user.uid ? 'bg-teal-50 border-teal-200' : 'hover:bg-gray-100'}`}>
                                 <div className="relative">
@@ -700,6 +703,55 @@ class Messenger extends Component {
                         </div>
                     )}
                 </div>
+
+                {/* Context Menu */}
+                {this.state.contextMenu && (
+                    <div
+                        className="fixed bg-white rounded-lg shadow-2xl border border-gray-200 py-2 z-50 min-w-[200px]"
+                        style={{
+                            left: `${this.state.contextMenu.x}px`,
+                            top: `${this.state.contextMenu.y}px`
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {this.state.contextMenu.type === 'user' && (
+                            <>
+                                <button
+                                    onClick={() => this.hideUser(this.state.contextMenu.item)}
+                                    className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-3 text-sm text-gray-700 transition"
+                                >
+                                    <span>👁️‍🗨️</span>
+                                    <span>Hide Chat</span>
+                                </button>
+                                <button
+                                    onClick={() => this.deleteUserChat(this.state.contextMenu.item)}
+                                    className="w-full px-4 py-2 text-left hover:bg-red-50 flex items-center gap-3 text-sm text-red-600 transition"
+                                >
+                                    <span>🗑️</span>
+                                    <span>
+                                        {this.props.userData?.role === 'super_admin'
+                                            ? '🔒 Delete Chat (Admin)'
+                                            : 'Delete Chat'}
+                                    </span>
+                                </button>
+                            </>
+                        )}
+
+                        {this.state.contextMenu.type === 'message' && (
+                            <button
+                                onClick={() => this.deleteMessage(this.state.contextMenu.item)}
+                                className="w-full px-4 py-2 text-left hover:bg-red-50 flex items-center gap-3 text-sm text-red-600 transition"
+                            >
+                                <span>🗑️</span>
+                                <span>
+                                    {this.props.userData?.role === 'super_admin'
+                                        ? '🔒 Delete for Everyone'
+                                        : 'Delete Message'}
+                                </span>
+                            </button>
+                        )}
+                    </div>
+                )}
             </div>
         );
     }
