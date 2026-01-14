@@ -32,7 +32,8 @@ class Messenger extends Component {
             showEmojiPicker: false,
             editingMessageId: null,
             editingMessageText: '',
-            onlineUsers: new Set(), // Track online users
+            onlineUsers: new Set(), // Legacy support
+            userStatuses: new Map(), // NEW: detailed status map
 
             // NEW: Typing & Reply & Search states
             otherUserTyping: false,
@@ -40,6 +41,13 @@ class Messenger extends Component {
             replyingTo: null,
             searchResults: [],
             isSearching: false,
+            userStatus: 'online', // 'online', 'away', 'offline'
+
+            // NEW: Conversations (privacy feature)
+            conversations: [], // Only users you've chatted with
+            showNewChatModal: false,
+            searchEmail: '',
+            searchedUsers: [],
         };
         this.unsubscribeMessages = null;
         this.unsubscribePresence = null;
@@ -54,6 +62,9 @@ class Messenger extends Component {
             const hiddenUsersKey = `hidden_chats_${this.props.user.uid}`;
             const hiddenUsers = JSON.parse(localStorage.getItem(hiddenUsersKey) || '[]');
             this.setState({ hiddenUsers });
+
+            // Load conversations
+            this.loadConversations();
         }
 
         // Close context menu and emoji picker on any click
@@ -220,6 +231,9 @@ class Messenger extends Component {
                 replyToText: replyingTo ? replyingTo.text : null,
                 replyToFrom: replyingTo ? (replyingTo.fromName || 'User') : null
             });
+
+            // Auto-save conversation
+            this.saveConversation(selectedUser);
 
             this.setState({ messageText: '', replyingTo: null });
         } catch (error) {
@@ -418,19 +432,22 @@ class Messenger extends Component {
         }
     }
 
+    changeUserStatus = async (status) => {
+        this.setState({ userStatus: status });
+        await this.updateMyPresence(status);
+    }
+
     subscribeToPresence = () => {
         if (!db) return;
 
         try {
             const presenceRef = collection(db, 'user_presence');
             this.unsubscribePresence = onSnapshot(presenceRef, (snapshot) => {
-                const onlineUsers = new Set();
+                const userStatuses = new Map();
                 snapshot.docs.forEach(doc => {
-                    if (doc.data().status === 'online') {
-                        onlineUsers.add(doc.id);
-                    }
+                    userStatuses.set(doc.id, doc.data().status);
                 });
-                this.setState({ onlineUsers });
+                this.setState({ userStatuses });
             });
         } catch (error) {
             console.error('Error subscribing to presence:', error);
@@ -554,6 +571,66 @@ class Messenger extends Component {
             element.classList.add('bg-yellow-100', 'transition-colors', 'duration-1000');
             setTimeout(() => element.classList.remove('bg-yellow-100'), 2000);
         }
+    }
+
+    // ============ CONVERSATIONS (PRIVACY) ============
+    loadConversations = () => {
+        if (!this.props.user) return;
+
+        const conversationsKey = `conversations_${this.props.user.uid}`;
+        const saved = localStorage.getItem(conversationsKey);
+        const conversations = saved ? JSON.parse(saved) : [];
+
+        this.setState({ conversations });
+    }
+
+    saveConversation = (user) => {
+        if (!this.props.user) return;
+
+        const conversationsKey = `conversations_${this.props.user.uid}`;
+        const conversations = this.state.conversations;
+
+        // Check if already exists
+        const exists = conversations.find(c => c.uid === user.uid);
+        if (!exists) {
+            const newConversations = [...conversations, user];
+            this.setState({ conversations: newConversations });
+            localStorage.setItem(conversationsKey, JSON.stringify(newConversations));
+        }
+    }
+
+    searchUserByEmail = async (email) => {
+        if (!email.trim()) {
+            this.setState({ searchedUsers: [] });
+            return;
+        }
+
+        try {
+            const usersRef = collection(db, 'users');
+            const snapshot = await getDocs(usersRef);
+
+            const results = snapshot.docs
+                .map(doc => ({ uid: doc.id, ...doc.data() }))
+                .filter(u =>
+                    u.uid !== this.props.user.uid &&
+                    u.email &&
+                    u.email.toLowerCase().includes(email.toLowerCase())
+                );
+
+            this.setState({ searchedUsers: results });
+        } catch (error) {
+            console.error('Error searching users:', error);
+        }
+    }
+
+    startConversation = (user) => {
+        this.saveConversation(user);
+        this.setState({
+            showNewChatModal: false,
+            searchEmail: '',
+            searchedUsers: []
+        });
+        this.selectUser(user);
     }
 
 
@@ -913,23 +990,36 @@ class Messenger extends Component {
                 {/* Sidebar */}
                 <div className="w-1/3 md:w-1/4 bg-gray-50 border-r border-gray-200 flex flex-col">
                     <div className="flex flex-col border-b border-gray-200 bg-white shadow-sm z-10">
-                        <div className="h-16 flex items-center px-4 font-bold text-lg text-teal-600 gap-2">
-                            <div className="w-8 h-8 bg-teal-500 rounded-full flex items-center justify-center text-white">
-                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z"></path><path d="M15 7v2a4 4 0 01-4 4H9.828l-1.766 1.767c.28.149.599.233.938.233h2l3 3v-3h2a2 2 0 002-2V9a2 2 0 00-2-2h-1z"></path></svg>
+                        <div className="h-16 flex items-center justify-between px-4">
+                            <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 bg-teal-500 rounded-full flex items-center justify-center text-white">
+                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z"></path><path d="M15 7v2a4 4 0 01-4 4H9.828l-1.766 1.767c.28.149.599.233.938.233h2l3 3v-3h2a2 2 0 002-2V9a2 2 0 00-2-2h-1z"></path></svg>
+                                </div>
+                                <span className="font-bold text-lg text-teal-600">Chats</span>
                             </div>
-                            Messenger
+
+                            {/* New Chat Button */}
+                            <button
+                                onClick={() => this.setState({ showNewChatModal: true })}
+                                className="p-2 hover:bg-gray-100 rounded-full transition"
+                                title="New Chat"
+                            >
+                                <svg className="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path>
+                                </svg>
+                            </button>
                         </div>
                         <div className="px-4 pb-3">
                             <input
                                 className="w-full bg-gray-100 border border-transparent focus:bg-white focus:border-teal-500 rounded-md px-3 py-1.5 text-xs outline-none transition"
-                                placeholder="Search users..."
+                                placeholder="Search conversations..."
                                 value={this.state.searchQuery || ''}
                                 onChange={(e) => this.setState({ searchQuery: e.target.value })}
                             />
                         </div>
                     </div>
                     <div className="flex-1 overflow-y-auto">
-                        {otherUsers.filter(u =>
+                        {this.state.conversations.filter(u =>
                             !this.state.hiddenUsers.includes(u.uid) && (
                                 !this.state.searchQuery ||
                                 (u.displayName && u.displayName.toLowerCase().includes(this.state.searchQuery.toLowerCase())) ||
@@ -950,11 +1040,9 @@ class Messenger extends Component {
                                         )}
                                     </div>
                                     {/* Online Status Indicator */}
-                                    {this.state.onlineUsers.has(user.uid) ? (
-                                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
-                                    ) : (
-                                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-gray-400 border-2 border-white rounded-full"></div>
-                                    )}
+                                    <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-white rounded-full ${this.state.userStatuses.get(user.uid) === 'online' ? 'bg-green-500' :
+                                        this.state.userStatuses.get(user.uid) === 'away' ? 'bg-yellow-500' : 'bg-gray-400'
+                                        }`}></div>
                                 </div>
                                 <div className="ml-3 overflow-hidden">
                                     <p className="font-semibold text-gray-800 truncate">{user.displayName || 'Anonymous'}</p>
@@ -964,12 +1052,52 @@ class Messenger extends Component {
                                 </div>
                             </div>
                         ))}
-                        {otherUsers.length === 0 && (
+                        {this.state.conversations.length === 0 && (
                             <div className="p-4 text-center text-gray-400 text-xs">
-                                <p>No other users yet.</p>
-                                <p className="mt-2">Create another account to test messaging!</p>
+                                <p>No conversations yet.</p>
+                                <p className="mt-2">Click the + button to start a new chat!</p>
                             </div>
                         )}
+                    </div>
+
+                    {/* My Status Section */}
+                    <div className="p-3 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
+                        <div className="flex items-center gap-2 overflow-hidden mr-2">
+                            <div className="w-8 h-8 rounded-full bg-teal-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                                {currentUser.photoURL ? (
+                                    <img src={currentUser.photoURL} alt="" className="w-full h-full object-cover rounded-full" />
+                                ) : (
+                                    (currentUser.displayName || 'Me')[0].toUpperCase()
+                                )}
+                            </div>
+                            <div className="truncate">
+                                <p className="text-xs font-semibold text-gray-700 truncate">{currentUser.displayName || 'Me'}</p>
+                                <p className="text-[10px] text-gray-500 capitalize">{this.state.userStatus}</p>
+                            </div>
+                        </div>
+
+                        <div className="relative group">
+                            <button className="flex items-center gap-1 text-xs px-2 py-1 rounded border border-gray-300 bg-white hover:bg-gray-50 transition">
+                                <span className={`w-2 h-2 rounded-full ${this.state.userStatus === 'online' ? 'bg-green-500' :
+                                    this.state.userStatus === 'away' ? 'bg-yellow-500' : 'bg-gray-400'
+                                    }`}></span>
+                                <span className="capitalize">{this.state.userStatus}</span>
+                                <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </button>
+
+                            {/* Status Dropdown */}
+                            <div className="absolute bottom-full right-0 mb-1 w-32 bg-white rounded-lg shadow-xl border border-gray-200 hidden group-hover:block overflow-hidden z-50">
+                                <button onClick={() => this.changeUserStatus('online')} className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-green-500"></span> Online
+                                </button>
+                                <button onClick={() => this.changeUserStatus('away')} className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-yellow-500"></span> Away
+                                </button>
+                                <button onClick={() => this.changeUserStatus('offline')} className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-gray-400"></span> Offline
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -986,15 +1114,17 @@ class Messenger extends Component {
                                         ) : (
                                             <span>{(selectedUser.displayName || selectedUser.email || 'U')[0].toUpperCase()}</span>
                                         )}
-                                        {this.state.onlineUsers.has(selectedUser.uid) && (
-                                            <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full"></div>
-                                        )}
+                                        <div className={`absolute bottom-0 right-0 w-2.5 h-2.5 border-2 border-white rounded-full ${this.state.userStatuses.get(selectedUser.uid) === 'online' ? 'bg-green-500' :
+                                            this.state.userStatuses.get(selectedUser.uid) === 'away' ? 'bg-yellow-500' : 'bg-gray-400'
+                                            }`}></div>
                                     </div>
                                     <div>
                                         <h3 className="font-bold text-gray-800">{selectedUser.displayName || 'Anonymous'}</h3>
                                         <div className="text-xs">
-                                            {this.state.onlineUsers.has(selectedUser.uid) ? (
+                                            {this.state.userStatuses.get(selectedUser.uid) === 'online' ? (
                                                 <span className="text-green-500 flex items-center gap-1">● Online</span>
+                                            ) : this.state.userStatuses.get(selectedUser.uid) === 'away' ? (
+                                                <span className="text-yellow-500 flex items-center gap-1">● Away</span>
                                             ) : (
                                                 <span className="text-gray-400">Offline</span>
                                             )}
@@ -1224,6 +1354,93 @@ class Messenger extends Component {
                                 </span>
                             </button>
                         )}
+                    </div>
+                )}
+
+                {/* New Chat Modal */}
+                {this.state.showNewChatModal && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => this.setState({ showNewChatModal: false })}>
+                        <div className="bg-white rounded-lg shadow-2xl w-96 max-h-[600px] flex flex-col" onClick={(e) => e.stopPropagation()}>
+                            {/* Modal Header */}
+                            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+                                <h3 className="font-bold text-lg text-gray-800">New Chat</h3>
+                                <button
+                                    onClick={() => this.setState({ showNewChatModal: false, searchEmail: '', searchedUsers: [] })}
+                                    className="p-1 hover:bg-gray-100 rounded-full"
+                                >
+                                    <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                                    </svg>
+                                </button>
+                            </div>
+
+                            {/* Search Input */}
+                            <div className="p-4 border-b border-gray-200">
+                                <div className="relative">
+                                    <input
+                                        type="email"
+                                        placeholder="Search by email address..."
+                                        value={this.state.searchEmail}
+                                        onChange={(e) => {
+                                            this.setState({ searchEmail: e.target.value });
+                                            this.searchUserByEmail(e.target.value);
+                                        }}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none text-sm"
+                                        autoFocus
+                                    />
+                                    <svg className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 transform -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                    </svg>
+                                </div>
+                                <p className="text-xs text-gray-500 mt-2">Enter the email address of the person you want to chat with</p>
+                            </div>
+
+                            {/* Search Results */}
+                            <div className="flex-1 overflow-y-auto p-4">
+                                {this.state.searchedUsers.length > 0 ? (
+                                    this.state.searchedUsers.map(user => (
+                                        <div
+                                            key={user.uid}
+                                            onClick={() => this.startConversation(user)}
+                                            className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition mb-2"
+                                        >
+                                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-400 to-blue-500 flex items-center justify-center text-white font-bold flex-shrink-0">
+                                                {user.photoURL ? (
+                                                    <img src={user.photoURL} alt={user.displayName} className="w-full h-full object-cover rounded-full" />
+                                                ) : (
+                                                    <span>{(user.displayName || user.email || 'U')[0].toUpperCase()}</span>
+                                                )}
+                                            </div>
+                                            <div className="flex-1 overflow-hidden">
+                                                <p className="font-semibold text-gray-800 truncate">{user.displayName || 'Anonymous'}</p>
+                                                <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                                            </div>
+                                            <div className="text-teal-600">
+                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : this.state.searchEmail ? (
+                                    <div className="text-center py-8 text-gray-400">
+                                        <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                        </svg>
+                                        <p className="text-sm">No users found</p>
+                                        <p className="text-xs mt-1">Try a different email address</p>
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-8 text-gray-400">
+                                        <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                                        </svg>
+                                        <p className="text-sm">Search for users by email</p>
+                                        <p className="text-xs mt-1">Start typing to see results</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 )}
             </div>
