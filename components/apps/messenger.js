@@ -624,6 +624,14 @@ class Messenger extends Component {
     }
 
     startConversation = (user) => {
+        // Remove from hidden users if they were hidden
+        if (this.state.hiddenUsers.includes(user.uid)) {
+            const hiddenUsersKey = `hidden_chats_${this.props.user?.uid || 'guest'}`;
+            const newHiddenUsers = this.state.hiddenUsers.filter(uid => uid !== user.uid);
+            localStorage.setItem(hiddenUsersKey, JSON.stringify(newHiddenUsers));
+            this.setState({ hiddenUsers: newHiddenUsers });
+        }
+
         this.saveConversation(user);
         this.setState({
             showNewChatModal: false,
@@ -1077,7 +1085,7 @@ class Messenger extends Component {
                         </div>
 
                         <div className="relative group">
-                            <button className="flex items-center gap-1 text-xs px-2 py-1 rounded border border-gray-300 bg-white hover:bg-gray-50 transition">
+                            <button className="flex items-center gap-1 text-xs px-2 py-1 rounded border border-gray-300 bg-white hover:bg-gray-50 transition text-gray-700">
                                 <span className={`w-2 h-2 rounded-full ${this.state.userStatus === 'online' ? 'bg-green-500' :
                                     this.state.userStatus === 'away' ? 'bg-yellow-500' : 'bg-gray-400'
                                     }`}></span>
@@ -1087,13 +1095,13 @@ class Messenger extends Component {
 
                             {/* Status Dropdown */}
                             <div className="absolute bottom-full right-0 mb-1 w-32 bg-white rounded-lg shadow-xl border border-gray-200 hidden group-hover:block overflow-hidden z-50">
-                                <button onClick={() => this.changeUserStatus('online')} className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center gap-2">
+                                <button onClick={() => this.changeUserStatus('online')} className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center gap-2 text-gray-700">
                                     <span className="w-2 h-2 rounded-full bg-green-500"></span> Online
                                 </button>
-                                <button onClick={() => this.changeUserStatus('away')} className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center gap-2">
+                                <button onClick={() => this.changeUserStatus('away')} className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center gap-2 text-gray-700">
                                     <span className="w-2 h-2 rounded-full bg-yellow-500"></span> Away
                                 </button>
-                                <button onClick={() => this.changeUserStatus('offline')} className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center gap-2">
+                                <button onClick={() => this.changeUserStatus('offline')} className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center gap-2 text-gray-700">
                                     <span className="w-2 h-2 rounded-full bg-gray-400"></span> Offline
                                 </button>
                             </div>
