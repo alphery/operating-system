@@ -106,8 +106,10 @@ export class Desktop extends Component {
                 this.showContextMenu(e, "desktop");
                 break;
             default:
-                ReactGA.event({ category: `Context Menu`, action: `Opened Default Context Menu` });
-                this.showContextMenu(e, "default");
+                // DISABLED: Don't show default context menu everywhere
+                // ReactGA.event({ category: `Context Menu`, action: `Opened Default Context Menu` });
+                // this.showContextMenu(e, "default");
+                break;
         }
     }
 
@@ -444,7 +446,8 @@ export class Desktop extends Component {
                     sortOrder={this.state.sortOrder}
                     displaySize={this.state.displaySize}
                 />
-                <DefaultMenu active={this.state.context_menus.default} />
+                {/* DISABLED: Default context menu removed */}
+                {/* <DefaultMenu active={this.state.context_menus.default} /> */}
                 <AllApplications apps={apps}
                     recentApps={this.app_stack}
                     openApp={this.openApp}

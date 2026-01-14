@@ -23,13 +23,26 @@ class Messenger extends Component {
             loading: true,
             uploading: false,
             uploadProgress: 0,
-            showAttachMenu: false
+            showAttachMenu: false,
+            // Context menu state
+            contextMenu: null, // { type: 'user' | 'message', x, y, item }
+            hiddenUsers: [], // List of user IDs hidden by current user
         };
         this.unsubscribeMessages = null;
         this.fileInputRef = React.createRef();
     }
 
     componentDidMount() {
+        // Load hidden users from localStorage
+        if (this.props.user) {
+            const hiddenUsersKey = `hidden_chats_${this.props.user.uid}`;
+            const hiddenUsers = JSON.parse(localStorage.getItem(hiddenUsersKey) || '[]');
+            this.setState({ hiddenUsers });
+        }
+
+        // Close context menu on any click
+        document.addEventListener('click', this.closeContextMenu);
+
         if (this.props.user && this.props.userData) {
             this.initializeMessenger();
         }
@@ -42,6 +55,7 @@ class Messenger extends Component {
     }
 
     componentWillUnmount() {
+        document.removeEventListener('click', this.closeContextMenu);
         if (this.unsubscribeMessages) {
             this.unsubscribeMessages();
         }
@@ -267,6 +281,141 @@ class Messenger extends Component {
             const chatBox = document.getElementById('chat-history-box');
             if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
         }, 50);
+    }
+
+
+
+    closeContextMenu = () => {
+        if (this.state.contextMenu) {
+            this.setState({ contextMenu: null });
+        }
+    }
+
+    handleUserContextMenu = (e, user) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.setState({
+            contextMenu: {
+                type: 'user',
+                x: e.clientX,
+                y: e.clientY,
+                item: user
+            }
+        });
+    }
+
+    handleMessageContextMenu = (e, message) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.setState({
+            contextMenu: {
+                type: 'message',
+                x: e.clientX,
+                y: e.clientY,
+                item: message
+            }
+        });
+    }
+
+    hideUser = (user) => {
+        const hiddenUsersKey = `hidden_chats_${this.props.user?.uid || 'guest'}`;
+        const hiddenUsers = [...this.state.hiddenUsers, user.uid];
+
+        localStorage.setItem(hiddenUsersKey, JSON.stringify(hiddenUsers));
+        this.setState({
+            hiddenUsers,
+            contextMenu: null,
+            selectedUser: this.state.selectedUser?.uid === user.uid ? null : this.state.selectedUser
+        });
+    }
+
+    unhideUser = (userId) => {
+        const hiddenUsersKey = `hidden_chats_${this.props.user?.uid || 'guest'}`;
+        const hiddenUsers = this.state.hiddenUsers.filter(id => id !== userId);
+
+        localStorage.setItem(hiddenUsersKey, JSON.stringify(hiddenUsers));
+        this.setState({ hiddenUsers });
+    }
+
+    deleteUserChat = async (user) => {
+        const isSuperAdmin = this.props.userData?.role === 'super_admin';
+
+        if (!isSuperAdmin) {
+            // Regular users just hide the chat
+            this.hideUser(user);
+            return;
+        }
+
+        // Super admin: Delete all messages between ANY users
+        const confirmMsg = `🔒 SUPER ADMIN: Delete ALL messages with ${user.displayName || user.email}? This will remove them for EVERYONE and cannot be undone!`;
+
+        if (!window.confirm(confirmMsg)) return;
+
+        try {
+            const currentUid = this.state.currentUser.uid;
+            const targetUid = user.uid;
+
+            // Query all messages between these users
+            const messagesRef = collection(db, 'messages');
+            const q = query(
+                messagesRef,
+                or(
+                    and(
+                        where('from', '==', currentUid),
+                        where('to', '==', targetUid)
+                    ),
+                    and(
+                        where('from', '==', targetUid),
+                        where('to', '==', currentUid)
+                    )
+                )
+            );
+
+            const snapshot = await getDocs(q);
+
+            // Delete each message
+            const { deleteDoc, doc } = await import('firebase/firestore');
+            const deletePromises = snapshot.docs.map(msgDoc =>
+                deleteDoc(doc(db, 'messages', msgDoc.id))
+            );
+            await Promise.all(deletePromises);
+
+            alert(`Deleted ${snapshot.docs.length} messages successfully!`);
+
+            this.setState({
+                contextMenu: null,
+                selectedUser: this.state.selectedUser?.uid === user.uid ? null : this.state.selectedUser
+            });
+        } catch (error) {
+            console.error('Error deleting messages:', error);
+            alert('Failed to delete messages. Please try again.');
+        }
+    }
+
+    deleteMessage = async (message) => {
+        const isSuperAdmin = this.props.userData?.role === 'super_admin';
+        const isMyMessage = message.from === this.state.currentUser?.uid;
+
+        if (!isSuperAdmin && !isMyMessage) {
+            alert('You can only delete your own messages!');
+            return;
+        }
+
+        const confirmMsg = isSuperAdmin
+            ? '🔒 SUPER ADMIN: Delete this message for EVERYONE?'
+            : 'Delete this message for everyone?';
+
+        if (!window.confirm(confirmMsg)) return;
+
+        try {
+            const { deleteDoc, doc } = await import('firebase/firestore');
+            await deleteDoc(doc(db, 'messages', message.id));
+
+            this.setState({ contextMenu: null });
+        } catch (error) {
+            console.error('Error deleting message:', error);
+            alert('Failed to delete message. Please try again.');
+        }
     }
 
     renderMessage = (msg) => {
