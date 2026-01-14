@@ -1,6 +1,7 @@
 import React, { Component } from 'react';
 import { db } from '../../config/firebase';
-import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, query, orderBy, getDoc } from 'firebase/firestore';
+import { useAuth } from '../../context/AuthContext';
 
 export class Projects extends Component {
     constructor() {
@@ -99,6 +100,24 @@ export class Projects extends Component {
         this.removeKeyboardShortcuts();
     }
 
+    // ============ PERMISSION HELPERS ============
+    hasProjectAccess = (projectId) => {
+        const user = this.props.userData || this.props.user;
+
+        // Super admins have access to all projects
+        if (user && user.role === 'super_admin') {
+            return true;
+        }
+
+        // Regular users need explicit permission
+        if (user && user.allowedProjects) {
+            return user.allowedProjects.includes(projectId);
+        }
+
+        // If no user or no permissions array, deny access
+        return false;
+    }
+
     // ============ ENTERPRISE FEATURES ============
     setupKeyboardShortcuts = () => {
         document.addEventListener('keydown', this.handleKeyPress);
@@ -190,11 +209,25 @@ export class Projects extends Component {
         const q = query(projectsRef, orderBy('updatedAt', 'desc'));
 
         this.unsubscribeProjects = onSnapshot(q, (snapshot) => {
-            const projects = snapshot.docs.map(doc => ({
+            const allProjects = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             }));
-            this.setState({ projects, loading: false });
+
+            // Filter projects based on user permissions
+            const user = this.props.userData || this.props.user;
+            const isSuperAdmin = user && user.role === 'super_admin';
+
+            let filteredProjects = allProjects;
+            if (!isSuperAdmin && user && user.allowedProjects) {
+                // Show only projects the user has access to
+                filteredProjects = allProjects.filter(p => user.allowedProjects.includes(p.id));
+            } else if (!isSuperAdmin && user) {
+                // If not admin and no allowedProjects, show nothing
+                filteredProjects = [];
+            }
+
+            this.setState({ projects: filteredProjects, loading: false });
         }, (error) => {
             console.error('Error loading projects:', error);
             this.setState({ loading: false });

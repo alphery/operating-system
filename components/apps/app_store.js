@@ -227,9 +227,28 @@ class AppStore extends Component {
             displayApps = displayApps.filter(app => app.category === activeCategory);
         }
 
+        // Permission-based app filtering
+        const user = this.props.user;
+        const userData = this.props.userData;
+        const isSuperAdmin = userData && userData.role === 'super_admin';
+        const systemApps = ['app-store', 'settings', 'users', 'messenger'];
+
+        if (!isSuperAdmin && userData) {
+            if (userData.allowedApps && userData.allowedApps.length > 0) {
+                // User has specific app permissions - show those + system apps
+                displayApps = displayApps.filter(app =>
+                    systemApps.includes(app.id) || userData.allowedApps.includes(app.id)
+                );
+            } else if (userData.allowedApps && userData.allowedApps.length === 0) {
+                // User has empty allowed apps - show only system apps
+                displayApps = displayApps.filter(app => systemApps.includes(app.id));
+            }
+            // If allowedApps is undefined, show all apps (backward compatibility)
+        }
+
         // Featured Apps (random selection for 'all')
         const featuredApps = enrichedApps.filter(a => ['vscode', 'spotify', 'discord', 'chrome'].includes(a.id) || a.rating > 4.7).slice(0, 3);
-        const systemApps = ['app-store', 'settings', 'users', 'messenger'];
+
 
         return (
             <div className="flex h-full w-full bg-slate-50 font-sans select-none text-slate-900 overflow-hidden">

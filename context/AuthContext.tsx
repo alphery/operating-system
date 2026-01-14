@@ -26,6 +26,8 @@ interface UserData {
     };
     files: any[];
     apps: any[];
+    allowedProjects?: string[]; // Array of project IDs this user can access
+    allowedApps?: string[]; // Array of app IDs this user can see (e.g., ['projects', 'calendar'])
     [key: string]: any; // Allow other properties
 }
 
@@ -127,7 +129,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                     theme: 'dark'
                 },
                 files: [],
-                apps: []
+                apps: [],
+                allowedProjects: [], // Super admin will have access to all, regular users need explicit permission
+                allowedApps: [] // Empty means no restrictions for super admin, otherwise needs explicit permissions
             };
 
             // Create user document in Firestore
@@ -220,7 +224,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                         theme: 'dark'
                     },
                     files: [],
-                    apps: []
+                    apps: [],
+                    allowedProjects: [], // Super admin will have access to all, regular users need explicit permission
+                    allowedApps: [] // Empty means no restrictions for super admin, otherwise needs explicit permissions
                 };
 
                 await setDoc(doc(db, 'users', credential.user.uid), newUserData);

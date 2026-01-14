@@ -6,7 +6,7 @@ import { displayTrash } from './components/apps/trash';
 import { displayGedit } from './components/apps/gedit';
 import { displayAboutAjith } from './components/apps/anurag';
 import { displayCalculator } from './components/apps/calc';
-import { displayProject } from './components/apps/projects';
+import { displayProject } from './components/apps/projects_with_auth';
 import { displayUserManager } from './components/apps/user_manager';
 import { displayMessenger } from './components/apps/messenger';
 import { displayAppStore } from './components/apps/app_store';
@@ -14,6 +14,7 @@ import { displayFileManager } from './components/apps/file_manager';
 import { displayTodo } from './components/apps/todo';
 import { displayWeather } from './components/apps/weather';
 import { displayCalendar } from './components/apps/calendar';
+import UserPermissionsManager from './components/apps/user_permissions';
 
 const apps = [
     {
@@ -159,6 +160,15 @@ const apps = [
         favourite: false,
         desktop_shortcut: false,
         screen: displayAppStore,
+    },
+    {
+        id: "user-permissions",
+        title: "User Permissions",
+        icon: './themes/Yaru/apps/users.png',
+        disabled: false,
+        favourite: false,
+        desktop_shortcut: false,
+        screen: () => <UserPermissionsManager />,
     }
 ]
 
