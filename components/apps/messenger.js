@@ -77,9 +77,8 @@ class Messenger extends Component {
 
         if (this.props.user && this.props.userData) {
             this.initializeMessenger();
-            // Start online presence tracking
-            this.subscribeToPresence();
-            this.updateMyPresence('online');
+            // Presence is now initialized in initializeMessenger
+
 
             // Mark as offline on page unload
             window.addEventListener('beforeunload', () => {
@@ -124,6 +123,10 @@ class Messenger extends Component {
         });
 
         await this.loadUsers();
+
+        // Start online presence tracking
+        this.subscribeToPresence();
+        this.updateMyPresence('online');
     }
 
     loadUsers = async () => {
@@ -143,9 +146,10 @@ class Messenger extends Component {
                 loading: false
             });
 
-            if (users.length > 0 && !this.state.selectedUser) {
-                this.selectUser(users[0]);
-            }
+            // Removed auto-selection of user to prevent default chat loading
+            // if (users.length > 0 && !this.state.selectedUser) {
+            //     this.selectUser(users[0]);
+            // }
         } catch (error) {
             console.error('Error loading users:', error);
             this.setState({ loading: false });
@@ -439,6 +443,11 @@ class Messenger extends Component {
 
     subscribeToPresence = () => {
         if (!db) return;
+
+        // Unsubscribe from existing listener if present
+        if (this.unsubscribePresence) {
+            this.unsubscribePresence();
+        }
 
         try {
             const presenceRef = collection(db, 'user_presence');
