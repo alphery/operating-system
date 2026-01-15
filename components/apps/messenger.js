@@ -1012,7 +1012,7 @@ class Messenger extends Component {
         return (
             <div className="w-full h-full flex bg-white overflow-hidden text-sm">
                 {/* Sidebar */}
-                <div className="w-1/3 md:w-1/4 bg-gray-50 border-r border-gray-200 flex flex-col">
+                <div className={`w-full md:w-1/4 bg-gray-50 border-r border-gray-200 flex-col ${selectedUser ? 'hidden md:flex' : 'flex'}`}>
                     <div className="flex flex-col border-b border-gray-200 bg-white shadow-sm z-10">
                         <div className="h-16 flex items-center justify-between px-4">
                             <div className="flex items-center gap-2">
@@ -1126,12 +1126,18 @@ class Messenger extends Component {
                 </div>
 
                 {/* Chat Area */}
-                <div className="flex-1 flex flex-col bg-slate-50 relative">
+                <div className={`flex-1 flex-col bg-slate-50 relative ${selectedUser ? 'flex' : 'hidden md:flex'}`}>
                     {selectedUser ? (
                         <>
                             {/* Chat Header */}
                             <div className="h-16 flex items-center justify-between px-6 border-b border-gray-200 bg-white shadow-sm z-10">
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-2 md:gap-3">
+                                    <button
+                                        onClick={() => this.setState({ selectedUser: null })}
+                                        className="md:hidden p-1 mr-1 text-gray-600 hover:bg-gray-100 rounded-full"
+                                    >
+                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
+                                    </button>
                                     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-400 to-blue-500 overflow-hidden flex items-center justify-center text-white font-bold text-sm relative">
                                         {selectedUser.photoURL ? (
                                             <img src={selectedUser.photoURL} alt="" className="w-full h-full object-cover" />
