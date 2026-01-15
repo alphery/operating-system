@@ -15,6 +15,11 @@ const AllApplications: React.FC<AllApplicationsProps> = (props) => {
     const [query, setQuery] = useState("");
     const [category, setCategory] = useState(0);
     const [currentPage, setCurrentPage] = useState(0);
+    const [direction, setDirection] = useState(0); // -1: prev, 1: next
+    const [isAnimating, setIsAnimating] = useState(false);
+
+    // Dynamic calculation for apps per page based on screen height could be better, 
+    // but fixed 18 (6x3) is requested.
     const APPS_PER_PAGE = 18;
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -46,13 +51,38 @@ const AllApplications: React.FC<AllApplicationsProps> = (props) => {
     useEffect(() => {
         if (props.visible) {
             setCurrentPage(0);
-            // Optional: setQuery("") if you want to clear search on reopen
+            setDirection(0);
         }
     }, [props.visible]);
 
     // Calculate pagination
-    const totalPages = Math.ceil(filteredApps.length / APPS_PER_PAGE);
+    const totalPages = Math.max(1, Math.ceil(filteredApps.length / APPS_PER_PAGE));
     const paginatedApps = filteredApps.slice(currentPage * APPS_PER_PAGE, (currentPage + 1) * APPS_PER_PAGE);
+
+    const switchPage = (newDir: number) => {
+        if (isAnimating) return;
+
+        const nextPage = currentPage + newDir;
+        if (nextPage >= 0 && nextPage < totalPages) {
+            setDirection(newDir);
+            setIsAnimating(true);
+            setCurrentPage(nextPage);
+            setTimeout(() => setIsAnimating(false), 500); // Animation duration
+        }
+    };
+
+    const handleWheel = (e: React.WheelEvent) => {
+        if (totalPages <= 1) return;
+
+        // Threshold to prevent accidental scrolls
+        if (Math.abs(e.deltaY) > 30) {
+            if (e.deltaY > 0) {
+                switchPage(1); // Scroll Down -> Next Page
+            } else {
+                switchPage(-1); // Scroll Up -> Prev Page
+            }
+        }
+    };
 
     return (
         <>
@@ -81,9 +111,10 @@ const AllApplications: React.FC<AllApplicationsProps> = (props) => {
                     </div>
                 </div>
 
-                {/* Apps Grid */}
+                {/* Apps Grid Container */}
                 <div
                     className="apps-grid-container"
+                    onWheel={handleWheel}
                     onClick={(e) => {
                         if (e.target === e.currentTarget) {
                             e.stopPropagation();
@@ -91,14 +122,17 @@ const AllApplications: React.FC<AllApplicationsProps> = (props) => {
                         }
                     }}
                 >
-                    <div className="apps-grid smooth-scroll">
+                    {/* Animated Grid Wrapper */}
+                    <div
+                        key={currentPage}
+                        className={`apps-grid smooth-scroll ${direction > 0 ? 'slide-in-right' : direction < 0 ? 'slide-in-left' : 'fade-in'}`}
+                    >
                         {paginatedApps.map((app, index) => (
                             <div
                                 key={app.id}
-                                className={`app-icon-wrapper ${props.visible ? 'fade-in-up' : ''}`}
+                                className="app-icon-wrapper fade-in-up"
                                 style={{
-                                    animationDelay: `${index * 5}ms`,
-                                    opacity: props.visible ? 1 : 0
+                                    animationDelay: `${index * 30}ms`, // Staggered entrance
                                 }}
                             >
                                 <UbuntuApp
@@ -132,7 +166,10 @@ const AllApplications: React.FC<AllApplicationsProps> = (props) => {
                             <button
                                 key={i}
                                 className={`pagination-dot ${i === currentPage ? 'active' : ''}`}
-                                onClick={() => setCurrentPage(i)}
+                                onClick={() => {
+                                    const dir = i > currentPage ? 1 : -1;
+                                    switchPage(i - currentPage); // Logic handles direct jump but direction helps animation
+                                }}
                             />
                         ))}
                     </div>
@@ -235,37 +272,63 @@ const AllApplications: React.FC<AllApplicationsProps> = (props) => {
                     transform: scale(1.02);
                 }
 
-                /* === Apps Grid === */
+                /* === Apps Grid Container === */
                 .apps-grid-container {
                     width: 100%;
                     max-width: 90rem;
                     flex: 1;
-                    /* overflow removed to prevent scrolling, we use pagination */
                     overflow: hidden; 
-                    padding: 0 2rem;
+                    /* Critical: Padding bottom to avoid Dock collision */
+                    padding: 0 2rem 8rem 2rem; 
                     display: flex;
                     flex-direction: column;
                     align-items: center;
-                    justify-content: center; /* Center grid vertically */
+                    justify-content: center;
                 }
                 
                 .apps-grid {
                     display: grid;
                     grid-template-columns: repeat(4, 1fr);
-                    /* Increased row height for breathing room */
-                    grid-template-rows: repeat(3, 140px); 
-                    gap: 3rem 4rem; /* Larger gap: Vertical Horizontal */
+                    /* Flexible yet consistent rows */
+                    grid-template-rows: repeat(3, minmax(100px, 140px)); 
+                    gap: 2rem 3rem;
                     justify-items: center;
                     align-items: center;
                     padding: 1rem;
                     width: 100%;
-                    height: 100%;
-                    max-height: 80vh; /* Prevent overflowing screen */
+                    /* Ensure grid doesn't exceed view height minus header/dock */
+                    max-height: calc(100vh - 200px); 
                 }
                 
+                /* Responsive Breakpoints */
                 @media (min-width: 640px) { .apps-grid { grid-template-columns: repeat(5, 1fr); } }
-                @media (min-width: 1024px) { .apps-grid { grid-template-columns: repeat(6, 1fr); } }
+                @media (min-width: 1024px) { 
+                    .apps-grid { 
+                        grid-template-columns: repeat(6, 1fr); 
+                        gap: 3rem 4rem; /* More generous spacing on large screens */
+                    } 
+                }
                 
+                /* === Page Transitions === */
+                @keyframes slideInRight {
+                    from { opacity: 0; transform: translateX(50px) scale(0.95); }
+                    to { opacity: 1; transform: translateX(0) scale(1); }
+                }
+
+                @keyframes slideInLeft {
+                    from { opacity: 0; transform: translateX(-50px) scale(0.95); }
+                    to { opacity: 1; transform: translateX(0) scale(1); }
+                }
+
+                @keyframes fadeIn {
+                    from { opacity: 0; transform: scale(0.95); }
+                    to { opacity: 1; transform: scale(1); }
+                }
+
+                .slide-in-right { animation: slideInRight 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+                .slide-in-left { animation: slideInLeft 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+                .fade-in { animation: fadeIn 0.4s ease forwards; }
+
                 /* === Pagination Dots === */
                 .pagination-container {
                     position: absolute;
@@ -300,14 +363,18 @@ const AllApplications: React.FC<AllApplicationsProps> = (props) => {
 
                 /* === App Icon Animation === */
                 .app-icon-wrapper {
+                    /* Initial state for staggered animation */
                     opacity: 0;
-                    transform: translateY(20px) scale(0.9);
-                    transition: opacity 300ms ease, transform 300ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                    transform: translateY(20px);
                 }
 
                 .app-icon-wrapper.fade-in-up {
-                    opacity: 1;
-                    transform: translateY(0) scale(1);
+                    animation: fadeInUpIcon 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+                }
+
+                @keyframes fadeInUpIcon {
+                    from { opacity: 0; transform: translateY(20px); }
+                    to { opacity: 1; transform: translateY(0); }
                 }
                 
                 /* === Empty State === */
