@@ -734,6 +734,128 @@ export class Projects extends Component {
         return filtered;
     }
 
+    // ============ UPDATES SECTION ============
+    renderUpdates = () => {
+        const { projects, quotations, documents, tasks } = this.state;
+
+        // Helper to format date
+        const formatDate = (timestamp) => {
+            if (!timestamp) return new Date();
+            // Handle Firestore Timestamp
+            if (timestamp.toDate) return timestamp.toDate();
+            // Handle ISO string or other formats
+            return new Date(timestamp);
+        };
+
+        const allItems = [
+            ...projects.map(p => ({ ...p, type: 'Project', date: formatDate(p.updatedAt || p.createdAt), label: 'Project Updated' })),
+            ...quotations.map(q => ({ ...q, type: 'Quotation', date: formatDate(q.updatedAt || q.createdAt), label: 'Quotation Updated' })),
+            ...documents.map(d => ({ ...d, type: 'Document', date: formatDate(d.updatedAt || d.uploadedDate), label: 'Document Added' })),
+            ...tasks.map(t => ({ ...t, type: 'Task', date: formatDate(t.updatedAt || t.createdAt), label: 'Task Updated' }))
+        ].sort((a, b) => b.date - a.date);
+
+        // Group by Month Year
+        const grouped = {};
+        allItems.forEach(item => {
+            const date = item.date;
+            const monthYear = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            const day = date.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' });
+
+            if (!grouped[monthYear]) grouped[monthYear] = {};
+            if (!grouped[monthYear][day]) grouped[monthYear][day] = [];
+
+            grouped[monthYear][day].push(item);
+        });
+
+        return (
+            <div className="p-6 pb-24 space-y-8 h-full overflow-y-auto bg-slate-50">
+                <div className="flex justify-between items-center">
+                    <div>
+                        <h2 className="text-2xl font-bold text-slate-800">Daily Updates</h2>
+                        <p className="text-sm font-medium text-slate-500 mt-1">Track projects, quotations, documents, and process changes by date.</p>
+                    </div>
+                </div>
+
+                {Object.entries(grouped).length === 0 ? (
+                    <div className="text-center py-20 text-slate-400">
+                        <p>No recent activity found.</p>
+                    </div>
+                ) : (
+                    Object.entries(grouped).map(([month, days]) => (
+                        <div key={month} className="space-y-4">
+                            <div className="sticky top-0 bg-slate-50/95 backdrop-blur py-3 z-10 border-b border-slate-200">
+                                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                    <span className="w-1.5 h-6 bg-emerald-500 rounded-full"></span>
+                                    {month}
+                                </h3>
+                            </div>
+
+                            <div className="pl-2 md:pl-6 border-l-2 border-slate-200 ml-2 md:ml-3 space-y-8">
+                                {Object.entries(days).map(([day, items]) => (
+                                    <div key={day} className="relative group">
+                                        <div className="absolute -left-[17px] md:-left-[33px] top-1.5 w-4 h-4 bg-white border-4 border-slate-300 rounded-full group-hover:border-emerald-400 transition-colors"></div>
+                                        <h4 className="text-sm font-bold text-slate-500 mb-4 uppercase tracking-wider flex items-center gap-2">
+                                            {day}
+                                        </h4>
+
+                                        <div className="grid gap-3">
+                                            {items.map((item, idx) => (
+                                                <div key={item.id + idx + item.type} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-start md:items-center gap-4 hover:shadow-md transition-all hover:border-emerald-100 group/item">
+                                                    <div className={`w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center text-lg shadow-inner
+                                                        ${item.type === 'Project' ? 'bg-emerald-50 text-emerald-600' :
+                                                            item.type === 'Quotation' ? 'bg-blue-50 text-blue-600' :
+                                                                item.type === 'Document' ? 'bg-purple-50 text-purple-600' : 'bg-orange-50 text-orange-600'}`}>
+                                                        {item.type === 'Project' ? '🚀' : item.type === 'Quotation' ? '📋' : item.type === 'Document' ? '📁' : '✅'}
+                                                    </div>
+
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex justify-between items-start">
+                                                            <div>
+                                                                <h5 className="font-bold text-slate-800 truncate pr-2">{item.title || item.name || 'Untitled Item'}</h5>
+                                                                <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-2">
+                                                                    <span className={`font-semibold ${item.type === 'Project' ? 'text-emerald-600' :
+                                                                        item.type === 'Quotation' ? 'text-blue-600' :
+                                                                            item.type === 'Document' ? 'text-purple-600' : 'text-orange-600'
+                                                                        }`}>{item.type}</span>
+                                                                    {item.status && (
+                                                                        <>
+                                                                            <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                                                                            <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">{item.status}</span>
+                                                                        </>
+                                                                    )}
+                                                                </p>
+                                                            </div>
+                                                            <span className="text-xs font-mono text-slate-400 bg-slate-50 px-2 py-1 rounded border border-slate-100 whitespace-nowrap">
+                                                                {item.date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                            </span>
+                                                        </div>
+                                                        {(item.description || item.overview) && (
+                                                            <p className="text-sm text-slate-600 mt-2 line-clamp-1 group-hover/item:line-clamp-2 transition-all">
+                                                                {item.description || item.overview}
+                                                            </p>
+                                                        )}
+                                                    </div>
+
+                                                    <button onClick={() => {
+                                                        if (item.type === 'Project') this.openEdit(item);
+                                                        else if (item.type === 'Quotation') this.openEditQuotation(item);
+                                                        else if (item.type === 'Document') this.openEditDocument(item);
+                                                    }} className="hidden md:flex opacity-0 group-hover/item:opacity-100 items-center justify-center p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all">
+                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))
+                )}
+            </div>
+        );
+    }
+
     // ============ RENDER SECTIONS ============
     renderProjectsTable = () => {
         const statusColors = {
@@ -1367,6 +1489,7 @@ export class Projects extends Component {
                                         <option value="Projects">🚀 Projects</option>
                                         <option value="Documents">📁 Documents</option>
                                         <option value="Process">⚙️ Process</option>
+                                        <option value="Updates">📅 Updates</option>
                                     </select>
                                     <svg className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-emerald-600 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
@@ -1538,188 +1661,190 @@ export class Projects extends Component {
                     {this.state.activeSection === 'Quotations' ? this.renderQuotations() :
                         this.state.activeSection === 'Documents' ? this.renderDocuments() :
                             this.state.activeSection === 'Process' ? this.renderProcess() :
-                                view === 'table' ? this.renderProjectsTable() :
-                                    view === 'analytics' ? this.renderAnalytics() : view === 'kanban' ? (
-                                        <div className="flex gap-6 h-full p-6 min-w-max">
-                                            {columns.map(col => (
-                                                <div key={col} className="w-80 flex flex-col bg-white rounded-2xl px-3 py-4 h-full shadow-sm border border-slate-200">
-                                                    <div className="flex justify-between items-center mb-4 px-2">
-                                                        <h3 className="font-bold text-slate-700 text-sm uppercase tracking-wider">{col}</h3>
-                                                        <span className="bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full text-xs font-bold">
-                                                            {filteredProjects.filter(p => p.status === col).length}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex-1 overflow-y-auto px-2 space-y-3 scrollbar-thin scrollbar-thumb-slate-300">
-                                                        {filteredProjects.filter(p => p.status === col).map(project => (
-                                                            <div key={project.id} onClick={() => {
-                                                                this.setState({ selectedProject: project });
-                                                                this.openEdit(project);
-                                                            }}
-                                                                className="bg-gradient-to-br from-white to-slate-50 p-4 rounded-xl shadow hover:shadow-lg transition cursor-pointer border border-slate-100 group">
+                                this.state.activeSection === 'Updates' ? this.renderUpdates() :
+                                    view === 'table' ? this.renderProjectsTable() :
+                                        view === 'analytics' ? this.renderAnalytics() : view === 'kanban' ? (
+                                            <div className="flex gap-6 h-full p-6 min-w-max">
+                                                {columns.map(col => (
+                                                    <div key={col} className="w-80 flex flex-col bg-white rounded-2xl px-3 py-4 h-full shadow-sm border border-slate-200">
+                                                        <div className="flex justify-between items-center mb-4 px-2">
+                                                            <h3 className="font-bold text-slate-700 text-sm uppercase tracking-wider">{col}</h3>
+                                                            <span className="bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full text-xs font-bold">
+                                                                {filteredProjects.filter(p => p.status === col).length}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex-1 overflow-y-auto px-2 space-y-3 scrollbar-thin scrollbar-thumb-slate-300">
+                                                            {filteredProjects.filter(p => p.status === col).map(project => (
+                                                                <div key={project.id} onClick={() => {
+                                                                    this.setState({ selectedProject: project });
+                                                                    this.openEdit(project);
+                                                                }}
+                                                                    className="bg-gradient-to-br from-white to-slate-50 p-4 rounded-xl shadow hover:shadow-lg transition cursor-pointer border border-slate-100 group">
 
-                                                                {/* Priority Badge */}
-                                                                <div className="flex justify-between items-start mb-3">
-                                                                    <span className={`text-xs font-bold px-2 py-1 rounded-full ${project.priority === 'Urgent' ? 'bg-red-100 text-red-700' :
-                                                                        project.priority === 'High' ? 'bg-orange-100 text-orange-700' :
-                                                                            project.priority === 'Medium' ? 'bg-blue-100 text-blue-700' :
-                                                                                'bg-slate-100 text-slate-600'
-                                                                        }`}>
-                                                                        {project.priority}
-                                                                    </span>
-                                                                    <button onClick={(e) => this.deleteProject(project.id, e)} className="opacity-0 group-hover:opacity-100 transition text-slate-400 hover:text-red-500">
-                                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                                                    </button>
-                                                                </div>
-
-                                                                {/* Title & Client */}
-                                                                <h4 className="font-bold text-slate-800 mb-1 leading-tight">{project.title}</h4>
-                                                                {project.client && (
-                                                                    <p className="text-xs text-emerald-600 font-semibold mb-2">🏢 {project.client}</p>
-                                                                )}
-                                                                <p className="text-xs text-slate-500 line-clamp-2 mb-3">{project.description}</p>
-
-                                                                {/* Tags */}
-                                                                {project.tags && project.tags.length > 0 && (
-                                                                    <div className="flex flex-wrap gap-1 mb-3">
-                                                                        {project.tags.slice(0, 3).map(tag => (
-                                                                            <span key={tag} className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
-                                                                                {tag}
-                                                                            </span>
-                                                                        ))}
+                                                                    {/* Priority Badge */}
+                                                                    <div className="flex justify-between items-start mb-3">
+                                                                        <span className={`text-xs font-bold px-2 py-1 rounded-full ${project.priority === 'Urgent' ? 'bg-red-100 text-red-700' :
+                                                                            project.priority === 'High' ? 'bg-orange-100 text-orange-700' :
+                                                                                project.priority === 'Medium' ? 'bg-blue-100 text-blue-700' :
+                                                                                    'bg-slate-100 text-slate-600'
+                                                                            }`}>
+                                                                            {project.priority}
+                                                                        </span>
+                                                                        <button onClick={(e) => this.deleteProject(project.id, e)} className="opacity-0 group-hover:opacity-100 transition text-slate-400 hover:text-red-500">
+                                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                                                        </button>
                                                                     </div>
-                                                                )}
 
-                                                                {/* Progress Bar */}
-                                                                <div className="w-full bg-slate-100 rounded-full h-1.5 mb-3">
-                                                                    <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 h-1.5 rounded-full transition-all" style={{ width: `${project.progress || 0}%` }}></div>
-                                                                </div>
+                                                                    {/* Title & Client */}
+                                                                    <h4 className="font-bold text-slate-800 mb-1 leading-tight">{project.title}</h4>
+                                                                    {project.client && (
+                                                                        <p className="text-xs text-emerald-600 font-semibold mb-2">🏢 {project.client}</p>
+                                                                    )}
+                                                                    <p className="text-xs text-slate-500 line-clamp-2 mb-3">{project.description}</p>
 
-                                                                {/* Meta Info */}
-                                                                <div className="flex justify-between items-center text-xs">
-                                                                    <div className="flex items-center gap-2 text-slate-500">
-                                                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                                                                        {project.startDate}
-                                                                    </div>
-                                                                    <span className="font-bold text-slate-700">{project.progress || 0}%</span>
-                                                                </div>
-
-                                                                {/* Team Avatars */}
-                                                                {project.assignedTo && Array.isArray(project.assignedTo) && project.assignedTo.length > 0 && (
-                                                                    <div className="flex -space-x-2 mt-3">
-                                                                        {project.assignedTo.slice(0, 3).map(memberId => {
-                                                                            const member = teamMembers.find(m => m.id === memberId);
-                                                                            return member ? (
-                                                                                <div key={memberId} title={member.name} className="w-6 h-6 rounded-full bg-slate-200 border-2 border-white flex items-center justify-center text-xs overflow-hidden">
-                                                                                    {member.avatar && member.avatar.startsWith('http') ? (
-                                                                                        <img src={member.avatar} alt={member.name} className="w-full h-full object-cover" />
-                                                                                    ) : (
-                                                                                        <span>{member.avatar || '👤'}</span>
-                                                                                    )}
-                                                                                </div>
-                                                                            ) : null;
-                                                                        })}
-                                                                        {project.assignedTo.length > 3 && (
-                                                                            <div className="w-6 h-6 rounded-full bg-slate-300 border-2 border-white flex items-center justify-center text-xs font-bold text-slate-600">
-                                                                                +{project.assignedTo.length - 3}
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <div className="p-6">
-                                            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                                                <table className="w-full">
-                                                    <thead className="bg-slate-50 border-b border-slate-200">
-                                                        <tr>
-                                                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Project</th>
-                                                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Client</th>
-                                                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Priority</th>
-                                                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Status</th>
-                                                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Progress</th>
-                                                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Budget</th>
-                                                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Team</th>
-                                                            <th className="px-6 py-4 text-right text-xs font-bold text-slate-600 uppercase tracking-wider">Actions</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-slate-100">
-                                                        {filteredProjects.map(project => (
-                                                            <tr key={project.id} onClick={() => {
-                                                                this.setState({ selectedProject: project });
-                                                                this.openEdit(project);
-                                                            }} className="hover:bg-slate-50 cursor-pointer transition">
-                                                                <td className="px-6 py-4">
-                                                                    <div className="font-semibold text-slate-900">{project.title}</div>
+                                                                    {/* Tags */}
                                                                     {project.tags && project.tags.length > 0 && (
-                                                                        <div className="flex gap-1 mt-1">
-                                                                            {project.tags.slice(0, 2).map(tag => (
-                                                                                <span key={tag} className="text-xs bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full">{tag}</span>
+                                                                        <div className="flex flex-wrap gap-1 mb-3">
+                                                                            {project.tags.slice(0, 3).map(tag => (
+                                                                                <span key={tag} className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
+                                                                                    {tag}
+                                                                                </span>
                                                                             ))}
                                                                         </div>
                                                                     )}
-                                                                </td>
-                                                                <td className="px-6 py-4 text-slate-600">{project.client || '-'}</td>
-                                                                <td className="px-6 py-4">
-                                                                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${project.priority === 'Urgent' ? 'bg-red-100 text-red-700' :
-                                                                        project.priority === 'High' ? 'bg-orange-100 text-orange-700' :
-                                                                            project.priority === 'Medium' ? 'bg-blue-100 text-blue-700' :
-                                                                                'bg-slate-100 text-slate-600'
-                                                                        }`}>
-                                                                        {project.priority}
-                                                                    </span>
-                                                                </td>
-                                                                <td className="px-6 py-4">
-                                                                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${project.status === 'Completed' ? 'bg-emerald-100 text-emerald-700' :
-                                                                        project.status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
-                                                                            project.status === 'Review' ? 'bg-purple-100 text-purple-700' :
-                                                                                'bg-slate-100 text-slate-600'
-                                                                        }`}>
-                                                                        {project.status}
-                                                                    </span>
-                                                                </td>
-                                                                <td className="px-6 py-4">
-                                                                    <div className="w-32">
-                                                                        <div className="flex justify-between text-xs mb-1">
-                                                                            <span className="text-slate-600">{project.progress || 0}%</span>
-                                                                        </div>
-                                                                        <div className="w-full bg-slate-100 rounded-full h-1.5">
-                                                                            <div className="bg-emerald-500 h-1.5 rounded-full" style={{ width: `${project.progress || 0}%` }}></div>
-                                                                        </div>
+
+                                                                    {/* Progress Bar */}
+                                                                    <div className="w-full bg-slate-100 rounded-full h-1.5 mb-3">
+                                                                        <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 h-1.5 rounded-full transition-all" style={{ width: `${project.progress || 0}%` }}></div>
                                                                     </div>
-                                                                </td>
-                                                                <td className="px-6 py-4 text-sm">
-                                                                    <div className="text-slate-900 font-semibold">${(project.budget || 0).toLocaleString()}</div>
-                                                                    <div className="text-xs text-slate-500">Spent: ${(project.spent || 0).toLocaleString()}</div>
-                                                                </td>
-                                                                <td className="px-6 py-4">
-                                                                    <div className="flex -space-x-2">
-                                                                        {project.assignedTo && project.assignedTo.slice(0, 3).map(memberId => {
-                                                                            const member = teamMembers.find(m => m.id === memberId);
-                                                                            return member ? (
-                                                                                <div key={memberId} title={member.name} className="w-7 h-7 rounded-full bg-slate-200 border-2 border-white flex items-center justify-center text-sm">
-                                                                                    {member.avatar}
+
+                                                                    {/* Meta Info */}
+                                                                    <div className="flex justify-between items-center text-xs">
+                                                                        <div className="flex items-center gap-2 text-slate-500">
+                                                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                                                            {project.startDate}
+                                                                        </div>
+                                                                        <span className="font-bold text-slate-700">{project.progress || 0}%</span>
+                                                                    </div>
+
+                                                                    {/* Team Avatars */}
+                                                                    {project.assignedTo && Array.isArray(project.assignedTo) && project.assignedTo.length > 0 && (
+                                                                        <div className="flex -space-x-2 mt-3">
+                                                                            {project.assignedTo.slice(0, 3).map(memberId => {
+                                                                                const member = teamMembers.find(m => m.id === memberId);
+                                                                                return member ? (
+                                                                                    <div key={memberId} title={member.name} className="w-6 h-6 rounded-full bg-slate-200 border-2 border-white flex items-center justify-center text-xs overflow-hidden">
+                                                                                        {member.avatar && member.avatar.startsWith('http') ? (
+                                                                                            <img src={member.avatar} alt={member.name} className="w-full h-full object-cover" />
+                                                                                        ) : (
+                                                                                            <span>{member.avatar || '👤'}</span>
+                                                                                        )}
+                                                                                    </div>
+                                                                                ) : null;
+                                                                            })}
+                                                                            {project.assignedTo.length > 3 && (
+                                                                                <div className="w-6 h-6 rounded-full bg-slate-300 border-2 border-white flex items-center justify-center text-xs font-bold text-slate-600">
+                                                                                    +{project.assignedTo.length - 3}
                                                                                 </div>
-                                                                            ) : null;
-                                                                        })}
-                                                                    </div>
-                                                                </td>
-                                                                <td className="px-6 py-4 text-right">
-                                                                    <button onClick={(e) => this.deleteProject(project.id, e)} className="text-slate-400 hover:text-red-500 font-medium text-sm transition">
-                                                                        Delete
-                                                                    </button>
-                                                                </td>
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
+                                                                            )}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                ))}
                                             </div>
-                                        </div>
-                                    )}
+                                        ) : (
+                                            <div className="p-6">
+                                                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                                                    <table className="w-full">
+                                                        <thead className="bg-slate-50 border-b border-slate-200">
+                                                            <tr>
+                                                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Project</th>
+                                                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Client</th>
+                                                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Priority</th>
+                                                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Status</th>
+                                                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Progress</th>
+                                                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Budget</th>
+                                                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">Team</th>
+                                                                <th className="px-6 py-4 text-right text-xs font-bold text-slate-600 uppercase tracking-wider">Actions</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-slate-100">
+                                                            {filteredProjects.map(project => (
+                                                                <tr key={project.id} onClick={() => {
+                                                                    this.setState({ selectedProject: project });
+                                                                    this.openEdit(project);
+                                                                }} className="hover:bg-slate-50 cursor-pointer transition">
+                                                                    <td className="px-6 py-4">
+                                                                        <div className="font-semibold text-slate-900">{project.title}</div>
+                                                                        {project.tags && project.tags.length > 0 && (
+                                                                            <div className="flex gap-1 mt-1">
+                                                                                {project.tags.slice(0, 2).map(tag => (
+                                                                                    <span key={tag} className="text-xs bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full">{tag}</span>
+                                                                                ))}
+                                                                            </div>
+                                                                        )}
+                                                                    </td>
+                                                                    <td className="px-6 py-4 text-slate-600">{project.client || '-'}</td>
+                                                                    <td className="px-6 py-4">
+                                                                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${project.priority === 'Urgent' ? 'bg-red-100 text-red-700' :
+                                                                            project.priority === 'High' ? 'bg-orange-100 text-orange-700' :
+                                                                                project.priority === 'Medium' ? 'bg-blue-100 text-blue-700' :
+                                                                                    'bg-slate-100 text-slate-600'
+                                                                            }`}>
+                                                                            {project.priority}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td className="px-6 py-4">
+                                                                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${project.status === 'Completed' ? 'bg-emerald-100 text-emerald-700' :
+                                                                            project.status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
+                                                                                project.status === 'Review' ? 'bg-purple-100 text-purple-700' :
+                                                                                    'bg-slate-100 text-slate-600'
+                                                                            }`}>
+                                                                            {project.status}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td className="px-6 py-4">
+                                                                        <div className="w-32">
+                                                                            <div className="flex justify-between text-xs mb-1">
+                                                                                <span className="text-slate-600">{project.progress || 0}%</span>
+                                                                            </div>
+                                                                            <div className="w-full bg-slate-100 rounded-full h-1.5">
+                                                                                <div className="bg-emerald-500 h-1.5 rounded-full" style={{ width: `${project.progress || 0}%` }}></div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </td>
+                                                                    <td className="px-6 py-4 text-sm">
+                                                                        <div className="text-slate-900 font-semibold">${(project.budget || 0).toLocaleString()}</div>
+                                                                        <div className="text-xs text-slate-500">Spent: ${(project.spent || 0).toLocaleString()}</div>
+                                                                    </td>
+                                                                    <td className="px-6 py-4">
+                                                                        <div className="flex -space-x-2">
+                                                                            {project.assignedTo && project.assignedTo.slice(0, 3).map(memberId => {
+                                                                                const member = teamMembers.find(m => m.id === memberId);
+                                                                                return member ? (
+                                                                                    <div key={memberId} title={member.name} className="w-7 h-7 rounded-full bg-slate-200 border-2 border-white flex items-center justify-center text-sm">
+                                                                                        {member.avatar}
+                                                                                    </div>
+                                                                                ) : null;
+                                                                            })}
+                                                                        </div>
+                                                                    </td>
+                                                                    <td className="px-6 py-4 text-right">
+                                                                        <button onClick={(e) => this.deleteProject(project.id, e)} className="text-slate-400 hover:text-red-500 font-medium text-sm transition">
+                                                                            Delete
+                                                                        </button>
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        )
+                    }
                 </div>
 
                 {/* Project Modal */}
