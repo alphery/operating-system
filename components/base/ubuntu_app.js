@@ -68,12 +68,7 @@ export class UbuntuApp extends Component {
             );
         }
 
-        const size = this.props.displaySize || "medium";
-        const dims = {
-            small: { w: "w-20", h: "h-20", icon: "w-8", text: "text-xs" },
-            medium: { w: "w-24", h: "h-24", icon: "w-12", text: "text-xs" },
-            large: { w: "w-32", h: "h-32", icon: "w-20", text: "text-base" }
-        }[size];
+        const isLaunchpad = this.props.displayMode === 'launchpad';
 
         return (
             <Draggable
@@ -84,13 +79,22 @@ export class UbuntuApp extends Component {
                 disabled={false}
             >
                 <div
-                    className={`p-1 m-px z-10 bg-white bg-opacity-0 hover:bg-opacity-20 focus:bg-ub-orange focus:bg-opacity-50 focus:border-yellow-700 focus:border-opacity-100 border border-transparent outline-none rounded-2xl overflow-hidden select-none ${dims.w} ${dims.h} flex flex-col justify-start items-center text-center ${dims.text} font-normal text-white ${savedPos ? 'absolute cursor-default' : 'cursor-default'}`}
+                    className={`p-1 m-px z-10 bg-white bg-opacity-0 hover:bg-opacity-20 focus:bg-ub-orange focus:bg-opacity-50 focus:border-yellow-700 focus:border-opacity-100 border border-transparent outline-none rounded-2xl overflow-hidden select-none app-icon-container flex flex-col justify-start items-center text-center font-normal text-white ${savedPos ? 'absolute cursor-default' : 'cursor-default'}`}
                     id={"app-" + this.props.id}
                     onDoubleClick={this.openApp}
                     onContextMenu={this.handleContextMenu}
                     tabIndex={0}
+                    style={{
+                        // Dynamic font size: 0.25 * icon-size (e.g., 48px -> 12px)
+                        fontSize: 'calc(var(--icon-size, 48px) * 0.25)',
+                        lineHeight: '1.2'
+                    }}
                 >
-                    <img className={`mb-1 ${dims.icon} pointer-events-none rounded-2xl`} src={this.props.icon} alt={"Ubuntu " + this.props.name} />
+                    <img
+                        className={`mb-1 icon-dynamic pointer-events-none rounded-2xl`}
+                        src={this.props.icon}
+                        alt={"Ubuntu " + this.props.name}
+                    />
                     {this.props.name}
 
                 </div>

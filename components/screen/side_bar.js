@@ -60,7 +60,7 @@ export default function SideBar(props) {
                 style={{
                     zIndex: 100,
                     backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                    left: '50%',
+                    left: 'calc(50vw / var(--scale-factor, 1))',
                     transform: 'translateX(-50%)' + (props.hide ? ' translateY(100%)' : ''),
                     willChange: 'transform'
                 }}

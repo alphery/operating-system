@@ -102,6 +102,12 @@ body {
     height: var(--icon-size, 48px);
 }
 
+.app-icon-container {
+    width: calc(var(--icon-size, 48px) + 3rem);
+    height: auto;
+    min-height: calc(var(--icon-size, 48px) + 3rem);
+}
+
 /* Theme-aware backgrounds */
 .bg-themed-primary {
     background-color: var(--bg-primary);
@@ -186,7 +192,7 @@ canvas {
 /* Hardware-Accelerated Transitions */
 .hw-accelerated-transition {
     transition-property: transform, opacity;
-    transition-duration: 0.2s;
+    transition-duration: var(--transition-duration, 0.2s);
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     will-change: transform, opacity;
     transform: translateZ(0);
@@ -230,6 +236,82 @@ canvas {
     will-change: auto;
     contain: none;
 }
+
+/* ===== LOW-END DEVICE OPTIMIZATIONS ===== */
+
+/* Low Performance Mode - Disable ALL expensive effects */
+body.low-performance-mode .window-blur,
+body.low-performance-mode .window-transparency,
+body.low-performance-mode .panel-opacity {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    opacity: 1 !important;
+    background-color: var(--bg-secondary) !important;
+}
+
+body.low-performance-mode .optimized-shadow-lg,
+body.low-performance-mode .optimized-shadow {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+}
+
+body.low-performance-mode .window-container,
+body.low-performance-mode .gpu-accelerated,
+body.low-performance-mode .hw-accelerated-transition {
+    transition-duration: 0.1s !important;
+}
+
+/* Disable animations on low-end */
+body.low-performance-mode .animateShow {
+    animation: none !important;
+}
+
+/* Medium Performance Mode - Lighter effects */
+body.medium-performance-mode .window-blur {
+    backdrop-filter: blur(2px) !important;
+    -webkit-backdrop-filter: blur(2px) !important;
+}
+
+body.medium-performance-mode .window-transparency {
+    opacity: 0.95 !important;
+}
+
+body.medium-performance-mode .optimized-shadow-lg {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Mobile-specific optimizations */
+@media (max-width: 640px) {
+
+    /* Reduce all transitions on mobile */
+    * {
+        transition-duration: 0.15s !important;
+    }
+
+    /* Simplify shadows on mobile */
+    .optimized-shadow-lg {
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+    }
+
+    /* Disable transform effects on hover for mobile (no mouse anyway) */
+    button:hover,
+    .button-like:hover {
+        transform: none !important;
+    }
+}
+
+/* Very Small Display - Ultra Performance Mode */
+@media (max-width: 375px) {
+    .window-blur {
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+    }
+
+    * {
+        transition-duration: 0.1s !important;
+        animation-duration: 0.1s !important;
+    }
+}
+
 
 /* Top NavBar styling */
 

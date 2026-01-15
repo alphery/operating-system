@@ -8,6 +8,7 @@ import PendingApprovalScreen from './screen/pending_approval_screen';
 import Navbar from './screen/navbar';
 import ReactGA from 'react-ga';
 import SessionManager from './util components/session';
+import PerformanceManager from '../utils/PerformanceManager';
 
 // Define a local user interface that matches how it's used in the component
 interface LocalUser {
@@ -27,6 +28,12 @@ export default function Ubuntu() {
 	const [currentUser, setCurrentUser] = useState<LocalUser | null>(null);
 	const [showFirebaseAuth, setShowFirebaseAuth] = useState<boolean>(false);
 	const [demoMode, setDemoMode] = useState<boolean>(false);
+
+	// Initialize Performance Manager
+	useEffect(() => {
+		const perfManager = PerformanceManager.getInstance();
+		console.log('[Ubuntu] Performance Level:', perfManager.getPerformanceLevel());
+	}, []);
 
 	const handleLogout = async () => {
 		ReactGA.pageview('/logout');
