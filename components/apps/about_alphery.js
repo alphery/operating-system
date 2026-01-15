@@ -22,7 +22,7 @@ export class AboutAlphery extends Component {
                     <div className="relative group">
                         <div className="absolute inset-0 bg-blue-500 blur-2xl opacity-20 group-hover:opacity-30 transition duration-500 rounded-full"></div>
                         <img
-                            src="/images/logos/Dark_Logo_H.png"
+                            src="/images/logos/alphery_logo.png"
                             alt="Alphery OS Logo"
                             className="h-24 w-auto object-contain drop-shadow-2xl relative z-10 transition transform group-hover:scale-105 duration-300"
                         />
