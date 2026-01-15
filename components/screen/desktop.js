@@ -205,7 +205,8 @@ export class Desktop extends Component {
         disabledFromStorage = disabledFromStorage.filter(id => !SYSTEM_APPS.includes(id));
 
         // Get user-specific favorites/desktop settings
-        let userFavorites = JSON.parse(localStorage.getItem(`${userUid}_dock_apps_v3`) || 'null');
+        // changed key to _v5 to force reset for all users as requested
+        let userFavorites = JSON.parse(localStorage.getItem(`${userUid}_dock_apps_v5`) || 'null');
         const userDesktop = JSON.parse(localStorage.getItem(`${userUid}_desktop_apps_v3`) || '[]');
 
         // Fix for empty object legacy state: If we have an empty object, treat it as no preferences
@@ -213,8 +214,8 @@ export class Desktop extends Component {
             userFavorites = null;
         }
 
-        // DEFAULT DOCK APPS (Mobile/Global Defaults)
-        const DEFAULT_DOCK_APPS = ['settings', 'files', 'calendar', 'messenger'];
+        // DEFAULT DOCK APPS (Desktop/Global Defaults) - 6 Apps
+        const DEFAULT_DOCK_APPS = ['files', 'calendar', 'weather', 'settings', 'messenger', 'app-store'];
 
         apps.forEach((app) => {
             const user = this.props.user;
@@ -556,7 +557,7 @@ export class Desktop extends Component {
 
                     {/* Mobile Dock (Favorites) */}
                     <div className="mx-2 mb-2 bg-white bg-opacity-20 backdrop-blur-xl rounded-2xl p-3 flex justify-evenly items-center shadow-2xl border border-white border-opacity-10">
-                        {apps.filter(app => !this.state.disabled_apps[app.id] && this.state.favourite_apps[app.id]).slice(0, 5).map(app => (
+                        {apps.filter(app => ['settings', 'messenger', 'files', 'app-store'].includes(app.id) && !this.state.disabled_apps[app.id] && this.state.favourite_apps[app.id]).map(app => (
                             <div key={app.id}
                                 onClick={() => this.handleMobileAppClick(app.id)}
                                 onTouchStart={(e) => this.handleTouchStart(e, app.id)}
