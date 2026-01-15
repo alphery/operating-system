@@ -175,8 +175,8 @@ export class Desktop extends Component {
 
         // Safe access to UID with fallback
         const userUid = (this.props.user && this.props.user.uid) ? this.props.user.uid : 'guest';
-        // Bumped key to _v2 to ensure clean state for disabled apps
-        const storageKey = `disabled_apps_${userUid}_v2`;
+        // Bumped key to _v3 to ensure clean state for disabled apps and apply new defaults (Camera, Voice Recorder, Gallery hidden)
+        const storageKey = `disabled_apps_${userUid}_v3`;
 
         // Priority system for disabled apps:
         // 1. Firestore (cloud - survives browser changes & history clears) for authenticated users

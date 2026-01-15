@@ -127,7 +127,8 @@ class AppStore extends Component {
 
     getDisabledApps = () => {
         const userId = this.getUserId();
-        const key = `disabled_apps_${userId}`;
+        // Updated to _v3 to match Desktop component and ensure clean state
+        const key = `disabled_apps_${userId}_v3`;
         try {
             const data = localStorage.getItem(key);
             console.log(`[AppStore] Reading disabled apps for ${userId}:`, data);
@@ -204,7 +205,7 @@ class AppStore extends Component {
                 disabled = disabled.filter(id => id !== appId);
             }
 
-            const key = `disabled_apps_${userId}`;
+            const key = `disabled_apps_${userId}_v3`;
             localStorage.setItem(key, JSON.stringify(disabled));
 
             if (this._isMounted) {
