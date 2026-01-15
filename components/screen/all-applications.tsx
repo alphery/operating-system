@@ -265,9 +265,13 @@ const AllApplications: React.FC<AllApplicationsProps> = (props) => {
                 
                 /* === Pagination Dots === */
                 .pagination-container {
+                    position: absolute;
+                    right: 2rem;
+                    top: 50%;
+                    transform: translateY(-50%);
                     display: flex;
+                    flex-direction: column;
                     gap: 12px;
-                    padding-bottom: 3rem;
                     z-index: 60;
                 }
 
