@@ -244,23 +244,32 @@ class AppStore extends Component {
         // Permission-based app filtering
         const user = this.props.user;
         const userData = this.props.userData;
-        const isSuperAdmin = userData && userData.role === 'super_admin';
-        // System apps that are always visible (Settings, App Store, Messenger)
-        // Removed 'users' and 'user-permissions' so they can be controlled via permissions
-        const systemApps = ['app-store', 'settings', 'messenger'];
 
-        if (!isSuperAdmin && userData) {
-            if (userData.allowedApps && userData.allowedApps.length > 0) {
-                // User has specific app permissions - show those + system apps
-                displayApps = displayApps.filter(app =>
-                    systemApps.includes(app.id) || userData.allowedApps.includes(app.id)
-                );
-            } else if (userData.allowedApps && userData.allowedApps.length === 0) {
-                // User has empty allowed apps - show only system apps
-                displayApps = displayApps.filter(app => systemApps.includes(app.id));
+        // System apps that are always visible
+        const systemApps = ['app-store', 'settings', 'messenger', 'trash'];
+
+        // Apply permission filtering
+        if (user && userData) {
+            const isSuperAdmin = userData.role === 'super_admin';
+
+            if (!isSuperAdmin) {
+                // Regular users: Check allowedApps
+                if (userData.allowedApps !== undefined && userData.allowedApps !== null) {
+                    // User has specific app permissions
+                    if (Array.isArray(userData.allowedApps)) {
+                        displayApps = displayApps.filter(app =>
+                            systemApps.includes(app.id) || userData.allowedApps.includes(app.id)
+                        );
+                    } else if (userData.allowedApps.length === 0) {
+                        // Empty array: Only system apps
+                        displayApps = displayApps.filter(app => systemApps.includes(app.id));
+                    }
+                }
+                // If allowedApps is undefined/null: Show all apps (backward compatibility)
             }
-            // If allowedApps is undefined, show all apps (backward compatibility)
+            // Super Admin: Show all apps (no filtering)
         }
+        // Guest/unauthenticated: Show all apps (no filtering)
 
         // Featured Apps (random selection for 'all')
         const featuredApps = enrichedApps.filter(a => ['vscode', 'spotify', 'discord', 'chrome'].includes(a.id) || a.rating > 4.7).slice(0, 3);

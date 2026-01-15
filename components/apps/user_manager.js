@@ -15,13 +15,20 @@ class UserManager extends Component {
         this.state = {
             users: [],
             filter: 'all', // all, pending, approved, rejected
-            loading: true
+            loading: true,
+            showPermissionsModal: false,
+            selectedUser: null,
+            availableApps: [] // Will be populated from window.ALL_APPS
         };
         this.unsubscribe = null;
     }
 
     componentDidMount() {
         this.loadUsers();
+        // Load available apps from global
+        if (typeof window !== 'undefined' && window.ALL_APPS) {
+            this.setState({ availableApps: window.ALL_APPS });
+        }
     }
 
     componentWillUnmount() {
@@ -136,6 +143,27 @@ class UserManager extends Component {
         } catch (error) {
             console.error('Error updating status:', error);
             alert('Failed to update user role');
+        }
+    }
+
+    openPermissionsModal = (user) => {
+        this.setState({ showPermissionsModal: true, selectedUser: user });
+    }
+
+    closePermissionsModal = () => {
+        this.setState({ showPermissionsModal: false, selectedUser: null });
+    }
+
+    updateUserPermissions = async (userId, allowedApps) => {
+        if (!db) return;
+        try {
+            await updateDoc(doc(db, 'users', userId), {
+                allowedApps: allowedApps
+            });
+            this.closePermissionsModal();
+        } catch (error) {
+            console.error('Error updating permissions:', error);
+            alert('Failed to update app permissions');
         }
     }
 
@@ -286,6 +314,7 @@ class UserManager extends Component {
                                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Email</th>
                                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Role</th>
                                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">App Access</th>
                                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Created</th>
                                     <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Actions</th>
                                 </tr>
@@ -319,6 +348,21 @@ class UserManager extends Component {
                                                         'bg-yellow-100 text-yellow-700'}`}>
                                                 {user.approvalStatus || 'pending'}
                                             </span>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {user.role === 'super_admin' ? (
+                                                <span className="text-xs text-gray-500">All Apps</span>
+                                            ) : (
+                                                <button
+                                                    onClick={() => this.openPermissionsModal(user)}
+                                                    className="px-3 py-1 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-xs font-medium transition flex items-center gap-1"
+                                                >
+                                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                                                    </svg>
+                                                    {user.allowedApps ? `${user.allowedApps.length} Apps` : 'All Apps'}
+                                                </button>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4 text-xs text-gray-500">
                                             {new Date(user.createdAt).toLocaleDateString()}
@@ -385,9 +429,204 @@ class UserManager extends Component {
                         )}
                     </div>
                 </div>
+
+                {/* App Permissions Modal */}
+                {this.state.showPermissionsModal && this.state.selectedUser && (
+                    <AppPermissionsModal
+                        user={this.state.selectedUser}
+                        availableApps={this.state.availableApps}
+                        onClose={this.closePermissionsModal}
+                        onSave={this.updateUserPermissions}
+                    />
+                )}
             </div>
         );
     }
+}
+
+// App Permissions Modal Component
+function AppPermissionsModal({ user, availableApps, onClose, onSave }) {
+    const [selectedApps, setSelectedApps] = React.useState(user.allowedApps || []);
+    const [grantAllAccess, setGrantAllAccess] = React.useState(!user.allowedApps || user.allowedApps === null);
+
+    const systemApps = ['app-store', 'settings', 'messenger', 'trash'];
+    const categories = {
+        utility: [],
+        productivity: [],
+        development: [],
+        social: [],
+        entertainment: [],
+        other: []
+    };
+
+    // Categorize apps
+    availableApps.forEach(app => {
+        const category = app.category || 'other';
+        if (categories[category]) {
+            categories[category].push(app);
+        } else {
+            categories.other.push(app);
+        }
+    });
+
+    const toggleApp = (appId) => {
+        if (grantAllAccess) return; // Can't toggle if all access is granted
+
+        if (selectedApps.includes(appId)) {
+            setSelectedApps(selectedApps.filter(id => id !== appId));
+        } else {
+            setSelectedApps([...selectedApps, appId]);
+        }
+    };
+
+    const handleSave = () => {
+        // If granting all access, set to null (backward compatible)
+        // Otherwise, set to selected apps array
+        onSave(user.id, grantAllAccess ? null : selectedApps);
+    };
+
+    return (
+        <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={onClose}
+        >
+            <div
+                className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+                onClick={(e) => e.stopPropagation()}
+            >
+                {/* Header */}
+                <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h2 className="text-2xl font-bold mb-1">App Permissions</h2>
+                            <p className="text-blue-100 text-sm">{user.displayName || user.email}</p>
+                        </div>
+                        <button
+                            onClick={onClose}
+                            className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition"
+                        >
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                {/* All Access Toggle */}
+                <div className="p-6 border-b border-gray-200 bg-gray-50">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={grantAllAccess}
+                            onChange={(e) => setGrantAllAccess(e.target.checked)}
+                            className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                        />
+                        <div>
+                            <div className="font-semibold text-gray-800">Grant Access to All Apps</div>
+                            <div className="text-xs text-gray-500">User can install any app from the App Store</div>
+                        </div>
+                    </label>
+                </div>
+
+                {/* App Selection */}
+                <div className="flex-1 overflow-y-auto p-6">
+                    {grantAllAccess ? (
+                        <div className="text-center py-12">
+                            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                            <p className="text-gray-600 font-medium">Full App Access Granted</p>
+                            <p className="text-sm text-gray-400 mt-1">User can access all {availableApps.length} apps</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-6">
+                            {/* System Apps (Always included) */}
+                            <div>
+                                <h3 className="text-sm font-semibold text-gray-500 uppercase mb-3 flex items-center gap-2">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                    </svg>
+                                    System Apps (Always Available)
+                                </h3>
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                    {availableApps.filter(app => systemApps.includes(app.id)).map(app => (
+                                        <div key={app.id} className="flex items-center gap-3 p-3 bg-gray-100 border border-gray-200 rounded-lg opacity-60">
+                                            <img src={app.icon} alt={app.title} className="w-8 h-8 object-contain" />
+                                            <span className="text-sm font-medium text-gray-600">{app.title}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Categorized Apps */}
+                            {Object.entries(categories).map(([category, apps]) => {
+                                if (apps.length === 0 || apps.every(app => systemApps.includes(app.id))) return null;
+                                const nonSystemApps = apps.filter(app => !systemApps.includes(app.id));
+                                if (nonSystemApps.length === 0) return null;
+
+                                return (
+                                    <div key={category}>
+                                        <h3 className="text-sm font-semibold text-gray-500 uppercase mb-3 capitalize">{category}</h3>
+                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                            {nonSystemApps.map(app => {
+                                                const isSelected = selectedApps.includes(app.id);
+                                                return (
+                                                    <div
+                                                        key={app.id}
+                                                        onClick={() => toggleApp(app.id)}
+                                                        className={`flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition ${isSelected ? 'bg-blue-50 border-blue-500' : 'bg-white border-gray-200 hover:border-gray-300'
+                                                            }`}
+                                                    >
+                                                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${isSelected ? 'bg-blue-600 border-blue-600' : 'border-gray-300'
+                                                            }`}>
+                                                            {isSelected && (
+                                                                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                                                                </svg>
+                                                            )}
+                                                        </div>
+                                                        <img src={app.icon} alt={app.title} className="w-8 h-8 object-contain" />
+                                                        <span className="text-sm font-medium text-gray-700 truncate flex-1">{app.title}</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+
+                {/* Footer */}
+                <div className="p-6 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
+                    <div className="text-sm text-gray-600">
+                        {grantAllAccess ? (
+                            <span>All {availableApps.length} apps available</span>
+                        ) : (
+                            <span>{selectedApps.length + systemApps.length} apps selected ({systemApps.length} system + {selectedApps.length} custom)</span>
+                        )}
+                    </div>
+                    <div className="flex gap-3">
+                        <button
+                            onClick={onClose}
+                            className="px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 font-medium transition"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleSave}
+                            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition shadow-md"
+                        >
+                            Save Permissions
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
 }
 
 export const displayUserManager = () => {

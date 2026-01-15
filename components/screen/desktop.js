@@ -218,16 +218,44 @@ export class Desktop extends Component {
         // DEFAULT DOCK APPS (Desktop/Global Defaults) - 6 Apps
         const DEFAULT_DOCK_APPS = ['files', 'calendar', 'weather', 'settings', 'messenger', 'app-store'];
 
+
         apps.forEach((app) => {
             const user = this.props.user;
-            // Relaxed permission check: if permissions array is missing, assume access
-            const hasPermission = !user || !user.permissions ||
-                (user.permissions && user.permissions.includes("all_apps")) ||
-                (user.permissions && user.permissions.includes(app.id));
+            const userData = this.props.userData;
 
-            if (!hasPermission && user) return;
+            // SYSTEM APPS: Always available and installed
+            const SYSTEM_APPS = ['app-store', 'settings', 'messenger', 'trash'];
+            const isSystemApp = SYSTEM_APPS.includes(app.id);
 
-            const isDisabled = app.disabled || disabledFromStorage.includes(app.id);
+            // PERMISSION CHECK: Determines App Store visibility (not desktop visibility)
+            // Super Admin: Has access to all apps
+            // Regular Users: Access based on userData.allowedApps array
+            let hasPermission = false;
+
+            if (!user || !userData) {
+                // Guest or unauthenticated: All apps available (backward compatibility)
+                hasPermission = true;
+            } else if (userData.role === 'super_admin') {
+                // Super Admin: All apps available
+                hasPermission = true;
+            } else if (isSystemApp) {
+                // System apps: Always available
+                hasPermission = true;
+            } else if (userData.allowedApps === undefined || userData.allowedApps === null) {
+                // allowedApps not set: All apps available (backward compatibility)
+                hasPermission = true;
+            } else if (Array.isArray(userData.allowedApps)) {
+                // Check if app is in user's allowed apps list
+                hasPermission = userData.allowedApps.includes(app.id);
+            }
+
+            // INSTALLATION CHECK: Determines desktop/dock visibility
+            const isInstalled = !disabledFromStorage.includes(app.id);
+
+            // IMPORTANT: All apps are processed (for App Store), but only installed apps show on desktop
+            // This separates permissions (what CAN be installed) from installation (what IS installed)
+
+            const isDisabled = !isInstalled; // If not installed, it's disabled
 
             focused_windows[app.id] = false;
             closed_windows[app.id] = true;
@@ -238,11 +266,12 @@ export class Desktop extends Component {
             if (userFavorites) {
                 favourite_apps[app.id] = userFavorites[app.id] !== undefined ? userFavorites[app.id] : false;
             } else {
-                favourite_apps[app.id] = DEFAULT_DOCK_APPS.includes(app.id);
+                // Only add to default dock if installed
+                favourite_apps[app.id] = DEFAULT_DOCK_APPS.includes(app.id) && isInstalled;
             }
 
-            // Keep existing state if available
-            if (this.state.closed_windows[app.id] !== undefined && !isDisabled) {
+            // Keep existing state if available and app is installed
+            if (this.state.closed_windows[app.id] !== undefined && isInstalled) {
                 closed_windows[app.id] = this.state.closed_windows[app.id];
                 focused_windows[app.id] = this.state.focused_windows[app.id];
                 overlapped_windows[app.id] = this.state.overlapped_windows[app.id];
@@ -254,9 +283,12 @@ export class Desktop extends Component {
                 minimized_windows[app.id] = false;
             }
 
+            // Desktop shortcuts: Only show if installed  
             // Priority: User setting > Default config
             const isOnDesktop = userDesktop.length > 0 ? userDesktop.includes(app.id) : app.desktop_shortcut;
-            if (isOnDesktop) desktop_apps.push(app.id);
+            if (isOnDesktop && isInstalled) {
+                desktop_apps.push(app.id);
+            }
         });
 
         this.setState({

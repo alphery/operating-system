@@ -132,7 +132,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                 files: [],
                 apps: [],
                 allowedProjects: [], // Super admin will have access to all, regular users need explicit permission
-                allowedApps: [] // Empty means no restrictions for super admin, otherwise needs explicit permissions
+                allowedApps: null // null = all apps available (backward compatible), [] = no apps, [...ids] = specific apps
             };
 
             // Create user document in Firestore
@@ -227,7 +227,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                     files: [],
                     apps: [],
                     allowedProjects: [], // Super admin will have access to all, regular users need explicit permission
-                    allowedApps: [] // Empty means no restrictions for super admin, otherwise needs explicit permissions
+                    allowedApps: null // null = all apps available (backward compatible), [] = no apps, [...ids] = specific apps
                 };
 
                 await setDoc(doc(db, 'users', credential.user.uid), newUserData);
