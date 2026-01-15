@@ -238,26 +238,29 @@ const AllApplications: React.FC<AllApplicationsProps> = (props) => {
                 /* === Apps Grid === */
                 .apps-grid-container {
                     width: 100%;
-                    max-width: 80rem;
+                    max-width: 90rem;
                     flex: 1;
                     /* overflow removed to prevent scrolling, we use pagination */
                     overflow: hidden; 
-                    padding: 0 1rem;
+                    padding: 0 2rem;
                     display: flex;
                     flex-direction: column;
                     align-items: center;
+                    justify-content: center; /* Center grid vertically */
                 }
                 
                 .apps-grid {
                     display: grid;
                     grid-template-columns: repeat(4, 1fr);
-                    /* Fixed grid rows for 6x3 layout */
-                    grid-template-rows: repeat(3, 100px); 
-                    gap: 2rem 2rem;
+                    /* Increased row height for breathing room */
+                    grid-template-rows: repeat(3, 140px); 
+                    gap: 3rem 4rem; /* Larger gap: Vertical Horizontal */
                     justify-items: center;
+                    align-items: center;
                     padding: 1rem;
                     width: 100%;
-                    max-width: 70rem;
+                    height: 100%;
+                    max-height: 80vh; /* Prevent overflowing screen */
                 }
                 
                 @media (min-width: 640px) { .apps-grid { grid-template-columns: repeat(5, 1fr); } }
