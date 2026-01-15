@@ -229,6 +229,7 @@ export default function Ubuntu() {
 			<Navbar
 				lockScreen={lockScreen}
 				shutDown={shutDown}
+				logOut={handleLogout}
 				user={currentUser}
 				showInstallPrompt={showInstallPrompt}
 				handleInstallClick={handleInstallClick}
