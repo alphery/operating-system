@@ -41,16 +41,45 @@ export class StatusCard extends Component {
 		})
 	}
 
+	playTone = (vol, freq) => {
+		if (this.soundTimeout) clearTimeout(this.soundTimeout);
+		this.soundTimeout = setTimeout(() => {
+			if (!this.audioCtx) this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+			if (this.audioCtx.state === 'suspended') this.audioCtx.resume();
+
+			const oscillator = this.audioCtx.createOscillator();
+			const gainNode = this.audioCtx.createGain();
+
+			oscillator.connect(gainNode);
+			gainNode.connect(this.audioCtx.destination);
+
+			oscillator.type = 'sine';
+			oscillator.frequency.setValueAtTime(freq, this.audioCtx.currentTime);
+
+			gainNode.gain.setValueAtTime(vol / 100, this.audioCtx.currentTime);
+			gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + 0.1);
+
+			oscillator.start();
+			oscillator.stop(this.audioCtx.currentTime + 0.1);
+		}, 50);
+	}
+
 	handleBrightness = (e) => {
-		this.setState({ brightness_level: e.target.value });
-		localStorage.setItem('brightness-level', e.target.value);
-		// the function below inside brightness() is derived from a linear equation such that at 0 value of slider brightness still remains 0.25 so that it doesn't turn black.
-		document.getElementById('monitor-screen').style.filter = `brightness(${3 / 400 * e.target.value + 0.25})`; // Using css filter to adjust the brightness in the root div.
+		const val = e.target.value;
+		this.setState({ brightness_level: val });
+		localStorage.setItem('brightness-level', val);
+		document.getElementById('monitor-screen').style.filter = `brightness(${3 / 400 * val + 0.25})`;
+
+		// Pitch maps to brightness (low=deep, high=sharp)
+		// Volume fixed at current sound level
+		this.playTone(this.state.sound_level, 200 + (val * 5));
 	};
 
 	handleSound = (e) => {
-		this.setState({ sound_level: e.target.value });
-		localStorage.setItem('sound-level', e.target.value);
+		const val = e.target.value;
+		this.setState({ sound_level: val });
+		localStorage.setItem('sound-level', val);
+		this.playTone(val, 440); // Fixed pitch A4
 	};
 
 	render() {
@@ -58,7 +87,7 @@ export class StatusCard extends Component {
 			<div
 				ref={this.wrapperRef}
 				className={
-					'absolute bg-ub-cool-grey rounded-md py-4 top-9 right-3 shadow border-black border border-opacity-20 status-card' +
+					'absolute bg-ub-cool-grey window-transparency window-blur rounded-md py-4 top-9 right-3 shadow border-black border border-opacity-20 status-card' +
 					(this.props.visible ? ' visible animateShow' : ' invisible')
 				}
 			>

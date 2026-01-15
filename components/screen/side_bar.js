@@ -56,8 +56,13 @@ export default function SideBar(props) {
     return (
         <>
             <div
-                className={(props.hide ? " translate-y-full " : "") + " absolute transform duration-300 select-none z-100 left-1/2 transform -translate-x-1/2 bottom-4 w-auto h-[58px] flex justify-center items-end rounded-2xl bg-white bg-opacity-20 backdrop-blur-2xl border border-white border-opacity-20 shadow-2xl pb-[1px] px-3 transition-all"}
-                style={{ zIndex: 100 }}
+                className={(props.hide ? " translate-y-full " : "") + " absolute transform duration-300 select-none z-100 bottom-4 w-auto h-[58px] flex justify-center items-end rounded-2xl bg-white window-transparency window-blur border border-white border-opacity-20 shadow-2xl pb-[1px] px-3 transition-all"}
+                style={{
+                    zIndex: 100,
+                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                    left: '50%',
+                    transform: 'translateX(-50%)' + (props.hide ? ' translateY(100%)' : '')
+                }}
                 onMouseLeave={() => setHoveredIndex(null)}
             >
                 <AllApps
@@ -81,7 +86,7 @@ export function AllApps(props) {
     return (
         <div
             className={`outline-none relative transition-all duration-200 ease-out transform rounded-xl m-1 cursor-pointer flex justify-center items-center`}
-            style={{ width: `${size}px`, height: `${size}px` }}
+            style={{ width: `${size}px`, height: `${size}px`, willChange: "width, height" }}
             onMouseEnter={() => {
                 setTitle(true);
                 if (props.onHover) props.onHover();

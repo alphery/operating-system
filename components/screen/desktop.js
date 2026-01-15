@@ -35,12 +35,18 @@ export class Desktop extends Component {
             selectedAppId: null,
             showNameBar: false,
             sortOrder: "name",
-            displaySize: "medium"
+            displaySize: "medium",
+            scaleFactor: 1
         }
     }
 
     changeSortOrder = (order) => { this.setState({ sortOrder: order }); }
     changeDisplaySize = (size) => { this.setState({ displaySize: size }); }
+    handleScaleChange = (e) => {
+        if (e.detail) {
+            this.setState({ scaleFactor: e.detail / 100 });
+        }
+    }
 
     componentDidMount() {
         // ReactGA.pageview("/desktop"); // Removed: GA not initialized
@@ -49,7 +55,22 @@ export class Desktop extends Component {
         this.setContextListeners();
         this.setEventListeners();
         this.checkForNewFolders();
+
+        // Load initial scale factor from settings
+        try {
+            const saved = localStorage.getItem('system_settings');
+            if (saved) {
+                const settings = JSON.parse(saved);
+                if (settings.scaleFactor) {
+                    this.setState({ scaleFactor: settings.scaleFactor / 100 });
+                }
+            }
+        } catch (e) {
+            console.error('Error loading scale factor:', e);
+        }
+
         window.addEventListener('app_status_changed', this.fetchAppsData);
+        window.addEventListener('system_scaleFactor_change', this.handleScaleChange);
         // Listen for global open_app events from Navbar or other components
         window.addEventListener('open_app', (e) => {
             if (e.detail && e.detail.appId) {
@@ -62,6 +83,7 @@ export class Desktop extends Component {
     componentWillUnmount() {
         this.removeContextListeners();
         window.removeEventListener('app_status_changed', this.fetchAppsData);
+        window.removeEventListener('system_scaleFactor_change', this.handleScaleChange);
     }
 
     componentDidUpdate(prevProps) {
@@ -450,6 +472,7 @@ export class Desktop extends Component {
                     minimized: this.state.minimized_windows[app.id],
                     changeBackgroundImage: this.props.changeBackgroundImage,
                     bg_image_name: this.props.bg_image_name,
+                    scaleFactor: this.state.scaleFactor,
                 }
                 windowsJsx.push(<Window key={index} {...props} />);
             }

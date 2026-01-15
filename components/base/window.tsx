@@ -20,6 +20,7 @@ interface WindowProps {
     bg_image_name: string;
     isFocused: boolean;
     minimized: boolean;
+    scaleFactor?: number;
 }
 
 const Window: React.FC<WindowProps> = (props) => {
@@ -149,26 +150,23 @@ const Window: React.FC<WindowProps> = (props) => {
             cancel=".window-controls"
             enableResizing={!isMaximized}
             disableDragging={isMaximized}
+            scale={props.scaleFactor || 1}
+            className={`absolute ${isClosed ? "scale-0 opacity-0" : "scale-100 opacity-100"} transition-opacity duration-200`}
             style={{
                 zIndex: props.isFocused ? 30 : 20,
-                display: props.minimized ? 'none' : 'block', // Hide if minimized
+                display: props.minimized ? 'none' : 'block',
+                willChange: "transform, width, height" // Optimize Rnd container
             }}
-            className={`absolute ${isClosed ? "scale-0 opacity-0" : "scale-100 opacity-100"} transition-opacity duration-200`}
         >
             <div
-                className={`flex flex-col h-full w-full bg-ub-cool-grey shadow-2xl rounded-lg overflow-hidden border border-black border-opacity-40
-                ${props.isFocused ? "shadow-2xl" : "shadow-md opacity-95"}
+                className={`flex flex-col h-full w-full bg-ub-cool-grey window-transparency window-blur shadow-2xl rounded-lg overflow-hidden border border-black border-opacity-40
+                ${props.isFocused ? "shadow-2xl" : "shadow-md"}
                 ${isMaximized ? "rounded-none" : "rounded-lg"}`}
-                style={{
-                    transform: 'translate3d(0,0,0)', // Force GPU acceleration
-                    backfaceVisibility: 'hidden',
-                    willChange: 'transform' // Hint browser for 60fps dragging
-                }}
             >
                 {/* Title Bar - Draggable Handle/Mobile Header */}
                 <div
                     className={`window-title-bar relative bg-ub-title-bar flex justify-center items-center select-none text-sm font-bold text-white border-b border-white border-opacity-10 cursor-move z-10
-                    ${isMaximized && window.innerWidth < 640 ? 'h-12 text-base' : 'h-10'}`} // Taller header on mobile
+                    ${isMaximized && window.innerWidth < 640 ? 'h-12 text-base' : 'h-10'}`}
                     onDoubleClick={maximizeWindow}
                 >
                     {/* Mobile Back Button - Only on mobile */}
@@ -183,7 +181,7 @@ const Window: React.FC<WindowProps> = (props) => {
 
                     {props.title}
 
-                    {/* Window Controls - Hidden on mobile unless needed */}
+                    {/* Window Controls */}
                     <div className={`window-controls absolute right-0 top-0 h-full flex items-center pr-3 gap-2 ${window.innerWidth < 640 ? 'hidden' : 'flex'}`}>
                         <button
                             className="w-6 h-6 rounded-full hover:bg-white hover:bg-opacity-10 flex items-center justify-center focus:outline-none transition-colors"
@@ -210,20 +208,22 @@ const Window: React.FC<WindowProps> = (props) => {
                     </div>
                 </div>
 
-                {/* Content Area - Grows to fill space */}
-                <div className="flex-1 relative w-full overflow-hidden bg-ub-cool-grey text-white select-text">
-                    {id === "settings" ? (
-                        <Settings changeBackgroundImage={props.changeBackgroundImage} currBgImgName={props.bg_image_name} />
-                    ) : (
-                        <WindowMainScreen
-                            appId={id}
-                            screen={props.screen}
-                            title={props.title}
-                            addFolder={props.id === "terminal" ? props.addFolder : null}
-                            openApp={props.openApp}
-                        />
-                    )}
-                </div>
+                {/* Content Area - Memoized to prevent re-renders on drag */}
+                {React.useMemo(() => (
+                    <div className="flex-1 relative w-full overflow-hidden bg-ub-cool-grey text-white select-text">
+                        {id === "settings" ? (
+                            <Settings changeBackgroundImage={props.changeBackgroundImage} currBgImgName={props.bg_image_name} />
+                        ) : (
+                            <WindowMainScreen
+                                appId={id}
+                                screen={props.screen}
+                                title={props.title}
+                                addFolder={props.id === "terminal" ? props.addFolder : null}
+                                openApp={props.openApp}
+                            />
+                        )}
+                    </div>
+                ), [id, props.bg_image_name, props.screen, props.title, props.addFolder, props.screen, props.openApp])}
             </div>
         </Rnd>
     );

@@ -66,7 +66,7 @@ const SideBarApp: React.FC<SideBarAppProps> = (props) => {
                 ${scaleImage ? "scale-75" : ""} 
             `}
             id={"sidebar-" + props.id}
-            style={{ width: `${size}px`, height: `${size}px` }}
+            style={{ width: `${size}px`, height: `${size}px`, willChange: "width, height" }}
         >
             <div className="w-full h-full p-1.5 flex items-center justify-center">
                 <div className="w-full h-full rounded-xl overflow-hidden relative">

@@ -311,7 +311,9 @@ export function Settings(props: SettingsProps) {
                 break;
 
             case 'scaleFactor':
-                root.style.setProperty('--scale-factor', `${(value as number) / 100}`);
+                const scale = (value as number) / 100;
+                root.style.setProperty('--scale-factor', `${scale}`);
+                window.dispatchEvent(new CustomEvent('system_scaleFactor_change', { detail: value }));
                 break;
 
             case 'iconSize':
@@ -482,7 +484,7 @@ export function Settings(props: SettingsProps) {
                             key={theme}
                             onClick={() => updateSetting('theme', theme)}
                             className={`px-6 py-3 rounded-lg font-medium capitalize transition-all ${settings.theme === theme
-                                ? 'bg-blue-600 text-white'
+                                ? 'bg-accent text-white'
                                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                                 }`}
                         >
@@ -504,7 +506,7 @@ export function Settings(props: SettingsProps) {
                         onChange={(e) => updateSetting('transparency', e.target.checked)}
                         className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
                 </label>
             </div>
 
@@ -534,7 +536,7 @@ export function Settings(props: SettingsProps) {
                             key={size}
                             onClick={() => updateSetting('iconSize', size)}
                             className={`px-6 py-2 rounded-lg font-medium capitalize transition-all ${settings.iconSize === size
-                                ? 'bg-blue-600 text-white'
+                                ? 'bg-accent text-white'
                                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                                 }`}
                         >
@@ -575,7 +577,7 @@ export function Settings(props: SettingsProps) {
                         onChange={(e) => updateSetting('nightLight', e.target.checked)}
                         className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
                 </label>
             </div>
 
@@ -587,7 +589,7 @@ export function Settings(props: SettingsProps) {
                             key={size}
                             onClick={() => updateSetting('fontSize', size)}
                             className={`flex-1 px-6 py-2 rounded-lg font-medium capitalize transition-all ${settings.fontSize === size
-                                ? 'bg-blue-600 text-white'
+                                ? 'bg-accent text-white'
                                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                                 }`}
                         >
@@ -665,7 +667,7 @@ export function Settings(props: SettingsProps) {
                         onChange={(e) => updateSetting('notificationSounds', e.target.checked)}
                         className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
                 </label>
             </div>
         </div>
@@ -688,7 +690,7 @@ export function Settings(props: SettingsProps) {
                         onChange={(e) => updateSetting('wifiEnabled', e.target.checked)}
                         className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
                 </label>
             </div>
 
@@ -707,7 +709,7 @@ export function Settings(props: SettingsProps) {
                         onChange={(e) => updateSetting('bluetoothEnabled', e.target.checked)}
                         className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
                 </label>
             </div>
         </div>
@@ -727,7 +729,7 @@ export function Settings(props: SettingsProps) {
                             key={mode.id}
                             onClick={() => updateSetting('powerMode', mode.id as any)}
                             className={`px-4 py-3 rounded-xl font-medium transition-all flex flex-col items-center gap-1 ${settings.powerMode === mode.id
-                                ? 'bg-blue-600 text-white'
+                                ? 'bg-accent text-white'
                                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                                 }`}
                         >
@@ -769,7 +771,7 @@ export function Settings(props: SettingsProps) {
                         onChange={(e) => updateSetting('animations', e.target.checked)}
                         className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
                 </label>
             </div>
 
@@ -785,7 +787,7 @@ export function Settings(props: SettingsProps) {
                         onChange={(e) => updateSetting('showDesktopIcons', e.target.checked)}
                         className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
                 </label>
             </div>
 
@@ -801,7 +803,7 @@ export function Settings(props: SettingsProps) {
                         onChange={(e) => updateSetting('autoUpdate', e.target.checked)}
                         className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
                 </label>
             </div>
 
@@ -813,7 +815,7 @@ export function Settings(props: SettingsProps) {
                             key={speed}
                             onClick={() => updateSetting('doubleClickSpeed', speed)}
                             className={`flex-1 px-6 py-2 rounded-lg font-medium capitalize transition-all ${settings.doubleClickSpeed === speed
-                                ? 'bg-blue-600 text-white'
+                                ? 'bg-accent text-white'
                                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                                 }`}
                         >
@@ -853,7 +855,7 @@ export function Settings(props: SettingsProps) {
                         onChange={(e) => updateSetting('locationServices', e.target.checked)}
                         className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
                 </label>
             </div>
 
@@ -869,7 +871,7 @@ export function Settings(props: SettingsProps) {
                         onChange={(e) => updateSetting('analytics', e.target.checked)}
                         className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
                 </label>
             </div>
 
@@ -967,7 +969,7 @@ export function Settings(props: SettingsProps) {
                         onChange={(e) => updateSetting('doNotDisturb', e.target.checked)}
                         className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
                 </label>
             </div>
 
@@ -983,7 +985,7 @@ export function Settings(props: SettingsProps) {
                         onChange={(e) => updateSetting('showPreviews', e.target.checked)}
                         className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
                 </label>
             </div>
 
@@ -1000,7 +1002,7 @@ export function Settings(props: SettingsProps) {
                             key={pos.id}
                             onClick={() => updateSetting('notificationPosition', pos.id as any)}
                             className={`px-4 py-3 rounded-lg font-medium transition-all ${settings.notificationPosition === pos.id
-                                ? 'bg-blue-600 text-white'
+                                ? 'bg-accent text-white'
                                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                                 }`}
                         >
@@ -1026,7 +1028,7 @@ export function Settings(props: SettingsProps) {
                         onChange={(e) => updateSetting('highContrast', e.target.checked)}
                         className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
                 </label>
             </div>
 
@@ -1042,7 +1044,7 @@ export function Settings(props: SettingsProps) {
                         onChange={(e) => updateSetting('reduceMotion', e.target.checked)}
                         className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
                 </label>
             </div>
 
@@ -1058,7 +1060,7 @@ export function Settings(props: SettingsProps) {
                         onChange={(e) => updateSetting('screenReader', e.target.checked)}
                         className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
                 </label>
             </div>
 
@@ -1074,7 +1076,7 @@ export function Settings(props: SettingsProps) {
                         onChange={(e) => updateSetting('largeText', e.target.checked)}
                         className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
                 </label>
             </div>
 
@@ -1086,7 +1088,7 @@ export function Settings(props: SettingsProps) {
                             key={size}
                             onClick={() => updateSetting('cursorSize', size)}
                             className={`flex-1 px-6 py-2 rounded-lg font-medium capitalize transition-all ${settings.cursorSize === size
-                                ? 'bg-blue-600 text-white'
+                                ? 'bg-accent text-white'
                                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                                 }`}
                         >
@@ -1128,7 +1130,7 @@ export function Settings(props: SettingsProps) {
                         onChange={(e) => updateSetting('enableShortcuts', e.target.checked)}
                         className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
                 </label>
             </div>
 
@@ -1182,7 +1184,7 @@ export function Settings(props: SettingsProps) {
                             key={format}
                             onClick={() => updateSetting('timeFormat', format)}
                             className={`flex-1 px-6 py-2 rounded-lg font-medium transition-all ${settings.timeFormat === format
-                                ? 'bg-blue-600 text-white'
+                                ? 'bg-accent text-white'
                                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                                 }`}
                         >
@@ -1217,7 +1219,7 @@ export function Settings(props: SettingsProps) {
                             key={unit.id}
                             onClick={() => updateSetting('temperature', unit.id as any)}
                             className={`flex-1 px-6 py-2 rounded-lg font-medium transition-all ${settings.temperature === unit.id
-                                ? 'bg-blue-600 text-white'
+                                ? 'bg-accent text-white'
                                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                                 }`}
                         >
@@ -1290,7 +1292,7 @@ export function Settings(props: SettingsProps) {
                                     key={section.id}
                                     onClick={() => handleSectionClick(section.id)}
                                     className={`w-full text-left px-4 py-4 md:py-3 rounded-xl transition-all flex items-center gap-4 md:gap-3 ${activeSection === section.id && !isMobile
-                                        ? 'bg-blue-600 text-white shadow-lg'
+                                        ? 'bg-accent text-white shadow-lg'
                                         : 'text-gray-300 hover:bg-gray-700 hover:bg-opacity-50 border border-transparent hover:border-gray-600'
                                         } ${isMobile ? 'bg-gray-800 mb-2 shadow-sm' : ''}`}
                                 >

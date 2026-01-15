@@ -13,6 +13,15 @@
     --window-transparency: 1;
     --backdrop-blur: 0px;
     --panel-opacity: 1;
+    --scale-factor: 1;
+}
+
+#monitor-screen {
+    transform: scale(var(--scale-factor));
+    transform-origin: top left;
+    width: calc(100vw / var(--scale-factor));
+    height: calc(100vh / var(--scale-factor));
+    transition: transform 0.2s ease-out, width 0.2s ease-out, height 0.2s ease-out;
 }
 
 html {
@@ -44,6 +53,70 @@ body {
 
     /* Enhance contrast for thin fonts on dark backgrounds */
     -webkit-text-size-adjust: 100%;
+
+    /* Apply theme variables */
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+/* ===== APPEARANCE SETTINGS UTILITIES ===== */
+
+/* Accent Color Utilities */
+.bg-accent {
+    background-color: var(--accent-color) !important;
+}
+
+.text-accent {
+    color: var(--accent-color) !important;
+}
+
+.border-accent {
+    border-color: var(--accent-color) !important;
+}
+
+.hover\:bg-accent:hover {
+    background-color: var(--accent-color) !important;
+}
+
+.ring-accent {
+    --tw-ring-color: var(--accent-color) !important;
+}
+
+/* Dynamic Transparency & Blur */
+.window-blur {
+    backdrop-filter: blur(var(--backdrop-blur));
+    -webkit-backdrop-filter: blur(var(--backdrop-blur));
+}
+
+.window-transparency {
+    opacity: var(--window-transparency);
+}
+
+.panel-opacity {
+    opacity: var(--panel-opacity);
+}
+
+/* Dynamic Icon Sizing */
+.icon-dynamic {
+    width: var(--icon-size, 48px);
+    height: var(--icon-size, 48px);
+}
+
+/* Theme-aware backgrounds */
+.bg-themed-primary {
+    background-color: var(--bg-primary);
+}
+
+.bg-themed-secondary {
+    background-color: var(--bg-secondary);
+}
+
+.text-themed-primary {
+    color: var(--text-primary);
+}
+
+.text-themed-secondary {
+    color: var(--text-secondary);
 }
 
 /* Top NavBar styling */
