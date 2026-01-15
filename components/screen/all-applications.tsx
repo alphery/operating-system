@@ -252,16 +252,16 @@ const AllApplications: React.FC<AllApplicationsProps> = (props) => {
                     display: grid;
                     grid-template-columns: repeat(4, 1fr);
                     /* Fixed grid rows for 6x3 layout */
-                    grid-template-rows: repeat(3, min-content); 
-                    gap: 2.5rem 2rem; /* Increased gap for better spacing */
+                    grid-template-rows: repeat(3, 100px); 
+                    gap: 2rem 2rem;
                     justify-items: center;
                     padding: 1rem;
                     width: 100%;
-                    max-width: 64rem;
+                    max-width: 70rem;
                 }
                 
                 @media (min-width: 640px) { .apps-grid { grid-template-columns: repeat(5, 1fr); } }
-                @media (min-width: 768px) { .apps-grid { grid-template-columns: repeat(6, 1fr); } }
+                @media (min-width: 1024px) { .apps-grid { grid-template-columns: repeat(6, 1fr); } }
                 
                 /* === Pagination Dots === */
                 .pagination-container {
