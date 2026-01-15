@@ -19,7 +19,7 @@ interface LocalUser {
 }
 
 export default function Ubuntu() {
-	const { user, userData, updateUserData } = useAuth();
+	const { user, userData, updateUserData, logout } = useAuth();
 	const [screenLocked, setScreenLocked] = useState<boolean>(false);
 	const [bgImageName, setBgImageName] = useState<string>('wall-8');
 	const [bootingScreen, setBootingScreen] = useState<boolean>(true);
@@ -27,6 +27,31 @@ export default function Ubuntu() {
 	const [currentUser, setCurrentUser] = useState<LocalUser | null>(null);
 	const [showFirebaseAuth, setShowFirebaseAuth] = useState<boolean>(false);
 	const [demoMode, setDemoMode] = useState<boolean>(false);
+
+	const handleLogout = async () => {
+		ReactGA.pageview('/logout');
+		try {
+			await logout();
+			window.location.reload();
+		} catch (e) {
+			console.error('Logout failed:', e);
+			window.location.reload();
+		}
+	};
+
+	const shutDown = () => {
+		ReactGA.pageview('/switch-off');
+		ReactGA.event({
+			category: `Screen Change`,
+			action: `Switched off the Ubuntu`
+		});
+
+		if (document.getElementById('status-bar')) {
+			document.getElementById('status-bar')?.blur();
+		}
+		setShutDownScreen(true);
+		localStorage.setItem('shut-down', 'true');
+	};
 
 	useEffect(() => {
 		getLocalData();
@@ -165,19 +190,7 @@ export default function Ubuntu() {
 		}
 	};
 
-	const shutDown = () => {
-		ReactGA.pageview('/switch-off');
-		ReactGA.event({
-			category: `Screen Change`,
-			action: `Switched off the Ubuntu`
-		});
 
-		if (document.getElementById('status-bar')) {
-			document.getElementById('status-bar')?.blur();
-		}
-		setShutDownScreen(true);
-		localStorage.setItem('shut-down', 'true');
-	};
 
 	const turnOn = () => {
 		ReactGA.pageview('/desktop');
@@ -213,60 +226,12 @@ export default function Ubuntu() {
 
 	return (
 		<div className="w-screen h-screen overflow-hidden" id="monitor-screen">
-			{/* PWA Install Modal */}
-			{showInstallPrompt && (
-				<div className="absolute top-6 left-1/2 transform -translate-x-1/2 z-[100] bg-gray-900 bg-opacity-80 backdrop-blur-2xl border border-gray-700 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-4 transition-all duration-500 animate-in slide-in-from-top-4 fade-in">
-					<img src="/images/logos/Dark Logo H.png" className="w-10 h-10 object-contain drop-shadow-lg" alt="Logo" />
-					<div>
-						<h3 className="font-bold text-sm tracking-wide">Install Alphery OS</h3>
-						<p className="text-xs text-gray-400">Experience full performance app</p>
-					</div>
-					<div className="flex gap-2 ml-2 pl-2 border-l border-gray-700">
-						<button
-							onClick={() => setShowInstallPrompt(false)}
-							className="px-3 py-1.5 text-xs font-medium text-gray-400 hover:text-white transition"
-						>
-							Later
-						</button>
-						<button
-							onClick={handleInstallClick}
-							className="px-4 py-1.5 text-xs font-bold bg-white text-black hover:bg-gray-200 rounded-lg shadow-lg active:scale-95 transition"
-						>
-							Install App
-						</button>
-					</div>
-				</div>
-			)}
-
-			{/* Pending Approval Screen - shows if user is logged in but not approved */}
-			{user && userData && isPending && !bootingScreen && (
-				<PendingApprovalScreen />
-			)}
-
-			{/* Firebase Auth Screen - shows if user not authenticated */}
-			{!user && showFirebaseAuth && !bootingScreen && (
-				<FirebaseAuthScreen onAuthSuccess={handleFirebaseAuthSuccess} />
-			)}
-
-			{/* Lock Screen - for local users or locked Firebase users */}
-			{((!user && !showFirebaseAuth) || (user && userData && isApproved) || demoMode) && (
-				<LockScreen
-					isLocked={screenLocked}
-					bgImgName={bgImageName}
-					unLockScreen={unLockScreen}
-					demoMode={demoMode}
-				/>
-			)}
-
-			<BootingScreen
-				visible={bootingScreen}
-				isShutDown={shutDownScreen}
-				turnOn={turnOn}
-			/>
 			<Navbar
 				lockScreen={lockScreen}
 				shutDown={shutDown}
 				user={currentUser}
+				showInstallPrompt={showInstallPrompt}
+				handleInstallClick={handleInstallClick}
 			/>
 			<Desktop
 				bg_image_name={bgImageName}

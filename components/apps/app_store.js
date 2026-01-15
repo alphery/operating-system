@@ -271,7 +271,8 @@ class AppStore extends Component {
         return (
             <div className="flex h-full w-full bg-slate-50 font-sans select-none text-slate-900 overflow-hidden">
                 {/* --- Sidebar --- */}
-                <div className="w-64 bg-slate-100 border-r border-slate-200 flex flex-col p-4 z-20">
+                {/* --- Sidebar (Desktop) --- */}
+                <div className="hidden md:flex w-64 bg-slate-100 border-r border-slate-200 flex-col p-4 z-20">
                     <div className="flex items-center gap-3 mb-8 px-2">
                         <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white text-xl font-bold font-mono">A</div>
                         <h1 className="text-lg font-bold tracking-tight">App Store</h1>
@@ -306,9 +307,42 @@ class AppStore extends Component {
                 </div>
 
                 {/* --- Main Content --- */}
-                <div className="flex-1 overflow-y-auto bg-white relative">
+                <div className="flex-1 overflow-y-auto bg-white relative text-left">
+                    {/* Mobile Header & Nav */}
+                    <div className="md:hidden sticky top-0 bg-white/95 backdrop-blur-md z-30 border-b border-slate-100 p-4 space-y-3">
+                        <div className="flex items-center gap-2 mb-2">
+                            <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center text-white text-sm font-bold font-mono">A</div>
+                            <span className="font-bold text-slate-800">App Store</span>
+                        </div>
+                        <div className="relative">
+                            <input
+                                type="text"
+                                placeholder="Search apps..."
+                                value={searchQuery}
+                                onChange={(e) => this.setState({ searchQuery: e.target.value, activeCategory: 'all', view: 'browse' })}
+                                className="w-full bg-slate-100 border-none rounded-lg pl-9 pr-3 py-2 text-sm focus:ring-2 focus:ring-blue-500/50"
+                            />
+                            <span className="absolute left-3 top-2.5 text-slate-400 text-sm">🔍</span>
+                        </div>
+                        <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+                            {CATEGORIES.map(cat => (
+                                <button
+                                    key={cat.id}
+                                    onClick={() => this.setState({ activeCategory: cat.id, view: 'browse', searchQuery: '' })}
+                                    className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all border ${activeCategory === cat.id && !searchQuery
+                                        ? 'bg-blue-600 text-white border-blue-600 shadow-md transform scale-105'
+                                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                                        }`}
+                                >
+                                    <span>{cat.icon}</span>
+                                    {cat.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
                     {view === 'browse' ? (
-                        <div className="p-8 max-w-6xl mx-auto">
+                        <div className="p-4 md:p-8 max-w-6xl mx-auto">
                             {/* Hero Carousel */}
                             {activeCategory === 'all' && !searchQuery && (
                                 <div className="mb-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -393,7 +427,7 @@ class AppStore extends Component {
                                 <div className={`absolute inset-0 opacity-40 bg-gradient-to-br ${selectedApp.screens[0].replace('bg-', 'from-').replace('100', '900')} to-slate-900`}></div>
                                 <button onClick={() => this.setState({ view: 'browse' })} className="absolute top-6 left-6 w-10 h-10 bg-black/20 hover:bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-all z-20">←</button>
                                 <div className="absolute -bottom-12 left-10 flex items-end gap-6 z-10 w-full max-w-4xl">
-                                    <img src={selectedApp.icon} alt={selectedApp.title} className="w-32 h-32 rounded-3xl bg-white shadow-2xl p-2 md:p-0 object-contain" />
+                                    <img src={selectedApp.icon} alt={selectedApp.title} className="w-32 h-32 rounded-3xl shadow-2xl object-contain" />
                                     <div className="mb-4 text-shadow">
                                         <h1 className="text-4xl font-bold mb-1">{selectedApp.title}</h1>
                                         <div className="flex items-center gap-4 text-sm opacity-90">

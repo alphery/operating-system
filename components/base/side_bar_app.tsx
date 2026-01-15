@@ -68,13 +68,15 @@ const SideBarApp: React.FC<SideBarAppProps> = (props) => {
             id={"sidebar-" + props.id}
             style={{ width: `${size}px`, height: `${size}px` }}
         >
-            <img
-                width={`${28 * scale}px`}
-                height={`${28 * scale}px`}
-                className="w-full h-full object-contain p-1.5 rounded-2xl pointer-events-none" // pointer-events-none ensures click falls through to div
-                src={props.icon}
-                alt={props.title}
-            />
+            <div className="w-full h-full p-1.5 flex items-center justify-center">
+                <div className="w-full h-full rounded-xl overflow-hidden relative">
+                    <img
+                        className="w-full h-full object-contain pointer-events-none"
+                        src={props.icon}
+                        alt={props.title}
+                    />
+                </div>
+            </div>
 
             {/* Active Indicator Dot */}
             {isOpen && (

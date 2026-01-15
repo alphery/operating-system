@@ -15,7 +15,10 @@ export default class Navbar extends Component {
 		return (
 			<div className="absolute top-0 right-0 w-screen h-8 shadow-sm flex flex-nowrap justify-between items-center bg-gray-900 bg-opacity-90 backdrop-blur-md text-gray-200 text-sm select-none" style={{ zIndex: 100 }}>
 				{/* Mobile Status Bar Layout (Hidden on Desktop) */}
-				<div className="flex md:hidden w-full justify-between items-center px-4 h-full">
+				<div
+					className="flex md:hidden w-full justify-between items-center px-4 h-full cursor-pointer active:bg-gray-800 transition-colors"
+					onClick={() => this.setState({ status_card: !this.state.status_card })}
+				>
 					<div className="flex items-center gap-2">
 						{/* Time on left for mobile (Android style) */}
 						<Clock />
@@ -103,17 +106,21 @@ export default class Navbar extends Component {
 						}
 					>
 						<Status />
-						<StatusCard
-							shutDown={this.props.shutDown}
-							lockScreen={this.props.lockScreen}
-							visible={this.state.status_card}
-							toggleVisible={() => {
-								// this prop is used in statusCard component in handleClickOutside callback using react-onclickoutside
-								this.setState({ status_card: false });
-							}}
-						/>
 					</div>
 				</div>
+
+				<StatusCard
+					shutDown={this.props.shutDown}
+					logOut={this.props.logOut}
+					lockScreen={this.props.lockScreen}
+					visible={this.state.status_card}
+					toggleVisible={() => {
+						// this prop is used in statusCard component in handleClickOutside callback using react-onclickoutside
+						this.setState({ status_card: false });
+					}}
+					showInstallPrompt={this.props.showInstallPrompt}
+					handleInstallClick={this.props.handleInstallClick}
+				/>
 			</div>
 		);
 	}

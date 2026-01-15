@@ -65,6 +65,32 @@ export class StatusCard extends Component {
 				{' '}
 				{/* Status Card */}
 				<div className="absolute w-0 h-0 -top-1 right-6 top-arrow-up" />
+
+				{/* PWA Install Banner */}
+				{this.props.showInstallPrompt && (
+					<div className="w-64 pb-1">
+						<div className="mx-2 mb-2 bg-[#1C1C1E] border border-white/10 rounded-xl p-3 shadow-lg flex flex-row items-center justify-between gap-3">
+							<div className="flex items-center gap-3">
+								<img src="./images/logos/Dark Logo H.png" className="w-8 h-8 object-contain" alt="Alphery Logo" />
+								<div className="flex flex-col">
+									<span className="text-xs font-bold text-white">Install Alphery OS</span>
+									<span className="text-[10px] text-gray-400">Full performance app</span>
+								</div>
+							</div>
+							<div className="flex gap-2">
+								{/* <button className="text-[10px] text-gray-400 font-medium hover:text-white transition">Later</button> */}
+								<button
+									onClick={this.props.handleInstallClick}
+									className="bg-white text-black px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-gray-200 transition shadow-sm"
+								>
+									Install
+								</button>
+							</div>
+						</div>
+						<div className="w-full border-t border-black/20 my-1"></div>
+					</div>
+				)}
+
 				<div className="w-64 py-1.5 flex items-center justify-center bg-ub-cool-grey hover:bg-ub-warm-grey hover:bg-opacity-20">
 					<div className="w-8">
 						<img width="16px" height="16px" src="./themes/Yaru/status/audio-headphones-symbolic.svg" alt="ubuntu headphone" />
@@ -143,15 +169,14 @@ export class StatusCard extends Component {
 					</div>
 				</div>
 				<div
-					onClick={this.props.shutDown}
-					className="w-64 py-1.5 flex items-center justify-center bg-ub-cool-grey hover:bg-ub-warm-grey hover:bg-opacity-20"
+					onClick={this.props.logOut}
+					className="w-64 py-1.5 flex items-center justify-center bg-ub-cool-grey hover:bg-ub-warm-grey hover:bg-opacity-20 cursor-pointer"
 				>
 					<div className="w-8">
 						<img width="16px" height="16px" src="./themes/Yaru/status/system-shutdown-symbolic.svg" alt="ubuntu power" />
 					</div>
 					<div className="w-2/3 flex items-center justify-between">
-						<span>Power Off / Log Out</span>
-						<SmallArrow angle="right" />
+						<span>Log Out</span>
 					</div>
 				</div>
 			</div>
