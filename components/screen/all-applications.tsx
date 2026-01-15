@@ -277,26 +277,26 @@ const AllApplications: React.FC<AllApplicationsProps> = (props) => {
                     width: 100%;
                     max-width: 90rem;
                     flex: 1;
-                    overflow: hidden; 
-                    /* Critical: Padding bottom to avoid Dock collision */
-                    padding: 0 2rem 8rem 2rem; 
+                    overflow: visible; /* Allow content to be seen if it slightly overlaps padding */
+                    /* Padding: Top Right Bottom Left */
+                    padding: 1rem 2rem 8rem 2rem; 
                     display: flex;
                     flex-direction: column;
                     align-items: center;
-                    justify-content: center;
+                    justify-content: flex-start; /* Prevent clipping at top */
                 }
                 
                 .apps-grid {
                     display: grid;
-                    grid-template-columns: repeat(6, 1fr); /* Force 6 columns for consistent desktop look */
-                    grid-template-rows: repeat(3, minmax(120px, 160px)); /* Taller rows for breathing room */
+                    grid-template-columns: repeat(6, 1fr);
+                    grid-template-rows: repeat(3, minmax(110px, 150px)); /* Slightly adjusted for safety */
                     gap: 2rem;
                     justify-items: center;
-                    align-items: center;
+                    align-items: flex-start; /* Align grid items to top */
                     padding: 1rem;
                     width: 100%;
-                    max-height: calc(100vh - 180px); 
-                    /* Use max-width to keep icons grouped nicely in center, but allow scaling */
+                    /* Ensure grid fits within the safe area */
+                    max-height: calc(100vh - 220px); 
                     max-width: 85vw; 
                 }
                 
