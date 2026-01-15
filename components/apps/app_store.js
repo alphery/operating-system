@@ -250,34 +250,18 @@ class AppStore extends Component {
             displayApps = displayApps.filter(app => app.category === activeCategory);
         }
 
-        // Permission-based app filtering
+        // Permission-based app filtering - DISABLED
+        // Now ALL apps are visible in App Store for everyone
+        // Permission checking happens when opening the app (see window.tsx)
         const user = this.props.user;
         const userData = this.props.userData;
 
-        // System apps that are always visible
+        // System apps that cannot be uninstalled
         const systemApps = ['app-store', 'settings', 'messenger', 'trash'];
 
-        // Apply permission filtering
-        if (user && userData) {
-            const isSuperAdmin = userData.role === 'super_admin';
-
-            if (!isSuperAdmin) {
-                // Regular users: Check allowedApps
-                if (userData.allowedApps !== undefined && userData.allowedApps !== null) {
-                    // User has specific app permissions
-                    if (Array.isArray(userData.allowedApps)) {
-                        displayApps = displayApps.filter(app =>
-                            systemApps.includes(app.id) || userData.allowedApps.includes(app.id)
-                        );
-                    } else if (userData.allowedApps.length === 0) {
-                        // Empty array: Only system apps
-                        displayApps = displayApps.filter(app => systemApps.includes(app.id));
-                    }
-                }
-                // If allowedApps is undefined/null: Show all apps (backward compatibility)
-            }
-            // Super Admin: Show all apps (no filtering)
-        }
+        // Note: No filtering applied here anymore. 
+        // All apps are discoverable and installable. 
+        // Access control is strictly enforced at runtime (window open).
         // Guest/unauthenticated: Show all apps (no filtering)
 
         // Featured Apps (random selection for 'all')
