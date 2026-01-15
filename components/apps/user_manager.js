@@ -233,7 +233,7 @@ class UserManager extends Component {
                 </div>
 
                 {/* Stats */}
-                <div className="grid grid-cols-4 gap-4 p-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 md:p-6">
                     <div className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
                         <div className="flex justify-between items-start">
                             <div>
@@ -290,12 +290,12 @@ class UserManager extends Component {
 
                 {/* Filters */}
                 <div className="px-6 pb-4">
-                    <div className="bg-white rounded-lg shadow p-2 flex gap-2">
+                    <div className="bg-white rounded-lg shadow p-2 flex gap-2 overflow-x-auto no-scrollbar">
                         {['all', 'pending', 'approved', 'rejected'].map(f => (
                             <button
                                 key={f}
                                 onClick={() => this.setState({ filter: f })}
-                                className={`px-4 py-2 rounded-lg font-medium text-sm transition capitalize
+                                className={`px-4 py-2 rounded-lg font-medium text-sm transition capitalize whitespace-nowrap
                                     ${filter === f ? 'bg-pink-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'}`}
                             >
                                 {f}
@@ -305,8 +305,100 @@ class UserManager extends Component {
                 </div>
 
                 {/* Users List */}
-                <div className="flex-1 overflow-y-auto px-6 pb-6">
-                    <div className="bg-white rounded-lg shadow overflow-hidden">
+                <div className="flex-1 overflow-y-auto px-4 md:px-6 pb-6">
+                    {/* Mobile Card View */}
+                    <div className="md:hidden space-y-4">
+                        {filteredUsers.map(user => (
+                            <div key={user.id} className="bg-white rounded-lg shadow p-4 border border-gray-100">
+                                <div className="flex items-start justify-between mb-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-pink-400 to-purple-500 overflow-hidden flex items-center justify-center flex-shrink-0">
+                                            {user.photoURL ? (
+                                                <img src={user.photoURL} alt="" className="w-full h-full object-cover" />
+                                            ) : (
+                                                <span className="text-white font-bold text-lg">{(user.displayName || user.email)[0].toUpperCase()}</span>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-gray-900">{user.displayName || 'Anonymous'}</h3>
+                                            <p className="text-sm text-gray-500 break-all">{user.email}</p>
+                                        </div>
+                                    </div>
+                                    <span className={`px-2 py-1 rounded-full text-xs font-semibold
+                                        ${user.approvalStatus === 'approved' ? 'bg-green-100 text-green-700' :
+                                            user.approvalStatus === 'rejected' ? 'bg-red-100 text-red-700' :
+                                                'bg-yellow-100 text-yellow-700'}`}>
+                                        {user.approvalStatus || 'pending'}
+                                    </span>
+                                </div>
+
+                                <div className="flex flex-wrap gap-2 mb-4 text-xs text-gray-600">
+                                    <span className={`px-2 py-1 rounded border ${user.role === 'super_admin' ? 'bg-purple-50 border-purple-200 text-purple-700' : 'bg-gray-50 border-gray-200'}`}>
+                                        Role: {user.role === 'super_admin' ? 'Super Admin' : (user.role === 'team' ? 'Team' : 'Projects')}
+                                    </span>
+                                    <span className="px-2 py-1 rounded bg-gray-50 border border-gray-200">
+                                        {new Date(user.createdAt).toLocaleDateString()}
+                                    </span>
+                                </div>
+
+                                {/* Permissions Button */}
+                                {user.role !== 'super_admin' && (
+                                    <div className="mb-4">
+                                        <button
+                                            onClick={() => this.openPermissionsModal(user)}
+                                            className="w-full py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-sm font-medium transition flex items-center justify-center gap-2"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                                            </svg>
+                                            Manage App Permissions ({user.allowedApps ? user.allowedApps.length : 'All'})
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* Action Buttons */}
+                                <div className="pt-3 border-t border-gray-100 flex flex-wrap gap-2 justify-end">
+                                    {/* Role Selection */}
+                                    {user.approvalStatus === 'approved' && user.role !== 'super_admin' && (
+                                        <select
+                                            value={user.role === 'team' ? 'team' : 'user'}
+                                            onChange={(e) => this.changeUserRole(user.id, e.target.value)}
+                                            className="px-3 py-1.5 text-sm border border-gray-300 rounded bg-white flex-1"
+                                        >
+                                            <option value="user">Projects Role</option>
+                                            <option value="team">Team Role</option>
+                                        </select>
+                                    )}
+
+                                    {/* Approve/Reject */}
+                                    {(!user.approvalStatus || user.approvalStatus === 'pending') && user.role !== 'super_admin' && (
+                                        <>
+                                            <button onClick={() => this.approveUser(user.id)} className="flex-1 px-3 py-1.5 bg-green-500 text-white rounded font-medium text-sm">Approve</button>
+                                            <button onClick={() => this.rejectUser(user.id)} className="flex-1 px-3 py-1.5 bg-red-500 text-white rounded font-medium text-sm">Reject</button>
+                                        </>
+                                    )}
+
+                                    {/* Revoke */}
+                                    {user.approvalStatus === 'approved' && user.role !== 'super_admin' && (
+                                        <button onClick={() => this.revokeUser(user.id)} className="px-4 py-1.5 bg-orange-500 text-white rounded font-medium text-sm">Revoke Access</button>
+                                    )}
+
+                                    {/* Delete */}
+                                    {user.approvalStatus === 'rejected' && user.role !== 'super_admin' && (
+                                        <button onClick={() => this.deleteUser(user.id)} className="flex-1 px-3 py-1.5 bg-gray-500 text-white rounded font-medium text-sm">Delete</button>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                        {filteredUsers.length === 0 && (
+                            <div className="py-12 text-center">
+                                <p className="text-gray-400">No users found</p>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Desktop Table View */}
+                    <div className="hidden md:block bg-white rounded-lg shadow overflow-hidden">
                         <table className="w-full">
                             <thead className="bg-gray-50 border-b border-gray-200">
                                 <tr>
