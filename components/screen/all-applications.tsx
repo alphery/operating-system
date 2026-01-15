@@ -275,30 +275,61 @@ const AllApplications: React.FC<AllApplicationsProps> = (props) => {
                 /* === Apps Grid Container === */
                 .apps-grid-container {
                     width: 100%;
-                    max-width: 90rem;
-                    flex: 1;
-                    overflow: visible; 
-                    /* Massive bottom padding to act as a hard barrier for the Dock */
-                    padding: 2rem 2rem 14rem 2rem; 
+                    max-width: 95rem;
+                    height: 100%;
+                    overflow: hidden;
+                    /* Fluid padding: scales with height to protect Dock */
+                    padding: 4rem 2rem 12vh 2rem; 
                     display: flex;
                     flex-direction: column;
                     align-items: center;
-                    justify-content: center; /* Back to center, but constrained by padding */
+                    justify-content: center;
                 }
                 
                 .apps-grid {
                     display: grid;
                     grid-template-columns: repeat(6, 1fr);
-                    /* Tighter row constraints */
-                    grid-template-rows: repeat(3, minmax(90px, 120px)); 
-                    gap: 1.5rem 3rem; /* Adjusted gap */
+                    /* Crucial: Splits available height exactly into 3 equal rows */
+                    grid-template-rows: repeat(3, 1fr); 
+                    /* Fluid Gaps: Shrink as window shrinks */
+                    gap: 4vh 2vw; 
                     justify-items: center;
-                    align-items: center;
+                    align-items: center; 
                     padding: 1rem;
                     width: 100%;
-                    /* Strict height limit: Grid takes max 60% of screen */
-                    max-height: 60vh; 
-                    max-width: 85vw; 
+                    height: 100%;
+                    /* Grid occupies 65% of screen height max */
+                    max-height: 70vh; 
+                    max-width: 90vw;
+                }
+
+                /* === Intelligent Scaling for Small Screens === */
+                /* As screen gets shorter, we gently scale down the icons to maintain "breathing room" */
+                @media (max-height: 800px) {
+                    .app-icon-wrapper {
+                        zoom: 0.9;
+                    }
+                }
+
+                @media (max-height: 600px) {
+                    .apps-grid {
+                        /* Tighter gaps for very small windows */
+                        gap: 2vh 2vw;
+                    }
+                    .app-icon-wrapper {
+                        zoom: 0.75;
+                    }
+                }
+
+                /* Mobile/Small Width Adaptation */
+                @media (max-width: 1024px) {
+                     .apps-grid { grid-template-columns: repeat(5, 1fr); }
+                }
+
+                @media (max-width: 768px) { 
+                    .apps-grid { 
+                        grid-template-columns: repeat(4, 1fr);
+                    } 
                 }
                 
                 /* Mobile adaptation only */
