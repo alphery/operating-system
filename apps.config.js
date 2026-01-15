@@ -189,7 +189,7 @@ const apps = [
     {
         id: "about-alphery",
         title: "About Alphery",
-        icon: './images/logos/alphery_logo.png',
+        icon: '/images/logos/Dark_Logo_H.png',
         disabled: false,
         favourite: false,
         desktop_shortcut: false,

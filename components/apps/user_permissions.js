@@ -164,9 +164,9 @@ export function UserPermissionsManager() {
                     </p>
                 </div>
 
-                <div className="flex-1 flex overflow-hidden">
-                    {/* Users List */}
-                    <div className="w-1/3 border-r border-slate-200 overflow-y-auto">
+                <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+                    {/* Users List - Hidden on mobile if user selected */}
+                    <div className={`w-full md:w-1/3 border-r border-slate-200 overflow-y-auto ${selectedUser ? 'hidden md:block' : 'block'}`}>
                         <div className="p-4">
                             <h2 className="text-sm font-bold text-slate-600 uppercase tracking-wide mb-3">
                                 Users ({users.length})
@@ -211,9 +211,19 @@ export function UserPermissionsManager() {
                     </div>
 
                     {/* Permissions Editor */}
-                    <div className="flex-1 overflow-y-auto p-6">
+                    <div className={`flex-1 overflow-y-auto p-4 md:p-6 ${!selectedUser ? 'hidden md:block' : 'block'}`}>
                         {selectedUser ? (
                             <div className="space-y-6">
+                                {/* Back Button for Mobile */}
+                                <div className="md:hidden flex items-center mb-4">
+                                    <button
+                                        onClick={() => setSelectedUser(null)}
+                                        className="flex items-center text-blue-600 font-medium"
+                                    >
+                                        <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
+                                        Back to Users
+                                    </button>
+                                </div>
                                 {/* User Info */}
                                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
                                     <div className="flex items-center gap-4">
