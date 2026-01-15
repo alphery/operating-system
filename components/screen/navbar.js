@@ -14,8 +14,20 @@ export default class Navbar extends Component {
 	render() {
 		return (
 			<div className="absolute top-0 right-0 w-screen h-8 shadow-sm flex flex-nowrap justify-between items-center bg-gray-900 bg-opacity-90 backdrop-blur-md text-gray-200 text-sm select-none" style={{ zIndex: 100 }}>
-				{/* Left Side: Apple Menu */}
-				<div tabIndex="0" className="flex items-center pl-4 pr-4 h-full outline-none transition duration-100 ease-in-out border-b-2 border-transparent focus:border-ubb-orange">
+				{/* Mobile Status Bar Layout (Hidden on Desktop) */}
+				<div className="flex md:hidden w-full justify-between items-center px-4 h-full">
+					<div className="flex items-center gap-2">
+						{/* Time on left for mobile (Android style) */}
+						<Clock />
+					</div>
+					{/* Signal/Battery System Icons on right */}
+					<div className="flex items-center gap-3">
+						<div className="flex items-center"><Status /></div>
+					</div>
+				</div>
+
+				{/* Desktop Layout (Hidden on Mobile) */}
+				<div tabIndex="0" className="hidden md:flex items-center pl-4 pr-4 h-full outline-none transition duration-100 ease-in-out border-b-2 border-transparent focus:border-ubb-orange">
 					{/* Apple Logo */}
 					<div className="mr-5 cursor-default hover:text-white relative group">
 						<img className="h-5 object-contain opacity-90 transition-opacity duration-200 hover:opacity-100" src="./images/logos/Dark Logo H.png" alt="Alphery OS Logo" />
@@ -58,7 +70,7 @@ export default class Navbar extends Component {
 					<span className="font-bold mr-5 cursor-default text-[13px] tracking-wide">Forums</span>
 
 					{/* Menus */}
-					<div className="hidden md:flex gap-5 text-[13px] font-medium tracking-wide opacity-90">
+					<div className="flex gap-5 text-[13px] font-medium tracking-wide opacity-90">
 						<span className="cursor-default hover:text-white">File</span>
 						<span className="cursor-default hover:text-white">Edit</span>
 						<span className="cursor-default hover:text-white">View</span>
@@ -68,8 +80,8 @@ export default class Navbar extends Component {
 					</div>
 				</div>
 
-				{/* Right Side: Status Items */}
-				<div className="flex items-center h-full">
+				{/* Desktop Right Side: Status Items (Hidden on Mobile) */}
+				<div className="hidden md:flex items-center h-full">
 					<div
 						tabIndex="0"
 						className={

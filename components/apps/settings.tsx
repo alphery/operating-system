@@ -1247,35 +1247,85 @@ export function Settings(props: SettingsProps) {
         }
     };
 
+    // Mobile navigation state
+    const [isMobile, setIsMobile] = useState(false);
+    const [showMobileList, setShowMobileList] = useState(true);
+
+    useEffect(() => {
+        const checkMobile = () => {
+            const mobile = window.innerWidth < 640;
+            setIsMobile(mobile);
+            if (!mobile) setShowMobileList(true); // Always show list on desktop
+        };
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
+    const handleSectionClick = (id: SectionId) => {
+        setActiveSection(id);
+        if (isMobile) {
+            setShowMobileList(false);
+        }
+    };
+
+    const handleBackClick = () => {
+        setShowMobileList(true);
+    };
+
     return (
         <ErrorBoundary>
-            <div className="w-full h-full flex bg-gray-900 text-white select-none overflow-hidden">
-                {/* Sidebar */}
-                <div className="w-64 bg-gray-800 bg-opacity-50 backdrop-blur-xl border-r border-gray-700 overflow-y-auto">
+            <div className="w-full h-full flex bg-gray-900 text-white select-none overflow-hidden relative">
+                {/* Sidebar / Mobile List View */}
+                <div className={`
+                    ${isMobile ? 'w-full absolute inset-0 z-10' : 'w-64 border-r border-gray-700'}
+                    bg-gray-800 bg-opacity-50 backdrop-blur-xl overflow-y-auto transition-transform duration-300
+                    ${isMobile && !showMobileList ? '-translate-x-full' : 'translate-x-0'}
+                `}>
                     <div className="p-4">
-                        <h2 className="text-xl font-bold mb-4">Settings</h2>
+                        <h2 className="text-xl font-bold mb-4 pl-2">Settings</h2>
                         <div className="space-y-1">
                             {sections.map((section) => (
                                 <button
                                     key={section.id}
-                                    onClick={() => setActiveSection(section.id)}
-                                    className={`w-full text-left px-4 py-3 rounded-xl transition-all flex items-center gap-3 ${activeSection === section.id
+                                    onClick={() => handleSectionClick(section.id)}
+                                    className={`w-full text-left px-4 py-4 md:py-3 rounded-xl transition-all flex items-center gap-4 md:gap-3 ${activeSection === section.id && !isMobile
                                         ? 'bg-blue-600 text-white shadow-lg'
-                                        : 'text-gray-300 hover:bg-gray-700 hover:bg-opacity-50'
-                                        }`}
+                                        : 'text-gray-300 hover:bg-gray-700 hover:bg-opacity-50 border border-transparent hover:border-gray-600'
+                                        } ${isMobile ? 'bg-gray-800 mb-2 shadow-sm' : ''}`}
                                 >
-                                    <span className="text-xl">{section.icon}</span>
-                                    <span className="font-medium">{section.label}</span>
+                                    <span className="text-2xl md:text-xl">{section.icon}</span>
+                                    <span className="font-medium text-lg md:text-base">{section.label}</span>
+                                    {isMobile && <span className="ml-auto text-gray-500">›</span>}
                                 </button>
                             ))}
                         </div>
                     </div>
                 </div>
 
-                {/* Main Content */}
-                <div className="flex-1 overflow-y-auto">
-                    <div className="p-8">
-                        <h1 className="text-3xl font-bold mb-6 capitalize">{activeSection}</h1>
+                {/* Main Content / Mobile Detail View */}
+                <div className={`
+                    ${isMobile ? 'w-full absolute inset-0 z-20 bg-gray-900' : 'flex-1'} 
+                    overflow-y-auto transition-transform duration-300
+                    ${isMobile && showMobileList ? 'translate-x-full' : 'translate-x-0'}
+                `}>
+                    <div className="p-4 md:p-8">
+                        {/* Mobile Header with Back Button */}
+                        {isMobile && (
+                            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-800">
+                                <button
+                                    onClick={handleBackClick}
+                                    className="p-2 -ml-2 rounded-full hover:bg-gray-800 active:bg-gray-700 text-white"
+                                >
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M19 12H5M12 19l-7-7 7-7" />
+                                    </svg>
+                                </button>
+                                <span className="text-xl font-bold capitalize">{activeSection}</span>
+                            </div>
+                        )}
+                        {!isMobile && <h1 className="text-3xl font-bold mb-6 capitalize">{activeSection}</h1>}
+
                         {renderContent()}
                     </div>
                 </div>

@@ -462,33 +462,67 @@ export class Desktop extends Component {
                     {this.renderWindows()}
                 </div>
 
+                {/* Desktop Background */}
                 <BackgroundImage img={this.props.bg_image_name} />
 
-                <SideBar apps={apps}
-                    hide={this.state.hideSideBar}
-                    hideSideBar={this.hideSideBar}
-                    favourite_apps={this.state.favourite_apps}
-                    showAllApps={this.showAllApps}
-                    allAppsView={this.state.allAppsView}
-                    closed_windows={this.state.closed_windows}
-                    focused_windows={this.state.focused_windows}
-                    isMinimized={this.state.minimized_windows}
-                    openAppByAppId={this.openApp}
-                    openContextMenu={this.handleAppContextMenu}
-                    disabled_apps={this.state.disabled_apps}
-                />
+                {/* --- MOBILE LAYOUT (< md) --- */}
+                <div className="flex md:hidden flex-col w-full h-full pt-8 pb-4 px-4 justify-between z-20">
+                    {/* Mobile App Grid */}
+                    <div className="grid grid-cols-4 gap-4 content-start overflow-y-auto pb-4">
+                        {apps.filter(app => !this.state.disabled_apps[app.id] && !this.state.favourite_apps[app.id]).map(app => (
+                            <div key={app.id}
+                                className="flex flex-col items-center gap-1 active:opacity-70 transition-opacity"
+                                onClick={() => this.openApp(app.id)}
+                            >
+                                <div className="w-14 h-14 bg-white bg-opacity-10 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-lg border border-white border-opacity-20">
+                                    <img src={app.icon} alt={app.title} className="w-9 h-9 drop-shadow-md" />
+                                </div>
+                                <span className="text-xs text-white text-center font-medium drop-shadow-md line-clamp-1 w-full">{app.title}</span>
+                            </div>
+                        ))}
+                    </div>
 
-                {this.renderDesktopApps()}
+                    {/* Mobile Dock (Favorites) */}
+                    <div className="mx-2 mb-2 bg-white bg-opacity-20 backdrop-blur-xl rounded-2xl p-3 flex justify-evenly items-center shadow-2xl border border-white border-opacity-10">
+                        {apps.filter(app => !this.state.disabled_apps[app.id] && this.state.favourite_apps[app.id]).slice(0, 5).map(app => (
+                            <div key={app.id}
+                                onClick={() => this.openApp(app.id)}
+                                className="w-12 h-12 flex items-center justify-center active:scale-95 transition-transform"
+                            >
+                                <img src={app.icon} alt={app.title} className="w-10 h-10 drop-shadow-lg" />
+                            </div>
+                        ))}
+                    </div>
+                </div>
 
-                <DesktopMenu
-                    active={this.state.context_menus.desktop}
-                    openApp={this.openApp}
-                    addNewFolder={this.addNewFolder}
-                    changeSortOrder={this.changeSortOrder}
-                    changeDisplaySize={this.changeDisplaySize}
-                    sortOrder={this.state.sortOrder}
-                    displaySize={this.state.displaySize}
-                />
+                {/* --- DESKTOP LAYOUT (>= md) --- */}
+                <div className="hidden md:block">
+                    <SideBar apps={apps}
+                        hide={this.state.hideSideBar}
+                        hideSideBar={this.hideSideBar}
+                        favourite_apps={this.state.favourite_apps}
+                        showAllApps={this.showAllApps}
+                        allAppsView={this.state.allAppsView}
+                        closed_windows={this.state.closed_windows}
+                        focused_windows={this.state.focused_windows}
+                        isMinimized={this.state.minimized_windows}
+                        openAppByAppId={this.openApp}
+                        openContextMenu={this.handleAppContextMenu}
+                        disabled_apps={this.state.disabled_apps}
+                    />
+
+                    {this.renderDesktopApps()}
+
+                    <DesktopMenu
+                        active={this.state.context_menus.desktop}
+                        openApp={this.openApp}
+                        addNewFolder={this.addNewFolder}
+                        changeSortOrder={this.changeSortOrder}
+                        changeDisplaySize={this.changeDisplaySize}
+                        sortOrder={this.state.sortOrder}
+                        displaySize={this.state.displaySize}
+                    />
+                </div>
                 {/* DISABLED: Default context menu removed */}
                 {/* <DefaultMenu active={this.state.context_menus.default} /> */}
                 <AllApplications apps={apps}

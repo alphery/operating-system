@@ -33,16 +33,28 @@ const Window: React.FC<WindowProps> = (props) => {
     const windowRef = useRef<any>(null);
 
     useEffect(() => {
-        // Initial size based on screen size, but in pixels for stability
+        // Initial size based on screen size
         if (window.innerWidth < 640) {
-            setSize({ width: window.innerWidth * 0.9, height: window.innerHeight * 0.8 });
-            setPosition({ x: window.innerWidth * 0.05, y: 40 });
+            // Mobile: Full screen always
+            setIsMaximized(true);
+            setSize({ width: window.innerWidth, height: window.innerHeight - 32 }); // Subtract navbar height
+            setPosition({ x: 0, y: 0 });
         } else {
+            // Desktop: Default window-ed behavior
             setSize({ width: Math.min(1000, window.innerWidth * 0.7), height: Math.min(700, window.innerHeight * 0.75) });
             setPosition({ x: window.innerWidth * 0.15, y: 50 });
         }
 
+        const handleResize = () => {
+            if (window.innerWidth < 640 && !isMaximized) {
+                maximizeWindow();
+            }
+        }
+
+        window.addEventListener('resize', handleResize);
+
         ReactGA.pageview(`/${id}`);
+        return () => window.removeEventListener('resize', handleResize);
     }, [id]);
 
     const handleDragStart = () => {
@@ -151,15 +163,26 @@ const Window: React.FC<WindowProps> = (props) => {
                     willChange: 'transform' // Hint browser for 60fps dragging
                 }}
             >
-                {/* Title Bar - Draggable Handle */}
+                {/* Title Bar - Draggable Handle/Mobile Header */}
                 <div
-                    className="window-title-bar relative bg-ub-title-bar flex justify-center items-center h-10 select-none text-sm font-bold text-white border-b border-white border-opacity-10 cursor-move z-10"
+                    className={`window-title-bar relative bg-ub-title-bar flex justify-center items-center select-none text-sm font-bold text-white border-b border-white border-opacity-10 cursor-move z-10
+                    ${isMaximized && window.innerWidth < 640 ? 'h-12 text-base' : 'h-10'}`} // Taller header on mobile
                     onDoubleClick={maximizeWindow}
                 >
+                    {/* Mobile Back Button - Only on mobile */}
+                    {isMaximized && window.innerWidth < 640 && (
+                        <button
+                            className="absolute left-0 top-0 h-full px-4 flex items-center text-white"
+                            onClick={(e) => { e.stopPropagation(); closeWindow(); }}
+                        >
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
+                        </button>
+                    )}
+
                     {props.title}
 
-                    {/* Window Controls */}
-                    <div className="window-controls absolute right-0 top-0 h-full flex items-center pr-3 gap-2">
+                    {/* Window Controls - Hidden on mobile unless needed */}
+                    <div className={`window-controls absolute right-0 top-0 h-full flex items-center pr-3 gap-2 ${window.innerWidth < 640 ? 'hidden' : 'flex'}`}>
                         <button
                             className="w-6 h-6 rounded-full hover:bg-white hover:bg-opacity-10 flex items-center justify-center focus:outline-none transition-colors"
                             onClick={(e) => { e.stopPropagation(); minimizeWindow(); }}

@@ -81,7 +81,8 @@ export class Projects extends Component {
             searchQuery: '',
             filterStatus: 'All',
             filterPriority: 'All',
-            loading: true
+            loading: true,
+            isMobile: false
         };
         this.unsubscribeProjects = null;
         this.unsubscribeTasks = null;
@@ -94,6 +95,8 @@ export class Projects extends Component {
         this.subscribeToDocuments();
         this.loadTeamMembers();
         this.setupKeyboardShortcuts();
+        this.checkMobile();
+        window.addEventListener('resize', this.checkMobile);
     }
 
     componentWillUnmount() {
@@ -102,6 +105,11 @@ export class Projects extends Component {
         if (this.unsubscribeQuotations) this.unsubscribeQuotations();
         if (this.unsubscribeDocuments) this.unsubscribeDocuments();
         this.removeKeyboardShortcuts();
+        window.removeEventListener('resize', this.checkMobile);
+    }
+
+    checkMobile = () => {
+        this.setState({ isMobile: window.innerWidth < 768 });
     }
 
     // ============ PERMISSION HELPERS ============
@@ -745,6 +753,51 @@ export class Projects extends Component {
 
         const filteredProjects = this.filterProjects();
 
+        if (this.state.isMobile) {
+            return (
+                <div className="p-4 h-full overflow-y-auto pb-24 space-y-3 bg-slate-50">
+                    {filteredProjects.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-20 text-slate-500">
+                            <p className="text-lg font-semibold">No projects found</p>
+                        </div>
+                    ) : (
+                        filteredProjects.map((project) => (
+                            <div key={project.id} onClick={() => this.openEdit(project)} className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 relative active:scale-95 transition-transform duration-200">
+                                <div className="flex justify-between items-start mb-2">
+                                    <div className="flex items-center gap-2">
+                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${typeColors[project.type] ? typeColors[project.type].replace('bg-', 'bg-opacity-10 text-') : 'bg-slate-100 text-slate-600'}`}>
+                                            {project.type || 'Dev'}
+                                        </span>
+                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${project.priority === 'Urgent' ? 'bg-red-100 text-red-700' : project.priority === 'High' ? 'bg-orange-100 text-orange-700' : 'bg-slate-100 text-slate-500'}`}>
+                                            {project.priority}
+                                        </span>
+                                    </div>
+                                    <span className="text-xs text-slate-400 font-medium">#{filteredProjects.indexOf(project) + 1}</span>
+                                </div>
+                                <h3 className="font-bold text-slate-800 text-base mb-1">{project.name || project.title}</h3>
+                                <p className="text-xs text-slate-500 mb-3 line-clamp-2">{project.overview || 'No description'}</p>
+
+                                <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-50">
+                                    <div className="flex flex-col w-2/3">
+                                        <div className="flex justify-between text-[10px] text-slate-500 mb-1">
+                                            <span>Progress</span>
+                                            <span>{project.progress || 0}%</span>
+                                        </div>
+                                        <div className="w-full bg-slate-100 rounded-full h-1.5">
+                                            <div className="bg-emerald-500 h-1.5 rounded-full" style={{ width: `${project.progress || 0}%` }}></div>
+                                        </div>
+                                    </div>
+                                    <span className={`text-[10px] font-semibold px-2 py-1 rounded-full ${statusColors[project.status]}`}>
+                                        {project.status}
+                                    </span>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+            );
+        }
+
         return (
             <div className="p-4 h-full overflow-hidden flex flex-col">
                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col flex-grow">
@@ -863,6 +916,35 @@ export class Projects extends Component {
             'Support': 'bg-teal-100 text-teal-700'
         };
 
+        if (this.state.isMobile) {
+            return (
+                <div className="p-4 h-full overflow-y-auto pb-24 space-y-3 bg-slate-50">
+                    {this.state.quotations.length === 0 ? (
+                        <div className="text-center py-10 text-slate-500">No quotations yet</div>
+                    ) : (
+                        this.state.quotations.map((quotation) => (
+                            <div key={quotation.id} onClick={() => this.openEditQuotation(quotation)} className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 active:scale-95 transition-transform duration-200">
+                                <div className="flex justify-between items-start mb-2">
+                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${typeColors[quotation.type] || 'bg-slate-100 text-slate-600'}`}>
+                                        {quotation.type}
+                                    </span>
+                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${statusColors[quotation.status] || 'bg-slate-100 text-slate-600'}`}>
+                                        {quotation.status}
+                                    </span>
+                                </div>
+                                <h3 className="font-bold text-slate-800 mb-1">{quotation.title}</h3>
+                                <p className="text-xs text-slate-500 mb-2">Client: {quotation.client}</p>
+                                <div className="flex justify-between items-center text-xs text-slate-400 mt-2 pt-2 border-t border-slate-50">
+                                    <span>{quotation.timeline}</span>
+                                    <span>By: {quotation.approvedBy || '-'}</span>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+            );
+        }
+
         return (
             <div className="p-6">
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
@@ -938,6 +1020,34 @@ export class Projects extends Component {
             'Proposal': 'bg-purple-100 text-purple-700',
             'Report': 'bg-orange-100 text-orange-700'
         };
+
+        if (this.state.isMobile) {
+            return (
+                <div className="p-4 h-full overflow-y-auto pb-24 space-y-3 bg-slate-50">
+                    {this.state.documents.length === 0 ? (
+                        <div className="text-center py-10 text-slate-500">No documents yet</div>
+                    ) : (
+                        this.state.documents.map((doc) => (
+                            <div key={doc.id} onClick={() => this.openEditDocument(doc)} className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 active:scale-95 transition-transform duration-200">
+                                <div className="flex justify-between items-start mb-2">
+                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${typeColors[doc.type] || 'bg-slate-100 text-slate-600'}`}>
+                                        {doc.type}
+                                    </span>
+                                    <span className="text-[10px] text-slate-400">{doc.uploadedDate}</span>
+                                </div>
+                                <h3 className="font-bold text-slate-800 mb-1">{doc.title}</h3>
+                                <p className="text-xs text-slate-500 line-clamp-2">{doc.description}</p>
+                                {this.canEdit() && (
+                                    <div className="mt-3 text-right">
+                                        <button onClick={(e) => this.deleteDocument(doc.id, e)} className="text-red-500 text-xs font-bold px-2 py-1 bg-red-50 rounded">Delete</button>
+                                    </div>
+                                )}
+                            </div>
+                        ))
+                    )}
+                </div>
+            );
+        }
 
         return (
             <div className="p-6">
@@ -1053,8 +1163,8 @@ export class Projects extends Component {
     renderAnalytics = () => {
         const stats = this.getProjectStats();
         return (
-            <div className="grid grid-cols-4 gap-6 p-6">
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6 p-4 md:p-6 pb-24">
+                <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200">
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-slate-500 text-sm font-medium">Total Projects</p>
@@ -1069,7 +1179,7 @@ export class Projects extends Component {
                     </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200">
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-slate-500 text-sm font-medium">In Progress</p>
@@ -1084,7 +1194,7 @@ export class Projects extends Component {
                     </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200">
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-slate-500 text-sm font-medium">Budget</p>
@@ -1099,7 +1209,7 @@ export class Projects extends Component {
                     </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200">
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-slate-500 text-sm font-medium">Hours Logged</p>
@@ -1113,7 +1223,7 @@ export class Projects extends Component {
                     </div>
                 </div>
 
-                <div className="col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <div className="col-span-1 md:col-span-2 bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200">
                     <h3 className="font-bold text-slate-800 mb-4">Status Breakdown</h3>
                     <div className="space-y-3">
                         {['Planning', 'In Progress', 'Review', 'Completed'].map(status => {
@@ -1135,14 +1245,14 @@ export class Projects extends Component {
                     </div>
                 </div>
 
-                <div className="col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <div className="col-span-1 md:col-span-2 bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200">
                     <h3 className="font-bold text-slate-800 mb-4">Recent Activity</h3>
                     <div className="space-y-3 text-sm">
                         {this.state.projects.slice(0, 5).map(p => (
                             <div key={p.id} className="flex items-center gap-3 pb-3 border-b border-slate-100 last:border-0">
                                 <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
-                                <div className="flex-1">
-                                    <p className="font-medium text-slate-800">{p.title}</p>
+                                <div className="flex-1 min-w-0">
+                                    <p className="font-medium text-slate-800 truncate">{p.title}</p>
                                     <p className="text-xs text-slate-400">Status: {p.status}</p>
                                 </div>
                                 <span className="text-xs text-slate-400">{p.progress || 0}%</span>
@@ -1237,81 +1347,114 @@ export class Projects extends Component {
         return (
             <div className="w-full h-full flex flex-col bg-gradient-to-br from-slate-50 to-slate-100 text-slate-800 font-sans overflow-hidden" style={{ position: 'relative' }}>
                 {/* Header */}
-                <div className="flex-shrink-0 bg-white border-b border-slate-200 shadow-sm">
-                    <div className="flex flex-wrap items-center justify-between px-4 py-2 gap-3">
+                <div className="flex-shrink-0 bg-white border-b border-slate-200 shadow-sm z-20">
+                    <div className={`flex flex-wrap items-center justify-between px-4 py-3 gap-3 ${this.state.isMobile ? 'flex-col items-stretch' : ''}`}>
                         {/* Left: Logo and Section Dropdown */}
-                        <div className="flex items-center gap-3 flex-shrink-0">
-                            <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-2 rounded-xl shadow-lg">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        <div className="flex items-center justify-between gap-3 flex-shrink-0">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-2 rounded-xl shadow-lg">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                </div>
+
+                                {/* Section Dropdown */}
+                                <div className="relative">
+                                    <select
+                                        value={this.state.activeSection}
+                                        onChange={(e) => this.setState({ activeSection: e.target.value })}
+                                        className="appearance-none bg-gradient-to-r from-emerald-50 to-blue-50 border-2 border-emerald-200 text-slate-800 font-bold text-base px-4 py-2 pr-9 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer hover:border-emerald-300 transition shadow-sm"
+                                    >
+                                        <option value="Quotations">📋 Quotations</option>
+                                        <option value="Projects">🚀 Projects</option>
+                                        <option value="Documents">📁 Documents</option>
+                                        <option value="Process">⚙️ Process</option>
+                                    </select>
+                                    <svg className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-emerald-600 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                                    </svg>
+                                </div>
                             </div>
 
-                            {/* Section Dropdown */}
-                            <div className="relative">
-                                <select
-                                    value={this.state.activeSection}
-                                    onChange={(e) => this.setState({ activeSection: e.target.value })}
-                                    className="appearance-none bg-gradient-to-r from-emerald-50 to-blue-50 border-2 border-emerald-200 text-slate-800 font-bold text-base px-4 py-2 pr-9 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer hover:border-emerald-300 transition shadow-sm"
+                            {/* Mobile Dark Mode Toggle */}
+                            {this.state.isMobile && (
+                                <button
+                                    onClick={this.toggleDarkMode}
+                                    className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-xl transition"
                                 >
-                                    <option value="Quotations">📋 Quotations</option>
-                                    <option value="Projects">🚀 Projects</option>
-                                    <option value="Documents">📁 Documents</option>
-                                    <option value="Process">⚙️ Process</option>
-                                </select>
-                                <svg className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-emerald-600 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
-                                </svg>
-                            </div>
+                                    {this.state.darkMode ? '🌙' : '☀️'}
+                                </button>
+                            )}
                         </div>
-                        <div className="flex items-center gap-2 flex-wrap">
+
+                        <div className={`flex items-center gap-2 ${this.state.isMobile ? 'w-full flex-col' : 'flex-wrap'}`}>
                             {/* Search */}
-                            <div className="relative">
+                            <div className={`relative ${this.state.isMobile ? 'w-full' : ''}`}>
                                 <input
                                     type="text"
-                                    placeholder="Search projects... (Cmd+K)"
+                                    placeholder={this.state.isMobile ? "Search..." : "Search projects... (Cmd+K)"}
                                     value={this.state.searchQuery}
                                     onChange={(e) => this.setState({ searchQuery: e.target.value })}
-                                    className="pl-10 pr-4 py-2 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none transition w-64 text-sm"
+                                    className={`pl-10 pr-4 py-2 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none transition text-sm ${this.state.isMobile ? 'w-full' : 'w-64'}`}
                                 />
                                 <svg className="w-4 h-4 absolute left-3 top-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                             </div>
 
-                            {/* Dark Mode Toggle */}
-                            <button
-                                onClick={this.toggleDarkMode}
-                                className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-xl transition hover:scale-110"
-                                title="Toggle Dark Mode (Cmd+D)"
-                            >
-                                {this.state.darkMode ? '🌙' : '☀️'}
-                            </button>
+                            {/* Desktop Controls */}
+                            {!this.state.isMobile && (
+                                <>
+                                    <button
+                                        onClick={this.toggleDarkMode}
+                                        className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-xl transition hover:scale-110"
+                                        title="Toggle Dark Mode"
+                                    >
+                                        {this.state.darkMode ? '🌙' : '☀️'}
+                                    </button>
 
-                            {/* Export Button */}
-                            <button
-                                onClick={this.exportToExcel}
-                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow text-sm font-semibold transition flex items-center gap-2"
-                                title="Export to Excel (Cmd+E)"
-                            >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                </svg>
-                                Export
-                            </button>
+                                    <button
+                                        onClick={this.exportToExcel}
+                                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow text-sm font-semibold transition flex items-center gap-2"
+                                        title="Export"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                        </svg>
+                                        Export
+                                    </button>
 
-                            {/* View Toggle - Only for Projects */}
-                            {this.state.activeSection === 'Projects' && (
-                                <div className="bg-slate-100 p-1 rounded-lg flex text-xs font-semibold">
-                                    {['table', 'kanban', 'list', 'analytics'].map(v => (
-                                        <button
-                                            key={v}
-                                            onClick={() => this.setState({ view: v })}
-                                            className={`px-4 py-1.5 rounded-md transition capitalize ${view === v ? 'bg-white shadow-sm text-emerald-600' : 'text-slate-600 hover:text-slate-800'}`}
-                                        >
-                                            {v}
-                                        </button>
-                                    ))}
+                                    {this.state.activeSection === 'Projects' && (
+                                        <div className="bg-slate-100 p-1 rounded-lg flex text-xs font-semibold">
+                                            {['table', 'kanban', 'list', 'analytics'].map(v => (
+                                                <button
+                                                    key={v}
+                                                    onClick={() => this.setState({ view: v })}
+                                                    className={`px-4 py-1.5 rounded-md transition capitalize ${view === v ? 'bg-white shadow-sm text-emerald-600' : 'text-slate-600 hover:text-slate-800'}`}
+                                                >
+                                                    {v}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </>
+                            )}
+
+                            {/* Mobile View Toggle (Simplified) */}
+                            {this.state.isMobile && this.state.activeSection === 'Projects' && (
+                                <div className="flex w-full bg-slate-100 p-1 rounded-lg">
+                                    <button
+                                        onClick={() => this.setState({ view: 'table' })}
+                                        className={`flex-1 py-1.5 rounded-md text-xs font-bold ${view !== 'analytics' ? 'bg-white shadow text-emerald-600' : 'text-slate-500'}`}
+                                    >
+                                        List
+                                    </button>
+                                    <button
+                                        onClick={() => this.setState({ view: 'analytics' })}
+                                        className={`flex-1 py-1.5 rounded-md text-xs font-bold ${view === 'analytics' ? 'bg-white shadow text-emerald-600' : 'text-slate-500'}`}
+                                    >
+                                        Analytics
+                                    </button>
                                 </div>
                             )}
 
-                            {/* Dynamic New Button */}
+                            {/* Dynamic New Button (Responsive) */}
                             {this.state.activeSection === 'Projects' && this.canEdit() && (
                                 <button
                                     onClick={() => this.setState({
@@ -1323,7 +1466,7 @@ export class Projects extends Component {
                                             currentProgress: '', pendingChanges: '', finisherTimeline: ''
                                         }
                                     })}
-                                    className="bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white px-5 py-2.5 rounded-lg shadow-lg text-sm font-semibold transition transform hover:scale-105 active:scale-95 flex items-center gap-2"
+                                    className={`bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white px-5 py-2.5 rounded-lg shadow-lg text-sm font-semibold transition transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2 ${this.state.isMobile ? 'w-full' : ''}`}
                                 >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
                                     New Project
@@ -1340,7 +1483,7 @@ export class Projects extends Component {
                                             approvedBy: '', timeline: '', description: ''
                                         }
                                     })}
-                                    className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white px-5 py-2.5 rounded-lg shadow-lg text-sm font-semibold transition transform hover:scale-105 active:scale-95 flex items-center gap-2"
+                                    className={`bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white px-5 py-2.5 rounded-lg shadow-lg text-sm font-semibold transition transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2 ${this.state.isMobile ? 'w-full' : ''}`}
                                 >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
                                     New Quotation
@@ -1357,7 +1500,7 @@ export class Projects extends Component {
                                             uploadedDate: '', fileUrl: '', description: '', status: 'Draft'
                                         }
                                     })}
-                                    className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white px-5 py-2.5 rounded-lg shadow-lg text-sm font-semibold transition transform hover:scale-105 active:scale-95 flex items-center gap-2"
+                                    className={`bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white px-5 py-2.5 rounded-lg shadow-lg text-sm font-semibold transition transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2 ${this.state.isMobile ? 'w-full' : ''}`}
                                 >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
                                     New Document
