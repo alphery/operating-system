@@ -277,26 +277,27 @@ const AllApplications: React.FC<AllApplicationsProps> = (props) => {
                     width: 100%;
                     max-width: 90rem;
                     flex: 1;
-                    overflow: visible; /* Allow content to be seen if it slightly overlaps padding */
-                    /* Padding: Top Right Bottom Left */
-                    padding: 1rem 2rem 8rem 2rem; 
+                    overflow: visible; 
+                    /* Massive bottom padding to act as a hard barrier for the Dock */
+                    padding: 2rem 2rem 14rem 2rem; 
                     display: flex;
                     flex-direction: column;
                     align-items: center;
-                    justify-content: flex-start; /* Prevent clipping at top */
+                    justify-content: center; /* Back to center, but constrained by padding */
                 }
                 
                 .apps-grid {
                     display: grid;
                     grid-template-columns: repeat(6, 1fr);
-                    grid-template-rows: repeat(3, minmax(110px, 150px)); /* Slightly adjusted for safety */
-                    gap: 2rem;
+                    /* Tighter row constraints */
+                    grid-template-rows: repeat(3, minmax(90px, 120px)); 
+                    gap: 1.5rem 3rem; /* Adjusted gap */
                     justify-items: center;
-                    align-items: flex-start; /* Align grid items to top */
+                    align-items: center;
                     padding: 1rem;
                     width: 100%;
-                    /* Ensure grid fits within the safe area */
-                    max-height: calc(100vh - 220px); 
+                    /* Strict height limit: Grid takes max 60% of screen */
+                    max-height: 60vh; 
                     max-width: 85vw; 
                 }
                 
