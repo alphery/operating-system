@@ -16,6 +16,7 @@ import { displayTodo } from './components/apps/todo';
 import { displayWeather } from './components/apps/weather';
 import { displayCalendar } from './components/apps/calendar';
 import UserPermissionsManager from './components/apps/user_permissions';
+import { displayAboutAlphery } from './components/apps/about_alphery';
 
 // Default installed apps for all new users
 const DEFAULT_INSTALLED_APPS = [
@@ -184,6 +185,15 @@ const apps = [
         favourite: false,
         desktop_shortcut: false,
         screen: () => <UserPermissionsManager />,
+    },
+    {
+        id: "about-alphery",
+        title: "About Alphery",
+        icon: './images/logos/Dark logo.png',
+        disabled: false,
+        favourite: false,
+        desktop_shortcut: false,
+        screen: displayAboutAlphery,
     }
 ]
 

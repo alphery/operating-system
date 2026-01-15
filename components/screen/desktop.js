@@ -50,7 +50,13 @@ export class Desktop extends Component {
         this.setEventListeners();
         this.checkForNewFolders();
         window.addEventListener('app_status_changed', this.fetchAppsData);
-        console.log("[Desktop] Component mounted, listening for app_status_changed");
+        // Listen for global open_app events from Navbar or other components
+        window.addEventListener('open_app', (e) => {
+            if (e.detail && e.detail.appId) {
+                this.openApp(e.detail.appId);
+            }
+        });
+        console.log("[Desktop] Component mounted, listening for app_status_changed and open_app");
     }
 
     componentWillUnmount() {

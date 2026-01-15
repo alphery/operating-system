@@ -18,15 +18,34 @@ export default class Navbar extends Component {
 				<div tabIndex="0" className="flex items-center pl-4 pr-4 h-full outline-none transition duration-100 ease-in-out border-b-2 border-transparent focus:border-ubb-orange">
 					{/* Apple Logo */}
 					<div className="mr-5 cursor-default hover:text-white relative group">
-						<img className="h-5 object-contain opacity-90 transition-opacity duration-200 hover:opacity-100" src="./images/logos/Dark Logo H.png" alt="Q-OS Logo" />
-						{/* Fake Dropdown for "About QUBO" */}
+						<img className="h-5 object-contain opacity-90 transition-opacity duration-200 hover:opacity-100" src="./images/logos/Dark Logo H.png" alt="Alphery OS Logo" />
+						{/* Dropdown for "About Alphery" */}
 						<div className="absolute top-full left-0 mt-1 w-56 bg-gray-800 bg-opacity-95 backdrop-blur-xl rounded-md shadow-2xl py-1 hidden group-hover:block border border-gray-700">
-							<div className="px-4 py-1 hover:bg-blue-600 cursor-default">About QUBO</div>
+							<div
+								onClick={() => {
+									window.dispatchEvent(new CustomEvent('open_app', { detail: { appId: 'about-alphery' } }));
+								}}
+								className="px-4 py-1 hover:bg-blue-600 cursor-default"
+							>
+								About Alphery
+							</div>
 							<div className="h-px bg-gray-700 my-1"></div>
-							<div className="px-4 py-1 hover:bg-blue-600 cursor-default">System Preferences...</div>
-							<div className="px-4 py-1 hover:bg-blue-600 cursor-default">Force Quit...</div>
+							<div
+								onClick={() => {
+									window.dispatchEvent(new CustomEvent('open_app', { detail: { appId: 'settings' } }));
+								}}
+								className="px-4 py-1 hover:bg-blue-600 cursor-default"
+							>
+								System Preferences...
+							</div>
+							<div
+								onClick={() => window.location.reload()}
+								className="px-4 py-1 hover:bg-blue-600 cursor-default"
+							>
+								Force Quit...
+							</div>
 							<div className="h-px bg-gray-700 my-1"></div>
-							<div className="px-4 py-1 hover:bg-blue-600 cursor-default">Sleep</div>
+							<div onClick={this.props.lockScreen} className="px-4 py-1 hover:bg-blue-600 cursor-default">Sleep</div>
 							<div onClick={this.props.shutDown} className="px-4 py-1 hover:bg-blue-600 cursor-default">Restart...</div>
 							<div onClick={this.props.shutDown} className="px-4 py-1 hover:bg-blue-600 cursor-default">Shut Down...</div>
 							<div className="h-px bg-gray-700 my-1"></div>
