@@ -32,9 +32,13 @@ export default function Ubuntu() {
 		ReactGA.pageview('/logout');
 		try {
 			await logout();
-			window.location.reload();
+			setCurrentUser(null);
+			setDemoMode(false);
+			setScreenLocked(false);
+			setShowFirebaseAuth(true);
 		} catch (e) {
 			console.error('Logout failed:', e);
+			// Only reload if logout throws error
 			window.location.reload();
 		}
 	};
@@ -77,6 +81,14 @@ export default function Ubuntu() {
 			isApproved,
 			isPending
 		});
+
+		if (!user) {
+			console.log('[UBUNTU] No user (logged out), resetting UI');
+			setCurrentUser(null);
+			setDemoMode(false);
+			if (!bootingScreen) setShowFirebaseAuth(true);
+			return;
+		}
 
 		if (user && userData && isApproved) {
 			// User is approved - proceed normally
@@ -226,14 +238,41 @@ export default function Ubuntu() {
 
 	return (
 		<div className="w-screen h-screen overflow-hidden" id="monitor-screen">
-			<Navbar
-				lockScreen={lockScreen}
-				shutDown={shutDown}
-				logOut={handleLogout}
-				user={currentUser}
-				showInstallPrompt={showInstallPrompt}
-				handleInstallClick={handleInstallClick}
+			{/* Pending Approval Screen - shows if user is logged in but not approved */}
+			{user && userData && isPending && !bootingScreen && (
+				<PendingApprovalScreen />
+			)}
+
+			{/* Firebase Auth Screen - shows if user not authenticated */}
+			{!user && showFirebaseAuth && !bootingScreen && (
+				<FirebaseAuthScreen onAuthSuccess={handleFirebaseAuthSuccess} />
+			)}
+
+			{/* Lock Screen - for local users or locked Firebase users */}
+			{((!user && !showFirebaseAuth) || (user && userData && isApproved) || demoMode) && (
+				<LockScreen
+					isLocked={screenLocked}
+					bgImgName={bgImageName}
+					unLockScreen={unLockScreen}
+					demoMode={demoMode}
+				/>
+			)}
+
+			<BootingScreen
+				visible={bootingScreen}
+				isShutDown={shutDownScreen}
+				turnOn={turnOn}
 			/>
+			{(user || demoMode) && (
+				<Navbar
+					lockScreen={lockScreen}
+					shutDown={shutDown}
+					logOut={handleLogout}
+					user={currentUser}
+					showInstallPrompt={showInstallPrompt}
+					handleInstallClick={handleInstallClick}
+				/>
+			)}
 			<Desktop
 				bg_image_name={bgImageName}
 				changeBackgroundImage={changeBackgroundImage}

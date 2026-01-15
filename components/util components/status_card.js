@@ -169,17 +169,26 @@ export class StatusCard extends Component {
 					</div>
 				</div>
 				<div
-					onClick={this.props.logOut}
-					className="w-64 py-1.5 flex items-center justify-center bg-ub-cool-grey hover:bg-ub-warm-grey hover:bg-opacity-20 cursor-pointer"
+					onClick={(e) => {
+						e.stopPropagation();
+						if (this.props.logOut) {
+							this.props.logOut();
+						} else {
+							console.error("logOut prop is missing");
+						}
+					}}
+					className="w-64 py-1.5 flex items-center justify-center bg-ub-cool-grey hover:bg-ub-warm-grey hover:bg-opacity-20 cursor-pointer active:bg-opacity-40"
+					role="button"
+					tabIndex={0}
 				>
 					<div className="w-8">
 						<img width="16px" height="16px" src="./themes/Yaru/status/system-shutdown-symbolic.svg" alt="ubuntu power" />
 					</div>
 					<div className="w-2/3 flex items-center justify-between">
-						<span>Log Out</span>
+						<span>Sign Out</span>
 					</div>
 				</div>
-			</div>
+			</div >
 		);
 	}
 }
