@@ -116,7 +116,7 @@ class AppStore extends Component {
                 clearInterval(interval);
                 return;
             }
-            progress += Math.random() * 20;
+            progress += Math.random() * 30 + 15; // Faster animation
             if (progress >= 100) {
                 clearInterval(interval);
                 this.setState(prev => {
@@ -124,24 +124,38 @@ class AppStore extends Component {
                     delete newInstalling[app.id];
                     return { installing: newInstalling };
                 });
-                this.updateAppStorage(app.id, false); // false = enable app
+                this.updateAppStorage(app.id, false); // false = enable/install app
             } else {
                 this.setState(prev => ({ installing: { ...prev.installing, [app.id]: progress } }));
             }
-        }, 200);
+        }, 150);
     }
 
     uninstallApp = (app) => {
-        // Use timeout to detach from current stack
-        setTimeout(() => {
-            try {
-                if (window.confirm(`Are you sure you want to uninstall ${app.title}?`)) {
-                    this.updateAppStorage(app.id, true); // true = disable app
-                }
-            } catch (e) {
-                console.error("Error in uninstall flow:", e);
+        // Add uninstalling animation state
+        if (this.state.installing[app.id]) return; // Reuse installing for uninstalling animation
+
+        this.setState(prev => ({ installing: { ...prev.installing, [app.id]: 0 } }));
+
+        let progress = 0;
+        const interval = setInterval(() => {
+            if (!this._isMounted) {
+                clearInterval(interval);
+                return;
             }
-        }, 10);
+            progress += Math.random() * 30 + 15; // Faster animation
+            if (progress >= 100) {
+                clearInterval(interval);
+                this.setState(prev => {
+                    const newInstalling = { ...prev.installing };
+                    delete newInstalling[app.id];
+                    return { installing: newInstalling };
+                });
+                this.updateAppStorage(app.id, true); // true = disable/uninstall app
+            } else {
+                this.setState(prev => ({ installing: { ...prev.installing, [app.id]: progress } }));
+            }
+        }, 150);
     }
 
     updateAppStorage = (appId, disable) => {

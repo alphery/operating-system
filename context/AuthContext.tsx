@@ -26,6 +26,7 @@ interface UserData {
     };
     files: any[];
     apps: any[];
+    disabledApps?: string[]; // Array of app IDs that user has uninstalled
     allowedProjects?: string[]; // Array of project IDs this user can access
     allowedApps?: string[]; // Array of app IDs this user can see (e.g., ['projects', 'calendar'])
     [key: string]: any; // Allow other properties

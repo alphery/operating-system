@@ -147,16 +147,58 @@ export class Desktop extends Component {
 
         // Safe access to UID with fallback
         const userUid = (this.props.user && this.props.user.uid) ? this.props.user.uid : 'guest';
-        // Cleanup old redundant variable if needed, but keeping logic consistent
         const storageKey = `disabled_apps_${userUid}`;
-        let disabledFromStorage = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem(storageKey) || '[]') : [];
-        console.log(`[Desktop] fetchAppsData for ${userUid}. Storage Key: ${storageKey}. Disabled Apps:`, disabledFromStorage);
+
+        // Priority system for disabled apps:
+        // 1. Firestore (cloud - survives browser changes & history clears) for authenticated users
+        // 2. localStorage (local cache) for guest users or as fallback
+        let disabledFromStorage = [];
+        const isAuthenticated = this.props.user && this.props.user.uid;
+
+        if (isAuthenticated && this.props.userData && this.props.userData.disabledApps) {
+            // Load from Firestore for authenticated users (persists across browsers)
+            disabledFromStorage = this.props.userData.disabledApps || [];
+            console.log(`[Desktop] Authenticated user - Loading disabled apps from Firestore:`, disabledFromStorage);
+
+            // Sync to localStorage as cache
+            localStorage.setItem(storageKey, JSON.stringify(disabledFromStorage));
+        } else {
+            // Fallback to localStorage for guest or when Firestore data isn't available yet
+            const hasExistingData = localStorage.getItem(storageKey) !== null;
+            disabledFromStorage = hasExistingData ? JSON.parse(localStorage.getItem(storageKey) || '[]') : [];
+
+            // For new users, initialize with only default installed apps
+            if (!hasExistingData) {
+                const DEFAULT_INSTALLED = window.DEFAULT_INSTALLED_APPS || [
+                    'chrome', 'messenger', 'calendar', 'weather',
+                    'settings', 'files', 'trash', 'gedit', 'app-store'
+                ];
+
+                // All apps NOT in default installed list should be disabled for new users
+                apps.forEach(app => {
+                    if (!DEFAULT_INSTALLED.includes(app.id)) {
+                        disabledFromStorage.push(app.id);
+                    }
+                });
+
+                // Save the initial state for new users
+                localStorage.setItem(storageKey, JSON.stringify(disabledFromStorage));
+                console.log(`[Desktop] New user detected. Initialized with default apps:`, DEFAULT_INSTALLED);
+
+                // Sync to Firestore if authenticated
+                if (isAuthenticated && this.props.updateUserData) {
+                    this.props.updateUserData({ disabledApps: disabledFromStorage })
+                        .catch(err => console.warn("Failed to sync initial disabled apps to Firestore:", err));
+                }
+            }
+            console.log(`[Desktop] Loading disabled apps from localStorage:`, disabledFromStorage);
+        }
 
         // SYSTEM APPS SAFEGUARD: Ensure these are never disabled
-        const SYSTEM_APPS = ['app-store', 'settings', 'users', 'messenger', 'trash'];
+        const SYSTEM_APPS = ['app-store', 'settings', 'messenger', 'trash'];
         disabledFromStorage = disabledFromStorage.filter(id => !SYSTEM_APPS.includes(id));
 
-        // Get user-specific favorites/desktop settings - MIGRATED TO UID and V3 to reset defaults
+        // Get user-specific favorites/desktop settings
         const userFavorites = JSON.parse(localStorage.getItem(`${userUid}_dock_apps_v3`) || '{}');
         const userDesktop = JSON.parse(localStorage.getItem(`${userUid}_desktop_apps_v3`) || '[]');
 

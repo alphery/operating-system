@@ -17,6 +17,19 @@ import { displayWeather } from './components/apps/weather';
 import { displayCalendar } from './components/apps/calendar';
 import UserPermissionsManager from './components/apps/user_permissions';
 
+// Default installed apps for all new users
+const DEFAULT_INSTALLED_APPS = [
+    'chrome',
+    'messenger',
+    'calendar',
+    'weather',
+    'settings',
+    'files',
+    'trash',
+    'gedit', // Text Editor
+    'app-store'
+];
+
 const apps = [
     {
         id: "messenger",
@@ -41,7 +54,7 @@ const apps = [
         title: "Alphery Projects",
         icon: './themes/Yaru/apps/projects.png',
         disabled: false,
-        favourite: true,
+        favourite: false,
         desktop_shortcut: false,
         screen: displayProject,
     },
@@ -159,7 +172,7 @@ const apps = [
         title: "App Store",
         icon: './themes/Yaru/apps/app_store.png',
         disabled: false,
-        favourite: false,
+        favourite: true,
         desktop_shortcut: false,
         screen: displayAppStore,
     },
@@ -175,7 +188,9 @@ const apps = [
 ]
 
 export default apps;
+export { DEFAULT_INSTALLED_APPS };
 
 if (typeof window !== 'undefined') {
     window.ALL_APPS = apps;
+    window.DEFAULT_INSTALLED_APPS = DEFAULT_INSTALLED_APPS;
 }

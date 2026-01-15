@@ -223,6 +223,8 @@ export default function Ubuntu() {
 				bg_image_name={bgImageName}
 				changeBackgroundImage={changeBackgroundImage}
 				user={currentUser}
+				userData={userData}
+				updateUserData={updateUserData}
 			/>
 		</div>
 	);
