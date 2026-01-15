@@ -3,6 +3,8 @@ import { Rnd } from 'react-rnd';
 import Settings from '../apps/settings';
 import ReactGA from 'react-ga';
 import { displayTerminal } from '../apps/terminal';
+import AccessDenied from '../util/AccessDenied';
+import { useAuth } from '../../context/AuthContext';
 
 interface WindowProps {
     id: string;
@@ -214,6 +216,7 @@ const Window: React.FC<WindowProps> = (props) => {
                         <Settings changeBackgroundImage={props.changeBackgroundImage} currBgImgName={props.bg_image_name} />
                     ) : (
                         <WindowMainScreen
+                            appId={id}
                             screen={props.screen}
                             title={props.title}
                             addFolder={props.id === "terminal" ? props.addFolder : null}
@@ -230,6 +233,7 @@ export default React.memo(Window);
 
 // Window's Main Screen
 interface WindowMainScreenProps {
+    appId: string;
     screen: any;
     title: string;
     addFolder: any;
@@ -237,6 +241,38 @@ interface WindowMainScreenProps {
 }
 
 const WindowMainScreen: React.FC<WindowMainScreenProps> = (props) => {
+    const { user, userData } = useAuth();
+
+    // System apps that are always accessible
+    const SYSTEM_APPS = ['app-store', 'settings', 'messenger', 'trash', 'files', 'gedit'];
+    const isSystemApp = SYSTEM_APPS.includes(props.appId);
+
+    // Check if user has permission to use this app
+    let hasPermission = false;
+
+    if (!user || !userData) {
+        // Guest or unauthenticated: All apps available
+        hasPermission = true;
+    } else if (userData.role === 'super_admin') {
+        // Super Admin: All apps available
+        hasPermission = true;
+    } else if (isSystemApp) {
+        // System apps: Always available
+        hasPermission = true;
+    } else if (userData.allowedApps === undefined || userData.allowedApps === null) {
+        // allowedApps not set: All apps available (backward compatibility)
+        hasPermission = true;
+    } else if (Array.isArray(userData.allowedApps)) {
+        // Check if app is in user's allowed apps list
+        hasPermission = userData.allowedApps.includes(props.appId);
+    }
+
+    // If no permission, show Access Denied screen
+    if (!hasPermission) {
+        return <AccessDenied appName={props.title} />;
+    }
+
+    // User has permission, show the app
     return (
         <div className="w-full h-full overflow-y-auto">
             {props.addFolder

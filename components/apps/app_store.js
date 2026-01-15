@@ -83,6 +83,15 @@ class AppStore extends Component {
             this.setState({ disabled_apps: this.getDisabledApps() });
         }
 
+        // Re-render when allowedApps changes (permission updates)
+        const prevAllowedApps = prevProps.userData?.allowedApps;
+        const currAllowedApps = this.props.userData?.allowedApps;
+
+        if (JSON.stringify(prevAllowedApps) !== JSON.stringify(currAllowedApps)) {
+            console.log('[AppStore] Permission changes detected, re-rendering...');
+            this.forceUpdate(); // Force re-render to apply new filters
+        }
+
         if (this.state.apps.length === 0 && window.ALL_APPS && window.ALL_APPS.length > 0) {
             this.setState({ apps: window.ALL_APPS });
         }

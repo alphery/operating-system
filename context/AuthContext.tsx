@@ -9,7 +9,7 @@ import {
     updateProfile,
     User
 } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 
 interface UserData {
@@ -65,19 +65,47 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             return;
         }
 
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        let userDataUnsubscribe: (() => void) | null = null;
+
+        const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
             if (user) {
                 setUser(user);
-                // Load user data from Firestore
-                await loadUserData(user.uid);
+
+                // Set up real-time listener for user data
+                if (db) {
+                    try {
+                        const userDocRef = doc(db, 'users', user.uid);
+                        userDataUnsubscribe = onSnapshot(userDocRef, (docSnap) => {
+                            if (docSnap.exists()) {
+                                console.log('[AuthContext] User data updated from Firestore');
+                                setUserData(docSnap.data() as UserData);
+                            }
+                        }, (error) => {
+                            console.error('Error listening to user data:', error);
+                        });
+                    } catch (error) {
+                        console.error('Error setting up user data listener:', error);
+                    }
+                }
             } else {
                 setUser(null);
                 setUserData(null);
+
+                // Cleanup listener if exists
+                if (userDataUnsubscribe) {
+                    userDataUnsubscribe();
+                    userDataUnsubscribe = null;
+                }
             }
             setLoading(false);
         });
 
-        return unsubscribe;
+        return () => {
+            unsubscribeAuth();
+            if (userDataUnsubscribe) {
+                userDataUnsubscribe();
+            }
+        };
     }, []);
 
     const loadUserData = async (uid: string) => {
