@@ -81,6 +81,7 @@ export class Projects extends Component {
             searchQuery: '',
             filterStatus: 'All',
             filterPriority: 'All',
+            filterDate: '', // YYYY-MM-DD
             loading: true,
             isMobile: false
         };
@@ -754,9 +755,15 @@ export class Projects extends Component {
             ...tasks.map(t => ({ ...t, type: 'Task', date: formatDate(t.updatedAt || t.createdAt), label: 'Task Updated' }))
         ].sort((a, b) => b.date - a.date);
 
+        // Filter by selected date if set
+        const filteredItems = this.state.filterDate ? allItems.filter(item => {
+            const itemDateStr = item.date.getFullYear() + '-' + String(item.date.getMonth() + 1).padStart(2, '0') + '-' + String(item.date.getDate()).padStart(2, '0');
+            return itemDateStr === this.state.filterDate;
+        }) : allItems;
+
         // Group by Month Year
         const grouped = {};
-        allItems.forEach(item => {
+        filteredItems.forEach(item => {
             const date = item.date;
             const monthYear = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
             const day = date.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' });
@@ -769,7 +776,7 @@ export class Projects extends Component {
 
         return (
             <div className="p-6 pb-24 space-y-8 h-full overflow-y-auto bg-slate-50">
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
                         <h2 className="text-2xl font-bold text-slate-800">Daily Updates</h2>
                         <p className="text-sm font-medium text-slate-500 mt-1">Track projects, quotations, documents, and process changes by date.</p>
@@ -1495,6 +1502,18 @@ export class Projects extends Component {
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
                                     </svg>
                                 </div>
+
+                                {/* Date Filter - Only visible in Updates section */}
+                                {this.state.activeSection === 'Updates' && (
+                                    <div className="relative">
+                                        <input
+                                            type="date"
+                                            className="appearance-none bg-white border border-slate-200 text-slate-800 text-sm px-3 py-2 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer hover:border-emerald-300 transition shadow-sm"
+                                            value={this.state.filterDate}
+                                            onChange={(e) => this.setState({ filterDate: e.target.value })}
+                                        />
+                                    </div>
+                                )}
                             </div>
 
                             {/* Mobile Dark Mode Toggle */}
