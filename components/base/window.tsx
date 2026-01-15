@@ -151,16 +151,16 @@ const Window: React.FC<WindowProps> = (props) => {
             enableResizing={!isMaximized}
             disableDragging={isMaximized}
             scale={props.scaleFactor || 1}
-            className={`absolute ${isClosed ? "scale-0 opacity-0" : "scale-100 opacity-100"} transition-opacity duration-200`}
+            className={`absolute window-container hw-accelerated-transition ${isClosed ? "scale-0 opacity-0" : "scale-100 opacity-100"}`}
             style={{
                 zIndex: props.isFocused ? 30 : 20,
                 display: props.minimized ? 'none' : 'block',
-                willChange: "transform, width, height" // Optimize Rnd container
+                willChange: "transform, width, height"
             }}
         >
             <div
-                className={`flex flex-col h-full w-full bg-ub-cool-grey window-transparency window-blur shadow-2xl rounded-lg overflow-hidden border border-black border-opacity-40
-                ${props.isFocused ? "shadow-2xl" : "shadow-md"}
+                className={`flex flex-col h-full w-full bg-ub-cool-grey window-transparency window-blur optimized-shadow-lg rounded-lg overflow-hidden border border-black border-opacity-40
+                ${props.isFocused ? "optimized-shadow-lg" : "optimized-shadow"}
                 ${isMaximized ? "rounded-none" : "rounded-lg"}`}
             >
                 {/* Title Bar - Draggable Handle/Mobile Header */}

@@ -64,6 +64,7 @@ const SideBarApp: React.FC<SideBarAppProps> = (props) => {
                 outline-none relative transition-all duration-200 ease-out transform rounded-xl m-1 flex justify-center items-center
                 ${isOpen && isFocused ? "bg-white bg-opacity-10" : ""}
                 ${scaleImage ? "scale-75" : ""} 
+                interactive-element
             `}
             id={"sidebar-" + props.id}
             style={{ width: `${size}px`, height: `${size}px`, willChange: "width, height" }}

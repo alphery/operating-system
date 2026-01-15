@@ -56,12 +56,13 @@ export default function SideBar(props) {
     return (
         <>
             <div
-                className={(props.hide ? " translate-y-full " : "") + " absolute transform duration-300 select-none z-100 bottom-4 w-auto h-[58px] flex justify-center items-end rounded-2xl bg-white window-transparency window-blur border border-white border-opacity-20 shadow-2xl pb-[1px] px-3 transition-all"}
+                className={(props.hide ? " translate-y-full " : "") + " absolute gpu-accelerated hw-accelerated-transition select-none z-100 bottom-4 w-auto h-[58px] flex justify-center items-end rounded-2xl bg-white window-transparency window-blur border border-white border-opacity-20 optimized-shadow-lg pb-[1px] px-3"}
                 style={{
                     zIndex: 100,
                     backgroundColor: 'rgba(255, 255, 255, 0.2)',
                     left: '50%',
-                    transform: 'translateX(-50%)' + (props.hide ? ' translateY(100%)' : '')
+                    transform: 'translateX(-50%)' + (props.hide ? ' translateY(100%)' : ''),
+                    willChange: 'transform'
                 }}
                 onMouseLeave={() => setHoveredIndex(null)}
             >

@@ -86,7 +86,7 @@ const AllApplications: React.FC<AllApplicationsProps> = (props) => {
                         }
                     }}
                 >
-                    <div className="apps-grid">
+                    <div className="apps-grid smooth-scroll">
                         {filteredApps.map((app, index) => (
                             <div
                                 key={app.id}

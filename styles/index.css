@@ -119,6 +119,118 @@ body {
     color: var(--text-secondary);
 }
 
+/* ===== 60-120 FPS PERFORMANCE OPTIMIZATIONS ===== */
+
+/* GPU Acceleration Hints for Animated Elements */
+.gpu-accelerated {
+    transform: translate3d(0, 0, 0);
+    backface-visibility: hidden;
+    perspective: 1000px;
+    will-change: transform;
+}
+
+/* Optimized for Interactive Elements */
+.interactive-element {
+    contain: layout style;
+    will-change: transform, opacity;
+    transform: translate3d(0, 0, 0);
+}
+
+/* Window/Panel Performance */
+.window-container {
+    contain: layout paint;
+    isolation: isolate;
+    transform: translate3d(0, 0, 0);
+    will-change: transform, opacity;
+}
+
+/* Smooth Scroll Container */
+.smooth-scroll {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    contain: layout style paint;
+    will-change: scroll-position;
+}
+
+/* Button Animation Performance */
+button,
+.button-like {
+    will-change: transform, background-color;
+    transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+        background-color 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+button:hover,
+.button-like:hover {
+    transform: translateZ(0) scale(1.02);
+}
+
+button:active,
+.button-like:active {
+    transform: translateZ(0) scale(0.98);
+}
+
+/* Prevent Layout Thrashing */
+* {
+    box-sizing: border-box;
+}
+
+/* Optimize Re-paints */
+img,
+video,
+canvas {
+    contain: size layout paint;
+    will-change: transform;
+}
+
+/* Hardware-Accelerated Transitions */
+.hw-accelerated-transition {
+    transition-property: transform, opacity;
+    transition-duration: 0.2s;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform, opacity;
+    transform: translateZ(0);
+}
+
+/* Reduce Shadow Complexity for Performance */
+.optimized-shadow {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+        0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.optimized-shadow-lg {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+        0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* Performance: Respect System Preferences */
+@media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* Performance: Force GPU Compositing on Critical Elements */
+.critical-performance {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    perspective: 1000;
+    will-change: transform, opacity;
+    content-visibility: auto;
+}
+
+/* Performance: Optimize Repaints */
+.no-paint-optimize {
+    will-change: auto;
+    contain: none;
+}
+
 /* Top NavBar styling */
 
 .top-arrow-up {
