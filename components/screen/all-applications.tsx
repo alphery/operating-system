@@ -13,22 +13,16 @@ interface AllApplicationsProps {
 
 const AllApplications: React.FC<AllApplicationsProps> = (props) => {
     const [query, setQuery] = useState("");
-    const [category, setCategory] = useState(0); // 0 for all, 1 for frequent
-    const [isRendered, setIsRendered] = useState(false); // To handle lazy rendering only after first open attempt if desired, but for now we render always or on first active.
-
-    // Optimize: Focus input when visible
-    useEffect(() => {
-        if (props.visible) {
-            // Reset query when opening if desired, or keep it
-            // setQuery("");
-        }
-    }, [props.visible]);
+    const [category, setCategory] = useState(0);
+    const [currentPage, setCurrentPage] = useState(0);
+    const APPS_PER_PAGE = 18;
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setQuery(e.target.value);
+        setCurrentPage(0);
     };
 
-    // Memoize the filtered apps list to avoid recalculation on every render
+    // Memoize the filtered apps list
     const filteredApps = useMemo(() => {
         let apps = props.apps;
 
@@ -38,16 +32,27 @@ const AllApplications: React.FC<AllApplicationsProps> = (props) => {
             apps = apps.filter(app => app.title.toLowerCase().includes(lowerQuery));
         }
 
-        // Filter by category (Frequent)
+        // Filter by category
         if (category === 1) {
             const frequentAppsInfo = JSON.parse(localStorage.getItem("frequentApps") || "[]");
             const frequentIds = new Set(frequentAppsInfo.map((info: any) => info.id));
             apps = apps.filter(app => frequentIds.has(app.id));
         }
 
-        // Filter out disabled apps
         return apps.filter(app => !props.disabled_apps[app.id]);
-    }, [props.apps, query, category, props.disabled_apps, props.visible]); // Recalculate when visible changes to ensure fresh data
+    }, [props.apps, query, category, props.disabled_apps]);
+
+    // Reset page on open
+    useEffect(() => {
+        if (props.visible) {
+            setCurrentPage(0);
+            // Optional: setQuery("") if you want to clear search on reopen
+        }
+    }, [props.visible]);
+
+    // Calculate pagination
+    const totalPages = Math.ceil(filteredApps.length / APPS_PER_PAGE);
+    const paginatedApps = filteredApps.slice(currentPage * APPS_PER_PAGE, (currentPage + 1) * APPS_PER_PAGE);
 
     return (
         <>
@@ -71,7 +76,7 @@ const AllApplications: React.FC<AllApplicationsProps> = (props) => {
                             placeholder="Search"
                             value={query}
                             onChange={handleChange}
-                            autoFocus={props.visible} // Only autofocus when visible
+                            autoFocus={props.visible}
                         />
                     </div>
                 </div>
@@ -87,13 +92,13 @@ const AllApplications: React.FC<AllApplicationsProps> = (props) => {
                     }}
                 >
                     <div className="apps-grid smooth-scroll">
-                        {filteredApps.map((app, index) => (
+                        {paginatedApps.map((app, index) => (
                             <div
                                 key={app.id}
                                 className={`app-icon-wrapper ${props.visible ? 'fade-in-up' : ''}`}
                                 style={{
                                     animationDelay: `${index * 5}ms`,
-                                    opacity: props.visible ? 1 : 0 // Force hide when not visible to prevent layout flash
+                                    opacity: props.visible ? 1 : 0
                                 }}
                             >
                                 <UbuntuApp
@@ -119,6 +124,19 @@ const AllApplications: React.FC<AllApplicationsProps> = (props) => {
                         </div>
                     )}
                 </div>
+
+                {/* Pagination Dots */}
+                {totalPages > 1 && (
+                    <div className="pagination-container" onClick={(e) => e.stopPropagation()}>
+                        {Array.from({ length: totalPages }).map((_, i) => (
+                            <button
+                                key={i}
+                                className={`pagination-dot ${i === currentPage ? 'active' : ''}`}
+                                onClick={() => setCurrentPage(i)}
+                            />
+                        ))}
+                    </div>
+                )}
             </div>
 
             <style jsx>{`
@@ -162,7 +180,7 @@ const AllApplications: React.FC<AllApplicationsProps> = (props) => {
                 .search-container {
                     width: 100%;
                     max-width: 28rem;
-                    margin-bottom: 3rem;
+                    margin-bottom: 2rem;
                     padding: 0 1rem;
                     z-index: 60;
                     opacity: 0;
@@ -222,27 +240,57 @@ const AllApplications: React.FC<AllApplicationsProps> = (props) => {
                     width: 100%;
                     max-width: 80rem;
                     flex: 1;
-                    overflow-y: auto;
-                    overflow-x: hidden;
-                    padding: 0 1rem 5rem;
-                    -webkit-overflow-scrolling: touch;
-                }
-                
-                .apps-grid-container::-webkit-scrollbar {
-                    display: none;
+                    /* overflow removed to prevent scrolling, we use pagination */
+                    overflow: hidden; 
+                    padding: 0 1rem;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
                 }
                 
                 .apps-grid {
                     display: grid;
                     grid-template-columns: repeat(4, 1fr);
-                    gap: 1.5rem 1rem;
+                    /* Fixed grid rows for 6x3 layout */
+                    grid-template-rows: repeat(3, min-content); 
+                    gap: 2.5rem 2rem; /* Increased gap for better spacing */
                     justify-items: center;
                     padding: 1rem;
+                    width: 100%;
+                    max-width: 64rem;
                 }
                 
                 @media (min-width: 640px) { .apps-grid { grid-template-columns: repeat(5, 1fr); } }
                 @media (min-width: 768px) { .apps-grid { grid-template-columns: repeat(6, 1fr); } }
                 
+                /* === Pagination Dots === */
+                .pagination-container {
+                    display: flex;
+                    gap: 12px;
+                    padding-bottom: 3rem;
+                    z-index: 60;
+                }
+
+                .pagination-dot {
+                    width: 8px;
+                    height: 8px;
+                    border-radius: 50%;
+                    background: rgba(255, 255, 255, 0.3);
+                    border: none;
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                }
+
+                .pagination-dot:hover {
+                    background: rgba(255, 255, 255, 0.5);
+                    transform: scale(1.2);
+                }
+
+                .pagination-dot.active {
+                    background: white;
+                    transform: scale(1.2);
+                }
+
                 /* === App Icon Animation === */
                 .app-icon-wrapper {
                     opacity: 0;
