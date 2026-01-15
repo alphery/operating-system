@@ -153,7 +153,8 @@ export class Desktop extends Component {
 
         // Safe access to UID with fallback
         const userUid = (this.props.user && this.props.user.uid) ? this.props.user.uid : 'guest';
-        const storageKey = `disabled_apps_${userUid}`;
+        // Bumped key to _v2 to ensure clean state for disabled apps
+        const storageKey = `disabled_apps_${userUid}_v2`;
 
         // Priority system for disabled apps:
         // 1. Firestore (cloud - survives browser changes & history clears) for authenticated users
@@ -205,8 +206,8 @@ export class Desktop extends Component {
         disabledFromStorage = disabledFromStorage.filter(id => !SYSTEM_APPS.includes(id));
 
         // Get user-specific favorites/desktop settings
-        // changed key to _v5 to force reset for all users as requested
-        let userFavorites = JSON.parse(localStorage.getItem(`${userUid}_dock_apps_v5`) || 'null');
+        // changed key to _v6 to force reset for all users as requested
+        let userFavorites = JSON.parse(localStorage.getItem(`${userUid}_dock_apps_v6`) || 'null');
         const userDesktop = JSON.parse(localStorage.getItem(`${userUid}_desktop_apps_v3`) || '[]');
 
         // Fix for empty object legacy state: If we have an empty object, treat it as no preferences
@@ -219,7 +220,8 @@ export class Desktop extends Component {
 
         apps.forEach((app) => {
             const user = this.props.user;
-            const hasPermission = !user ||
+            // Relaxed permission check: if permissions array is missing, assume access
+            const hasPermission = !user || !user.permissions ||
                 (user.permissions && user.permissions.includes("all_apps")) ||
                 (user.permissions && user.permissions.includes(app.id));
 
@@ -447,7 +449,7 @@ export class Desktop extends Component {
         let favourite_apps = { ...this.state.favourite_apps };
         favourite_apps[appId] = true;
         this.setState({ favourite_apps });
-        localStorage.setItem(`${userUid}_dock_apps_v3`, JSON.stringify(favourite_apps));
+        localStorage.setItem(`${userUid}_dock_apps_v6`, JSON.stringify(favourite_apps));
     }
 
     removeAppFromDock = (appId) => {
@@ -455,7 +457,7 @@ export class Desktop extends Component {
         let favourite_apps = { ...this.state.favourite_apps };
         favourite_apps[appId] = false;
         this.setState({ favourite_apps });
-        localStorage.setItem(`${userUid}_dock_apps_v3`, JSON.stringify(favourite_apps));
+        localStorage.setItem(`${userUid}_dock_apps_v6`, JSON.stringify(favourite_apps));
     }
 
     handleAppContextMenu = (e, appId) => {
@@ -539,7 +541,7 @@ export class Desktop extends Component {
                 <div className="flex md:hidden flex-col w-full h-full pt-8 pb-4 px-4 justify-between z-20">
                     {/* Mobile App Grid */}
                     <div className="grid grid-cols-4 gap-4 content-start overflow-y-auto pb-4">
-                        {apps.filter(app => !this.state.disabled_apps[app.id] && !this.state.favourite_apps[app.id]).map(app => (
+                        {apps.filter(app => !this.state.disabled_apps[app.id] && !['settings', 'messenger', 'files', 'app-store'].includes(app.id)).map(app => (
                             <div key={app.id}
                                 className="flex flex-col items-center gap-1 active:opacity-70 transition-opacity"
                                 onClick={() => this.handleMobileAppClick(app.id)}
@@ -555,9 +557,9 @@ export class Desktop extends Component {
                         ))}
                     </div>
 
-                    {/* Mobile Dock (Favorites) */}
+                    {/* Mobile Dock (Fixed 4 Apps) */}
                     <div className="mx-2 mb-2 bg-white bg-opacity-20 backdrop-blur-xl rounded-2xl p-3 flex justify-evenly items-center shadow-2xl border border-white border-opacity-10">
-                        {apps.filter(app => ['settings', 'messenger', 'files', 'app-store'].includes(app.id) && !this.state.disabled_apps[app.id] && this.state.favourite_apps[app.id]).map(app => (
+                        {apps.filter(app => ['settings', 'messenger', 'files', 'app-store'].includes(app.id) && !this.state.disabled_apps[app.id]).map(app => (
                             <div key={app.id}
                                 onClick={() => this.handleMobileAppClick(app.id)}
                                 onTouchStart={(e) => this.handleTouchStart(e, app.id)}
