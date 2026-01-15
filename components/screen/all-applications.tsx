@@ -288,24 +288,24 @@ const AllApplications: React.FC<AllApplicationsProps> = (props) => {
                 
                 .apps-grid {
                     display: grid;
-                    grid-template-columns: repeat(4, 1fr);
-                    /* Flexible yet consistent rows */
-                    grid-template-rows: repeat(3, minmax(100px, 140px)); 
-                    gap: 2rem 3rem;
+                    grid-template-columns: repeat(6, 1fr); /* Force 6 columns for consistent desktop look */
+                    grid-template-rows: repeat(3, minmax(120px, 160px)); /* Taller rows for breathing room */
+                    gap: 2rem;
                     justify-items: center;
                     align-items: center;
                     padding: 1rem;
                     width: 100%;
-                    /* Ensure grid doesn't exceed view height minus header/dock */
-                    max-height: calc(100vh - 200px); 
+                    max-height: calc(100vh - 180px); 
+                    /* Use max-width to keep icons grouped nicely in center, but allow scaling */
+                    max-width: 85vw; 
                 }
                 
-                /* Responsive Breakpoints */
-                @media (min-width: 640px) { .apps-grid { grid-template-columns: repeat(5, 1fr); } }
-                @media (min-width: 1024px) { 
+                /* Mobile adaptation only */
+                @media (max-width: 768px) { 
                     .apps-grid { 
-                        grid-template-columns: repeat(6, 1fr); 
-                        gap: 3rem 4rem; /* More generous spacing on large screens */
+                        grid-template-columns: repeat(4, 1fr);
+                        max-width: 100%;
+                        gap: 1.5rem;
                     } 
                 }
                 
