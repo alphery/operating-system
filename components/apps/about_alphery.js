@@ -6,7 +6,15 @@ export class AboutAlphery extends Component {
         this.state = {};
     }
 
+    async componentDidMount() {
+        // Dynamic import to avoid SSR issues if any
+        const { getSystemInfo } = await import('../../utils/system_info');
+        this.setState({ systemInfo: getSystemInfo() });
+    }
+
     render() {
+        const { systemInfo } = this.state;
+
         return (
             <div className="w-full h-full flex flex-col items-center justify-center bg-gray-50 text-gray-900 font-sans select-none">
                 <div className="flex flex-col items-center gap-6 p-8">
@@ -14,7 +22,7 @@ export class AboutAlphery extends Component {
                     <div className="relative group">
                         <div className="absolute inset-0 bg-blue-500 blur-2xl opacity-20 group-hover:opacity-30 transition duration-500 rounded-full"></div>
                         <img
-                            src="./images/logos/Dark_Logo_H.png"
+                            src="/images/logos/Dark_Logo_H.png"
                             alt="Alphery OS Logo"
                             className="h-24 w-auto object-contain drop-shadow-2xl relative z-10 transition transform group-hover:scale-105 duration-300"
                         />
@@ -31,19 +39,19 @@ export class AboutAlphery extends Component {
                         <div className="space-y-4 text-[13px]">
                             <div className="flex justify-between items-center border-b border-gray-100 pb-3">
                                 <span className="text-gray-500 font-medium">Model</span>
-                                <span className="text-gray-900 font-semibold">MacBook Pro 16"</span>
+                                <span className="text-gray-900 font-semibold">{systemInfo?.os || "Loading..."} Station</span>
                             </div>
                             <div className="flex justify-between items-center border-b border-gray-100 pb-3">
                                 <span className="text-gray-500 font-medium">Processor</span>
-                                <span className="text-gray-900 font-semibold">Apple M3 Max</span>
+                                <span className="text-gray-900 font-semibold">{systemInfo?.cpu || "Loading..."}</span>
                             </div>
                             <div className="flex justify-between items-center border-b border-gray-100 pb-3">
                                 <span className="text-gray-500 font-medium">Memory</span>
-                                <span className="text-gray-900 font-semibold">128 GB</span>
+                                <span className="text-gray-900 font-semibold">{systemInfo?.ram || "Loading..."}</span>
                             </div>
                             <div className="flex justify-between items-center border-b border-gray-100 pb-3">
                                 <span className="text-gray-500 font-medium">Graphics</span>
-                                <span className="text-gray-900 font-semibold">Apple GPU (40-core)</span>
+                                <span className="text-gray-900 font-semibold text-right truncate max-w-[150px]" title={systemInfo?.gpu}>{systemInfo?.gpu || "Loading..."}</span>
                             </div>
                             <div className="flex justify-between items-center">
                                 <span className="text-gray-500 font-medium">Serial Number</span>

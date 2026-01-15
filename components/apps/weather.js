@@ -11,8 +11,11 @@ export class Weather extends Component {
             searchInput: '',
             error: null,
             weatherCode: 0,
-            isDay: 1
+            isDay: 1,
+            containerWidth: 800, // Default width
+            containerHeight: 600 // Default height
         };
+        this.containerRef = createRef();
         this.canvasRef = createRef();
         this.animationFrameId = null;
         this.particles = [];
@@ -20,11 +23,26 @@ export class Weather extends Component {
 
     componentDidMount() {
         this.fetchWeather(11.0168, 76.9558); // Default Coimbatore
-        window.addEventListener('resize', this.handleResize);
+
+        // Use ResizeObserver for container-aware responsiveness
+        this.resizeObserver = new ResizeObserver(entries => {
+            if (entries[0]) {
+                const { width, height } = entries[0].contentRect;
+                this.setState({ containerWidth: width, containerHeight: height }, () => {
+                    this.initCanvas();
+                });
+            }
+        });
+
+        if (this.containerRef.current) {
+            this.resizeObserver.observe(this.containerRef.current);
+        }
     }
 
     componentWillUnmount() {
-        window.removeEventListener('resize', this.handleResize);
+        if (this.resizeObserver) {
+            this.resizeObserver.disconnect();
+        }
         if (this.animationFrameId) {
             cancelAnimationFrame(this.animationFrameId);
         }
@@ -328,7 +346,12 @@ export class Weather extends Component {
     }
 
     render() {
-        const { weather, loading, city, error, searchInput, weatherCode, isDay } = this.state;
+        const { weather, loading, city, error, searchInput, weatherCode, isDay, containerWidth, containerHeight } = this.state;
+
+        // Responsiveness Flags
+        const isSmall = containerWidth < 550;
+        const isTiny = containerWidth < 350;
+        const isShort = containerHeight < 450;
 
         // Dynamic background colors
         let bgGradient = "from-blue-400 to-blue-600";
@@ -341,7 +364,7 @@ export class Weather extends Component {
         else bgGradient = "from-sky-400 to-blue-500"; // Clear Day
 
         return (
-            <div className={`w-full h-full flex flex-col bg-gradient-to-b ${bgGradient} text-white font-sans select-none overflow-hidden relative transition-all duration-1000`}>
+            <div ref={this.containerRef} className={`w-full h-full flex flex-col bg-gradient-to-b ${bgGradient} text-white font-sans select-none overflow-hidden relative transition-all duration-1000`}>
 
                 {/* === REALISTIC CANVAS Background Animation === */}
                 <canvas
@@ -404,48 +427,50 @@ export class Weather extends Component {
                         <div className="flex-grow flex flex-col items-center justify-center relative z-10 -mt-10">
 
                             {/* Weather Icon & Temp */}
-                            <div className="flex flex-col items-center">
-                                <div className="mb-4 transition-transform hover:scale-110 duration-500">
-                                    {this.renderWeatherIcon(weather.current.weather_code)}
+                            <div className={`flex flex-col items-center transition-all duration-500 ${isShort ? 'scale-75' : ''}`}>
+                                <div className="mb-2 transition-transform hover:scale-110 duration-500">
+                                    {this.renderWeatherIcon(weather.current.weather_code, isSmall ? 'small' : 'large')}
                                 </div>
-                                <h1 className="text-8xl md:text-9xl font-thin tracking-tighter drop-shadow-lg relative">
+                                <h1 className={`${isSmall ? 'text-6xl' : 'text-8xl md:text-9xl'} font-thin tracking-tighter drop-shadow-lg relative transition-all font-mono`}>
                                     {Math.round(weather.current.temperature_2m)}°
                                 </h1>
-                                <p className="text-2xl md:text-3xl font-light opacity-90 mt-2 tracking-widest uppercase text-shadow-sm">
+                                <p className={`${isSmall ? 'text-lg' : 'text-2xl md:text-3xl'} font-light opacity-90 mt-2 tracking-widest uppercase text-shadow-sm`}>
                                     {this.getTypeStr(weather.current.weather_code)}
                                 </p>
                             </div>
 
                             {/* Detailed Stats */}
-                            <div className="flex gap-8 md:gap-16 mt-12">
-                                <div className="flex flex-col items-center gap-2 group">
-                                    <div className="w-12 h-12 rounded-2xl bg-white bg-opacity-10 flex items-center justify-center backdrop-blur-sm border border-white border-opacity-10 shadow-lg group-hover:bg-opacity-20 transition-all">
-                                        💨
+                            {!isShort && (
+                                <div className={`flex ${isSmall ? 'gap-6 mt-8' : 'gap-16 mt-12'}`}>
+                                    <div className="flex flex-col items-center gap-2 group">
+                                        <div className="w-12 h-12 rounded-2xl bg-white bg-opacity-10 flex items-center justify-center backdrop-blur-sm border border-white border-opacity-10 shadow-lg group-hover:bg-opacity-20 transition-all">
+                                            💨
+                                        </div>
+                                        <div className="flex flex-col items-center text-shadow">
+                                            <span className="text-sm font-semibold">{weather.current.wind_speed_10m} km/h</span>
+                                            <span className="text-[10px] opacity-70 uppercase tracking-wider">Wind</span>
+                                        </div>
                                     </div>
-                                    <div className="flex flex-col items-center text-shadow">
-                                        <span className="text-sm font-semibold">{weather.current.wind_speed_10m} km/h</span>
-                                        <span className="text-[10px] opacity-70 uppercase tracking-wider">Wind</span>
+                                    <div className="flex flex-col items-center gap-2 group">
+                                        <div className="w-12 h-12 rounded-2xl bg-white bg-opacity-10 flex items-center justify-center backdrop-blur-sm border border-white border-opacity-10 shadow-lg group-hover:bg-opacity-20 transition-all">
+                                            💧
+                                        </div>
+                                        <div className="flex flex-col items-center text-shadow">
+                                            <span className="text-sm font-semibold">{weather.current.relative_humidity_2m}%</span>
+                                            <span className="text-xs opacity-70 uppercase tracking-wider">Humidity</span>
+                                        </div>
                                     </div>
                                 </div>
-                                <div className="flex flex-col items-center gap-2 group">
-                                    <div className="w-12 h-12 rounded-2xl bg-white bg-opacity-10 flex items-center justify-center backdrop-blur-sm border border-white border-opacity-10 shadow-lg group-hover:bg-opacity-20 transition-all">
-                                        💧
-                                    </div>
-                                    <div className="flex flex-col items-center text-shadow">
-                                        <span className="text-sm font-semibold">{weather.current.relative_humidity_2m}%</span>
-                                        <span className="text-xs opacity-70 uppercase tracking-wider">Humidity</span>
-                                    </div>
-                                </div>
-                            </div>
+                            )}
                         </div>
 
                         {/* Forecast Strip */}
                         <div className="relative z-20 bg-black bg-opacity-20 backdrop-blur-xl border-t border-white border-opacity-10 p-6">
-                            <div className="flex justify-between items-center max-w-2xl mx-auto overflow-x-auto pb-2">
+                            <div className="flex justify-between items-center max-w-2xl mx-auto overflow-x-auto pb-2 scrollbar-none gap-4 px-2">
                                 {this.getDailyForecast().map((day, i) => (
-                                    <div key={i} className="flex flex-col items-center gap-3 min-w-[60px] p-2 rounded-xl transition-colors cursor-default hover:bg-white/5">
-                                        <span className="text-xs font-bold opacity-70 uppercase">{day.date}</span>
-                                        <div className="my-1">
+                                    <div key={i} className="flex flex-col items-center gap-3 min-w-[60px] p-2 rounded-xl transition-colors cursor-default hover:bg-white/5 flex-shrink-0">
+                                        <span className="text-xs font-bold opacity-70 uppercase whitespace-nowrap">{day.date}</span>
+                                        <div className="my-1 transform scale-90">
                                             {this.renderWeatherIcon(day.code, 'small')}
                                         </div>
                                         <div className="flex flex-col items-center">

@@ -2,6 +2,9 @@ import { displayVsCode } from './components/apps/vscode';
 import { displayTerminal } from './components/apps/terminal';
 import { displaySettings } from './components/apps/settings';
 import { displayChrome } from './components/apps/chrome';
+import { displayCamera } from './components/apps/camera';
+import { displayVoiceRecorder } from './components/apps/voice_recorder';
+import { displayGallery } from './components/apps/gallery';
 
 import { displayTrash } from './components/apps/trash';
 import { displayGedit } from './components/apps/gedit';
@@ -194,6 +197,33 @@ const apps = [
         favourite: false,
         desktop_shortcut: false,
         screen: displayAboutAlphery,
+    },
+    {
+        id: "camera",
+        title: "Camera",
+        icon: './themes/Yaru/apps/camera.png',
+        disabled: true,
+        favourite: false,
+        desktop_shortcut: false,
+        screen: displayCamera,
+    },
+    {
+        id: "voice-recorder",
+        title: "Voice Recorder",
+        icon: './themes/Yaru/apps/microphone.png',
+        disabled: true,
+        favourite: false,
+        desktop_shortcut: false,
+        screen: displayVoiceRecorder,
+    },
+    {
+        id: "gallery",
+        title: "Gallery",
+        icon: './themes/Yaru/apps/photos.png',
+        disabled: true,
+        favourite: false,
+        desktop_shortcut: false,
+        screen: displayGallery,
     }
 ]
 
