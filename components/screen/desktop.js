@@ -205,8 +205,16 @@ export class Desktop extends Component {
         disabledFromStorage = disabledFromStorage.filter(id => !SYSTEM_APPS.includes(id));
 
         // Get user-specific favorites/desktop settings
-        const userFavorites = JSON.parse(localStorage.getItem(`${userUid}_dock_apps_v3`) || '{}');
+        let userFavorites = JSON.parse(localStorage.getItem(`${userUid}_dock_apps_v3`) || 'null');
         const userDesktop = JSON.parse(localStorage.getItem(`${userUid}_desktop_apps_v3`) || '[]');
+
+        // Fix for empty object legacy state: If we have an empty object, treat it as no preferences
+        if (userFavorites && Object.keys(userFavorites).length === 0) {
+            userFavorites = null;
+        }
+
+        // DEFAULT DOCK APPS (Mobile/Global Defaults)
+        const DEFAULT_DOCK_APPS = ['settings', 'files', 'calendar', 'messenger'];
 
         apps.forEach((app) => {
             const user = this.props.user;
@@ -222,9 +230,15 @@ export class Desktop extends Component {
             closed_windows[app.id] = true;
             disabled_apps[app.id] = isDisabled;
 
-            // Priority: User setting > Default config
-            favourite_apps[app.id] = userFavorites[app.id] !== undefined ? userFavorites[app.id] : app.favourite;
+            // Priority: User setting > Default List > App Config
+            // If userFavorites is null (never set or empty), use DEFAULT_DOCK_APPS
+            if (userFavorites) {
+                favourite_apps[app.id] = userFavorites[app.id] !== undefined ? userFavorites[app.id] : false;
+            } else {
+                favourite_apps[app.id] = DEFAULT_DOCK_APPS.includes(app.id);
+            }
 
+            // Keep existing state if available
             if (this.state.closed_windows[app.id] !== undefined && !isDisabled) {
                 closed_windows[app.id] = this.state.closed_windows[app.id];
                 focused_windows[app.id] = this.state.focused_windows[app.id];
@@ -273,12 +287,11 @@ export class Desktop extends Component {
         if (this.app_stack.includes(objId)) this.focus(objId);
         else {
             let closed_windows = this.state.closed_windows;
-            let favourite_apps = this.state.favourite_apps;
+            // Removed: favourite_apps modification to prevent auto-add to dock
 
             setTimeout(() => {
-                favourite_apps[objId] = true;
                 closed_windows[objId] = false;
-                this.setState({ closed_windows, favourite_apps, allAppsView: false }, () => this.focus(objId));
+                this.setState({ closed_windows, allAppsView: false }, () => this.focus(objId));
                 this.app_stack.push(objId);
             }, 200);
         }
@@ -289,10 +302,9 @@ export class Desktop extends Component {
         this.giveFocusToLastApp();
         this.hideSideBar(null, false);
         let closed_windows = this.state.closed_windows;
-        let favourite_apps = this.state.favourite_apps;
-        if (this.initFavourite[objId] === false) favourite_apps[objId] = false;
+        // Removed: favourite_apps modification (auto-remove logic)
         closed_windows[objId] = true;
-        this.setState({ closed_windows, favourite_apps });
+        this.setState({ closed_windows });
     }
 
     focus = (objId) => {
@@ -455,6 +467,63 @@ export class Desktop extends Component {
 
     showAllApps = () => { this.setState({ allAppsView: !this.state.allAppsView }) }
 
+    uninstallApp = (appId) => {
+        const userUid = (this.props.user && this.props.user.uid) ? this.props.user.uid : 'guest';
+        let disabled_apps = { ...this.state.disabled_apps };
+        disabled_apps[appId] = true;
+        this.setState({ disabled_apps });
+
+        const storageKey = `disabled_apps_${userUid}`;
+        let currentDisabled = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        if (!currentDisabled.includes(appId)) {
+            currentDisabled.push(appId);
+            localStorage.setItem(storageKey, JSON.stringify(currentDisabled));
+        }
+
+        if (this.props.user && this.props.updateUserData) {
+            this.props.updateUserData({ disabledApps: currentDisabled })
+                .catch(err => console.warn("Failed to sync disabled apps:", err));
+        }
+        this.fetchAppsData(); // Refresh state
+    }
+
+    // Mobile Long Press Handling
+    handleTouchStart = (e, appId) => {
+        e.persist();
+        const touch = e.touches[0];
+        this.touchTimer = setTimeout(() => {
+            this.isLongPress = true;
+            // Create synthetic event for positioning
+            const syntheticEvent = {
+                preventDefault: () => { },
+                stopPropagation: () => { },
+                target: e.target,
+                pageX: touch.pageX,
+                pageY: touch.pageY,
+                clientX: touch.clientX,
+                clientY: touch.clientY,
+                dataset: e.target.dataset || {}
+            };
+            this.handleAppContextMenu(syntheticEvent, appId);
+        }, 600); // 600ms for long press
+    }
+
+    handleTouchEnd = () => {
+        if (this.touchTimer) clearTimeout(this.touchTimer);
+    }
+
+    handleTouchMove = () => {
+        if (this.touchTimer) clearTimeout(this.touchTimer);
+    }
+
+    handleMobileAppClick = (appId) => {
+        if (this.isLongPress) {
+            this.isLongPress = false;
+            return;
+        }
+        this.openApp(appId);
+    }
+
     render() {
         return (
             <div className={" h-full w-full flex flex-col items-end justify-start content-start flex-wrap-reverse pt-8 bg-transparent relative overflow-hidden overscroll-none window-parent"}>
@@ -472,7 +541,10 @@ export class Desktop extends Component {
                         {apps.filter(app => !this.state.disabled_apps[app.id] && !this.state.favourite_apps[app.id]).map(app => (
                             <div key={app.id}
                                 className="flex flex-col items-center gap-1 active:opacity-70 transition-opacity"
-                                onClick={() => this.openApp(app.id)}
+                                onClick={() => this.handleMobileAppClick(app.id)}
+                                onTouchStart={(e) => this.handleTouchStart(e, app.id)}
+                                onTouchEnd={this.handleTouchEnd}
+                                onTouchMove={this.handleTouchMove}
                             >
                                 <div className="w-14 h-14 bg-white bg-opacity-10 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-lg border border-white border-opacity-20">
                                     <img src={app.icon} alt={app.title} className="w-9 h-9 drop-shadow-md" />
@@ -486,7 +558,10 @@ export class Desktop extends Component {
                     <div className="mx-2 mb-2 bg-white bg-opacity-20 backdrop-blur-xl rounded-2xl p-3 flex justify-evenly items-center shadow-2xl border border-white border-opacity-10">
                         {apps.filter(app => !this.state.disabled_apps[app.id] && this.state.favourite_apps[app.id]).slice(0, 5).map(app => (
                             <div key={app.id}
-                                onClick={() => this.openApp(app.id)}
+                                onClick={() => this.handleMobileAppClick(app.id)}
+                                onTouchStart={(e) => this.handleTouchStart(e, app.id)}
+                                onTouchEnd={this.handleTouchEnd}
+                                onTouchMove={this.handleTouchMove}
                                 className="w-12 h-12 flex items-center justify-center active:scale-95 transition-transform"
                             >
                                 <img src={app.icon} alt={app.title} className="w-10 h-10 drop-shadow-lg" />
@@ -543,6 +618,7 @@ export class Desktop extends Component {
                     removeFromDesktop={this.removeAppFromDesktop}
                     addToDock={this.addAppToDock}
                     removeFromDock={this.removeAppFromDock}
+                    uninstallApp={this.uninstallApp}
                     closeMenu={this.hideAllContextMenu}
                 />
             </div>
@@ -550,11 +626,12 @@ export class Desktop extends Component {
     }
 }
 
-function AppContextMenu({ active, appId, isFavourite, isOnDesktop, addToDesktop, removeFromDesktop, addToDock, removeFromDock, closeMenu }) {
+function AppContextMenu({ active, appId, isFavourite, isOnDesktop, addToDesktop, removeFromDesktop, addToDock, removeFromDock, uninstallApp, closeMenu }) {
     const handleAddToDesktop = (e) => { e.stopPropagation(); if (appId) addToDesktop(appId); closeMenu(); };
     const handleRemoveFromDesktop = (e) => { e.stopPropagation(); if (appId) removeFromDesktop(appId); closeMenu(); };
     const handleAddToDock = (e) => { e.stopPropagation(); if (appId) addToDock(appId); closeMenu(); };
     const handleRemoveFromDock = (e) => { e.stopPropagation(); if (appId) removeFromDock(appId); closeMenu(); };
+    const handleUninstall = (e) => { e.stopPropagation(); if (appId) uninstallApp(appId); closeMenu(); };
 
     return (
         <div id="app-menu" style={{ zIndex: 9999 }} className={(active ? " block " : " hidden ") + " cursor-default w-52 context-menu-bg border text-left font-light border-gray-900 rounded text-white py-2 absolute text-sm shadow-xl backdrop-blur-md bg-opacity-80"}>
@@ -581,6 +658,13 @@ function AppContextMenu({ active, appId, isFavourite, isOnDesktop, addToDesktop,
                     <span>Unpin from Dock</span>
                 </div>
             )}
+
+            <div className="h-px bg-white bg-opacity-10 my-1"></div>
+
+            <div onClick={handleUninstall} className="w-full py-1.5 px-4 hover:bg-red-500 hover:text-white cursor-pointer flex items-center gap-2 text-red-300">
+                <span className="w-4 h-4 text-xs flex items-center justify-center">🗑️</span>
+                <span>Uninstall App</span>
+            </div>
         </div>
     );
 }

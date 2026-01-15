@@ -8,6 +8,7 @@ export default function Meta() {
 
             <link rel="icon" href="/images/logos/Dark Logo H.png" />
             <link rel="apple-touch-icon" href="/images/logos/Dark Logo H.png" />
+            <link rel="manifest" href="/manifest.json" />
         </Head>
     )
 }
