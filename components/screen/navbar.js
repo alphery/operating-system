@@ -20,7 +20,7 @@ export default class Navbar extends Component {
 					onClick={() => this.setState({ status_card: !this.state.status_card })}
 				>
 					<div className="flex items-center gap-2">
-						<img className="h-5 w-auto object-contain mr-1" style={{ filter: 'invert(1)' }} src="./images/logos/Dark_Logo_H.png" alt="logo" />
+						<img className="h-5 w-auto object-contain mr-1" src="./images/logos/Dark_Logo_H.png" alt="logo" />
 						{/* Time on left for mobile (Android style) */}
 						<Clock />
 					</div>
@@ -34,7 +34,7 @@ export default class Navbar extends Component {
 				<div tabIndex="0" className="hidden md:flex items-center pl-4 pr-4 h-full outline-none transition duration-100 ease-in-out border-b-2 border-transparent focus:border-ubb-orange">
 					{/* Apple Logo */}
 					<div className="mr-5 cursor-default hover:text-white relative group">
-						<img className="h-6 w-auto object-contain opacity-90 transition-opacity duration-200 hover:opacity-100" style={{ filter: 'invert(1)' }} src="./images/logos/Dark_Logo_H.png" alt="Alphery OS Logo" />
+						<img className="h-6 w-auto object-contain opacity-90 transition-opacity duration-200 hover:opacity-100" src="./images/logos/Dark_Logo_H.png" alt="Alphery OS Logo" />
 						{/* Dropdown for "About Alphery" */}
 						<div className="absolute top-full left-0 mt-1 w-56 bg-gray-800 bg-opacity-95 backdrop-blur-xl rounded-md shadow-2xl py-1 hidden group-hover:block border border-gray-700">
 							<div
