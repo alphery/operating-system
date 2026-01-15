@@ -224,6 +224,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             console.log('[AUTH] Google login attempt');
             const provider = new GoogleAuthProvider();
 
+            // Force account selection to ensure users can switch accounts
+            provider.setCustomParameters({
+                prompt: 'select_account'
+            });
+
             // Removed sensitive Google Drive scopes to prevent "Google hasn't verified this app" warning
             // provider.addScope('https://www.googleapis.com/auth/drive.file');
             // provider.addScope('https://www.googleapis.com/auth/drive');
