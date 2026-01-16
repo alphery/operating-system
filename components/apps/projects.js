@@ -768,9 +768,9 @@ export class Projects extends Component {
 
     confirmSingleForward = async () => {
         const { forwardingProject, targetForwardDate } = this.state;
-        const { user } = this.props;
+        const currentUser = this.props.userData || this.props.user; // Correctly get user from either prop
 
-        if (!user) {
+        if (!currentUser) {
             alert("You must be logged in to forward projects.");
             return;
         }
@@ -808,8 +808,12 @@ export class Projects extends Component {
             const timestamp = Timestamp.fromDate(newDate);
             projectData.createdAt = timestamp;
             projectData.updatedAt = timestamp;
-            // Ensure owner is set to current user if missing, though it should be there
-            if (!projectData.owner) projectData.owner = user.uid;
+
+            // Explicitly set the owner to the current user's UID to ensure write permissions
+            projectData.owner = currentUser.uid;
+
+            // Log data for debugging purposes (browser console)
+            console.log("Forwarding Project Data:", projectData);
 
             // Add as a new document to the projects collection
             await addDoc(collection(db, 'projects'), projectData);
@@ -825,7 +829,7 @@ export class Projects extends Component {
             console.error("Error forwarding project: ", error);
             this.setState({ loading: false });
             if (error.code === 'permission-denied') {
-                alert("Permission denied. You do not have access to create projects.");
+                alert(`Permission denied. Role: ${currentUser.role || 'unknown'}. UID: ${currentUser.uid}`);
             } else {
                 alert("Failed to forward project: " + error.message);
             }
