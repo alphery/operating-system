@@ -83,9 +83,8 @@ export class Projects extends Component {
             filterPriority: 'All',
             filterDate: '', // YYYY-MM-DD
             loading: true,
-            showForwardModal: false,
-            forwardProjectsList: [],
-            selectedForwardProjects: [],
+            forwardingProject: null,
+            targetForwardDate: '',
             isMobile: false
         };
         this.unsubscribeProjects = null;
@@ -756,6 +755,48 @@ export class Projects extends Component {
         return filtered;
     }
 
+    // ============ FORWARD UPDATES ============
+    openSingleForwardModal = (project) => {
+        const today = new Date();
+        const todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+
+        this.setState({
+            forwardingProject: project,
+            targetForwardDate: todayStr
+        });
+    }
+
+    confirmSingleForward = async () => {
+        const { forwardingProject, targetForwardDate } = this.state;
+        if (!forwardingProject || !targetForwardDate) return;
+
+        this.setState({ loading: true });
+
+        try {
+            // Parse the selected date string to a Date object
+            const [year, month, day] = targetForwardDate.split('-').map(Number);
+            // Create date at noon to avoid timezone rolling issues
+            const newDate = new Date(year, month - 1, day, 12, 0, 0);
+
+            const projectRef = doc(db, 'projects', forwardingProject.id);
+            await updateDoc(projectRef, {
+                updatedAt: Timestamp.fromDate(newDate)
+            });
+
+            this.setState({
+                forwardingProject: null,
+                targetForwardDate: '',
+                loading: false,
+                filterDate: targetForwardDate // Switch view to the date we just forwarded to
+            });
+
+        } catch (error) {
+            console.error("Error forwarding project: ", error);
+            this.setState({ loading: false });
+            alert("Failed to forward project");
+        }
+    }
+
     // ============ UPDATES SECTION ============
     renderUpdates = () => {
         const { projects, quotations, documents, tasks } = this.state;
@@ -1030,15 +1071,15 @@ export class Projects extends Component {
                                             </td>
                                             <td className="px-4 py-3 align-middle text-right">
                                                 {this.canEdit() && (
-                                                    <button
-                                                        onClick={(e) => this.deleteProject(project.id, e)}
-                                                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-all"
-                                                        title="Delete"
-                                                    >
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                                        </svg>
-                                                    </button>
+                                                    <div className="flex items-center justify-end gap-1">
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); this.openSingleForwardModal(project); }}
+                                                            className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-all"
+                                                            title="Forward to Date"
+                                                        >
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                                                        </button>
+                                                    </div>
                                                 )}
                                             </td>
                                         </tr>
@@ -1598,14 +1639,6 @@ export class Projects extends Component {
                             {/* Dynamic New Button (Responsive) */}
                             {this.state.activeSection === 'Projects' && this.canEdit() && (
                                 <>
-                                    <button
-                                        onClick={this.openForwardModal}
-                                        className="bg-white border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 px-4 py-2.5 rounded-lg shadow-sm text-sm font-semibold transition flex items-center justify-center gap-2"
-                                        title="Forward updates from yesterday"
-                                    >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                                        Forward
-                                    </button>
                                     <button
                                         onClick={() => this.setState({
                                             showModal: true,
@@ -2207,62 +2240,44 @@ export class Projects extends Component {
                 }
 
                 {/* Forward Updates Modal */}
-                {this.state.showForwardModal && (
+                {/* Forward Single Project Modal */}
+                {this.state.forwardingProject && (
                     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-zoomIn border border-slate-100">
+                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-zoomIn border border-slate-100">
                             <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                                 <div>
-                                    <h3 className="text-xl font-bold text-slate-800">Forward Yesterday's Work</h3>
-                                    <p className="text-xs text-slate-500 mt-1">Select projects to carry forward to today</p>
+                                    <h3 className="text-xl font-bold text-slate-800">Forward Project</h3>
+                                    <p className="text-xs text-slate-500 mt-1">Select date to move this project to</p>
                                 </div>
-                                <button onClick={() => this.setState({ showForwardModal: false })} className="text-slate-400 hover:text-slate-600 transition">
+                                <button onClick={() => this.setState({ forwardingProject: null })} className="text-slate-400 hover:text-slate-600 transition">
                                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                                 </button>
                             </div>
-                            <div className="p-6 max-h-[60vh] overflow-y-auto">
-                                <div className="space-y-3">
-                                    {this.state.forwardProjectsList.map(project => (
-                                        <div
-                                            key={project.id}
-                                            className={`p-3 rounded-xl border flex items-center gap-4 cursor-pointer transition-all ${this.state.selectedForwardProjects.includes(project.id)
-                                                ? 'border-emerald-500 bg-emerald-50'
-                                                : 'border-slate-200 hover:border-emerald-200'
-                                                }`}
-                                            onClick={() => this.toggleForwardSelection(project.id)}
-                                        >
-                                            <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${this.state.selectedForwardProjects.includes(project.id)
-                                                ? 'bg-emerald-500 border-emerald-500 text-white'
-                                                : 'border-slate-300 bg-white'
-                                                }`}>
-                                                {this.state.selectedForwardProjects.includes(project.id) && (
-                                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
-                                                )}
-                                            </div>
-                                            <div className="flex-1">
-                                                <h4 className="font-bold text-slate-800 text-sm">{project.name || project.title}</h4>
-                                                <p className="text-xs text-slate-500 truncate">{project.overview || 'No description'}</p>
-                                            </div>
-                                            <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${project.status === 'In Progress' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'
-                                                }`}>
-                                                {project.status}
-                                            </span>
-                                        </div>
-                                    ))}
+                            <div className="p-6">
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Select Date</label>
+                                <input
+                                    type="date"
+                                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-slate-700"
+                                    value={this.state.targetForwardDate}
+                                    onChange={(e) => this.setState({ targetForwardDate: e.target.value })}
+                                />
+                                <div className="mt-2 text-xs text-slate-500">
+                                    Project: <span className="font-semibold">{this.state.forwardingProject.name || this.state.forwardingProject.title}</span>
                                 </div>
                             </div>
                             <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
                                 <button
-                                    onClick={() => this.setState({ showForwardModal: false })}
+                                    onClick={() => this.setState({ forwardingProject: null })}
                                     className="px-4 py-2 text-slate-600 font-semibold text-sm hover:bg-slate-200 rounded-lg transition"
                                 >
                                     Cancel
                                 </button>
                                 <button
-                                    onClick={this.handleForward}
-                                    disabled={this.state.selectedForwardProjects.length === 0 || this.state.loading}
+                                    onClick={this.confirmSingleForward}
+                                    disabled={!this.state.targetForwardDate || this.state.loading}
                                     className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-lg text-sm font-bold shadow-lg shadow-emerald-200 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                                 >
-                                    {this.state.loading ? 'Updating...' : `Forward (${this.state.selectedForwardProjects.length})`}
+                                    {this.state.loading ? 'Moving...' : 'Move Project'}
                                 </button>
                             </div>
                         </div>
