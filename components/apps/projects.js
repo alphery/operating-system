@@ -768,6 +768,13 @@ export class Projects extends Component {
 
     confirmSingleForward = async () => {
         const { forwardingProject, targetForwardDate } = this.state;
+        const { user } = this.props;
+
+        if (!user) {
+            alert("You must be logged in to forward projects.");
+            return;
+        }
+
         if (!forwardingProject || !targetForwardDate) return;
 
         this.setState({ loading: true });
@@ -780,16 +787,29 @@ export class Projects extends Component {
 
             // Create a duplicate of the project data
             const projectData = { ...forwardingProject };
-            delete projectData.id; // Remove the old ID to generate a new one
+            delete projectData.id; // Remove the old ID
+
+            // Helper to recursively remove undefined values
+            const removeUndefined = (obj) => {
+                Object.keys(obj).forEach(key => {
+                    if (obj[key] && typeof obj[key] === 'object' && !(obj[key] instanceof Date) && !obj[key].toDate) {
+                        removeUndefined(obj[key]);
+                    } else if (obj[key] === undefined) {
+                        delete obj[key];
+                    }
+                });
+                return obj;
+            };
+
+            // Deep sanitize the data
+            removeUndefined(projectData);
 
             // Set the new date as both created and updated date for the copy
-            // This effectively "moves" a copy of the work to that day
             const timestamp = Timestamp.fromDate(newDate);
             projectData.createdAt = timestamp;
             projectData.updatedAt = timestamp;
-
-            // Sanitize object to remove undefined values which Firestore rejects
-            Object.keys(projectData).forEach(key => projectData[key] === undefined && delete projectData[key]);
+            // Ensure owner is set to current user if missing, though it should be there
+            if (!projectData.owner) projectData.owner = user.uid;
 
             // Add as a new document to the projects collection
             await addDoc(collection(db, 'projects'), projectData);
@@ -804,7 +824,11 @@ export class Projects extends Component {
         } catch (error) {
             console.error("Error forwarding project: ", error);
             this.setState({ loading: false });
-            alert("Failed to forward project");
+            if (error.code === 'permission-denied') {
+                alert("Permission denied. You do not have access to create projects.");
+            } else {
+                alert("Failed to forward project: " + error.message);
+            }
         }
     }
 
