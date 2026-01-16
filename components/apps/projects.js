@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 import { db } from '../../config/firebase';
-import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, query, orderBy, getDoc } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, query, orderBy, getDoc, Timestamp } from 'firebase/firestore';
 import { useAuth } from '../../context/AuthContext';
 
 export class Projects extends Component {
@@ -1074,7 +1074,7 @@ export class Projects extends Component {
                                                     <div className="flex items-center justify-end gap-1">
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); this.openSingleForwardModal(project); }}
-                                                            className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-all"
+                                                            className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-all"
                                                             title="Forward to Date"
                                                         >
                                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
@@ -1355,61 +1355,63 @@ export class Projects extends Component {
         const stats = this.getProjectStats();
         return (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6 p-4 md:p-6 pb-24">
-                <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-slate-500 text-sm font-medium">Total Projects</p>
-                            <p className="text-3xl font-bold text-slate-800 mt-2">{stats.total}</p>
-                            <p className="text-xs text-emerald-600 mt-1">⭐ {stats.favorites} favorites</p>
-                        </div>
-                        <div className="bg-emerald-100 p-3 rounded-xl">
-                            <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                            </svg>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-slate-500 text-sm font-medium">In Progress</p>
-                            <p className="text-3xl font-bold text-blue-600 mt-2">{stats.inProgress}</p>
-                            <p className="text-xs text-orange-600 mt-1">⚠️ {stats.overdue} overdue</p>
-                        </div>
-                        <div className="bg-blue-100 p-3 rounded-xl">
-                            <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                            </svg>
+                <div className={`grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6 ${this.state.isMobile ? 'hidden' : ''}`}>
+                    <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-slate-500 text-sm font-medium">Total Projects</p>
+                                <p className="text-3xl font-bold text-slate-800 mt-2">{stats.total}</p>
+                                <p className="text-xs text-emerald-600 mt-1">⭐ {stats.favorites} favorites</p>
+                            </div>
+                            <div className="bg-emerald-100 p-3 rounded-xl">
+                                <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-slate-500 text-sm font-medium">Budget</p>
-                            <p className="text-3xl font-bold text-purple-600 mt-2">${stats.totalBudget.toLocaleString()}</p>
-                            <p className="text-xs text-slate-400 mt-1">Spent: ${stats.totalSpent.toLocaleString()}</p>
-                        </div>
-                        <div className="bg-purple-100 p-3 rounded-xl">
-                            <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
+                    <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-slate-500 text-sm font-medium">In Progress</p>
+                                <p className="text-3xl font-bold text-blue-600 mt-2">{stats.inProgress}</p>
+                                <p className="text-xs text-orange-600 mt-1">⚠️ {stats.overdue} overdue</p>
+                            </div>
+                            <div className="bg-blue-100 p-3 rounded-xl">
+                                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                </svg>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-slate-500 text-sm font-medium">Hours Logged</p>
-                            <p className="text-3xl font-bold text-orange-600 mt-2">{stats.totalHours}h</p>
+                    <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-slate-500 text-sm font-medium">Budget</p>
+                                <p className="text-3xl font-bold text-purple-600 mt-2">${stats.totalBudget.toLocaleString()}</p>
+                                <p className="text-xs text-slate-400 mt-1">Spent: ${stats.totalSpent.toLocaleString()}</p>
+                            </div>
+                            <div className="bg-purple-100 p-3 rounded-xl">
+                                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
                         </div>
-                        <div className="bg-orange-100 p-3 rounded-xl">
-                            <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
+                    </div>
+
+                    <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-slate-500 text-sm font-medium">Hours Logged</p>
+                                <p className="text-3xl font-bold text-orange-600 mt-2">{stats.totalHours}h</p>
+                            </div>
+                            <div className="bg-orange-100 p-3 rounded-xl">
+                                <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2243,7 +2245,7 @@ export class Projects extends Component {
                 {/* Forward Single Project Modal */}
                 {this.state.forwardingProject && (
                     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-zoomIn border border-slate-100">
+                        <div className="bg-white rounded-2xl shadow-2xl w-full w-[95%] md:w-auto md:max-w-sm overflow-hidden animate-zoomIn border border-slate-100">
                             <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                                 <div>
                                     <h3 className="text-xl font-bold text-slate-800">Forward Project</h3>
