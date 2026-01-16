@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 import { db } from '../../config/firebase';
-import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, query, orderBy, getDoc, Timestamp } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, query, orderBy, getDoc, setDoc } from 'firebase/firestore';
 import { useAuth } from '../../context/AuthContext';
 
 export class Projects extends Component {
@@ -83,8 +83,18 @@ export class Projects extends Component {
             filterPriority: 'All',
             filterDate: '', // YYYY-MM-DD
             loading: true,
-            forwardingProject: null,
-            targetForwardDate: '',
+
+            // UPDATES SYSTEM
+            updatesMode: false,
+            showAddUpdateModal: false,
+            newUpdateText: '',
+            newUpdateDate: '',
+            currentProjectForUpdate: null,
+
+            showViewUpdateModal: false,
+            viewUpdateDate: '',
+            viewedUpdateContent: '',
+
             isMobile: false
         };
         this.unsubscribeProjects = null;
@@ -755,88 +765,106 @@ export class Projects extends Component {
         return filtered;
     }
 
-    // ============ FORWARD UPDATES ============
-    openSingleForwardModal = (project) => {
+    // ============ UPDATES SYSTEM ============
+
+    // Toggle View Mode
+    toggleUpdatesMode = () => {
+        this.setState(prev => ({ updatesMode: !prev.updatesMode }));
+    }
+
+    // --- ADD UPDATE ---
+    openAddUpdateModal = (project) => {
         const today = new Date();
         const todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
 
         this.setState({
-            forwardingProject: project,
-            targetForwardDate: todayStr
+            showAddUpdateModal: true,
+            currentProjectForUpdate: project,
+            newUpdateDate: todayStr,
+            newUpdateText: ''
         });
     }
 
-    confirmSingleForward = async () => {
-        const { forwardingProject, targetForwardDate } = this.state;
-        const currentUser = this.props.userData || this.props.user; // Correctly get user from either prop
-
-        if (!currentUser) {
-            alert("You must be logged in to forward projects.");
-            return;
-        }
-
-        if (!forwardingProject || !targetForwardDate) return;
+    saveUpdate = async () => {
+        const { currentProjectForUpdate, newUpdateDate, newUpdateText } = this.state;
+        if (!currentProjectForUpdate || !newUpdateDate || !newUpdateText.trim()) return;
 
         this.setState({ loading: true });
 
         try {
-            // Parse the selected date string to a Date object
-            const [year, month, day] = targetForwardDate.split('-').map(Number);
-            // Create date at noon to avoid timezone rolling issues
-            const newDate = new Date(year, month - 1, day, 12, 0, 0);
+            // Create a composite ID: projectId_date
+            const updateId = `${currentProjectForUpdate.id}_${newUpdateDate}`;
+            const updateRef = doc(db, 'project_updates', updateId);
 
-            // Create a duplicate of the project data
-            const projectData = { ...forwardingProject };
-            delete projectData.id; // Remove the old ID
-
-            // Helper to recursively remove undefined values
-            const removeUndefined = (obj) => {
-                Object.keys(obj).forEach(key => {
-                    if (obj[key] && typeof obj[key] === 'object' && !(obj[key] instanceof Date) && !obj[key].toDate) {
-                        removeUndefined(obj[key]);
-                    } else if (obj[key] === undefined) {
-                        delete obj[key];
-                    }
-                });
-                return obj;
-            };
-
-            // Deep sanitize the data
-            removeUndefined(projectData);
-
-            // Set the new date as both created and updated date for the copy
-            const timestamp = Timestamp.fromDate(newDate);
-            projectData.createdAt = timestamp;
-            projectData.updatedAt = timestamp;
-
-            // Explicitly set the owner to the current user's UID to ensure write permissions
-            projectData.owner = currentUser.uid;
-
-            // Log data for debugging purposes (browser console)
-            console.log("Forwarding Project Data:", projectData);
-
-            // Add as a new document to the projects collection
-            await addDoc(collection(db, 'projects'), projectData);
+            await setDoc(updateRef, {
+                projectId: currentProjectForUpdate.id,
+                date: newUpdateDate,
+                content: newUpdateText,
+                updatedAt: serverTimestamp()
+            });
 
             this.setState({
-                forwardingProject: null,
-                targetForwardDate: '',
+                showAddUpdateModal: false,
                 loading: false,
-                filterDate: targetForwardDate // Switch view to the date we just forwarded to
+                currentProjectForUpdate: null,
+                newUpdateText: '',
+                newUpdateDate: ''
             });
 
         } catch (error) {
-            console.error("Error forwarding project: ", error);
+            console.error("Error saving update: ", error);
             this.setState({ loading: false });
-            if (error.code === 'permission-denied') {
-                alert(`Permission denied. Role: ${currentUser.role || 'unknown'}. UID: ${currentUser.uid}`);
-            } else {
-                alert("Failed to forward project: " + error.message);
-            }
+            alert("Failed to save update");
         }
     }
 
-    // ============ UPDATES SECTION ============
+    // --- VIEW UPDATE ---
+    openViewUpdateModal = (project) => {
+        if (!this.state.updatesMode) return;
+
+        const today = new Date();
+        const todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+
+        this.setState({
+            showViewUpdateModal: true,
+            currentProjectForUpdate: project,
+            viewUpdateDate: todayStr,
+            viewedUpdateContent: '' // Clear previous content
+        }, () => {
+            this.fetchUpdate(project.id, todayStr);
+        });
+    }
+
+    fetchUpdate = async (projectId, date) => {
+        if (!projectId || !date) return;
+
+        this.setState({ loading: true, viewedUpdateContent: '' });
+
+        try {
+            const updateId = `${projectId}_${date}`;
+            const updateRef = doc(db, 'project_updates', updateId);
+            const docSnap = await getDoc(updateRef);
+
+            if (docSnap.exists()) {
+                this.setState({ viewedUpdateContent: docSnap.data().content, loading: false });
+            } else {
+                this.setState({ viewedUpdateContent: 'No updates recorded for this date.', loading: false });
+            }
+        } catch (error) {
+            console.error("Error fetching update: ", error);
+            this.setState({ viewedUpdateContent: 'Error loading update.', loading: false });
+        }
+    }
+
+    handleViewDateChange = (e) => {
+        const newDate = e.target.value;
+        this.setState({ viewUpdateDate: newDate });
+        if (this.state.currentProjectForUpdate) {
+            this.fetchUpdate(this.state.currentProjectForUpdate.id, newDate);
+        }
+    }
+
+    // ============ UPDATES SECTION (Legacy/Display) ============
     renderUpdates = () => {
         const { projects, quotations, documents, tasks } = this.state;
 
@@ -1063,14 +1091,18 @@ export class Projects extends Component {
                                     </tr>
                                 ) : (
                                     filteredProjects.map((project, index) => (
-                                        <tr key={project.id} onClick={() => this.openEdit(project)} className="group hover:bg-slate-50 cursor-pointer transition-colors duration-200">
+                                        <tr key={project.id} onClick={() => !this.state.updatesMode && this.openEdit(project)} className="group hover:bg-slate-50 cursor-pointer transition-colors duration-200">
                                             <td className="px-4 py-3 align-middle text-center">
                                                 <span className="text-slate-500 font-medium text-xs">
                                                     {index + 1}
                                                 </span>
                                             </td>
                                             <td className="px-4 py-3 align-middle">
-                                                <div className="font-semibold text-slate-900 text-sm truncate" title={project.name || project.title}>
+                                                <div
+                                                    className={`font-semibold text-sm truncate cursor-pointer ${this.state.updatesMode ? 'text-emerald-600 hover:text-emerald-800 hover:underline' : 'text-slate-900'}`}
+                                                    title={project.name || project.title}
+                                                    onClick={() => this.state.updatesMode && this.openViewUpdateModal(project)}
+                                                >
                                                     {project.name || project.title || '-'}
                                                 </div>
                                             </td>
@@ -1112,11 +1144,11 @@ export class Projects extends Component {
                                                 {this.canEdit() && (
                                                     <div className="flex items-center justify-end gap-1">
                                                         <button
-                                                            onClick={(e) => { e.stopPropagation(); this.openSingleForwardModal(project); }}
-                                                            className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-all"
-                                                            title="Forward to Date"
+                                                            onClick={(e) => { e.stopPropagation(); this.openAddUpdateModal(project); }}
+                                                            className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-all"
+                                                            title="Add Update to Date"
                                                         >
-                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                                                         </button>
                                                     </div>
                                                 )}
@@ -1394,63 +1426,61 @@ export class Projects extends Component {
         const stats = this.getProjectStats();
         return (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6 p-4 md:p-6 pb-24">
-                <div className={`grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6 ${this.state.isMobile ? 'hidden' : ''}`}>
-                    <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-slate-500 text-sm font-medium">Total Projects</p>
-                                <p className="text-3xl font-bold text-slate-800 mt-2">{stats.total}</p>
-                                <p className="text-xs text-emerald-600 mt-1">⭐ {stats.favorites} favorites</p>
-                            </div>
-                            <div className="bg-emerald-100 p-3 rounded-xl">
-                                <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                </svg>
-                            </div>
+                <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-slate-500 text-sm font-medium">Total Projects</p>
+                            <p className="text-3xl font-bold text-slate-800 mt-2">{stats.total}</p>
+                            <p className="text-xs text-emerald-600 mt-1">⭐ {stats.favorites} favorites</p>
+                        </div>
+                        <div className="bg-emerald-100 p-3 rounded-xl">
+                            <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
                         </div>
                     </div>
+                </div>
 
-                    <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-slate-500 text-sm font-medium">In Progress</p>
-                                <p className="text-3xl font-bold text-blue-600 mt-2">{stats.inProgress}</p>
-                                <p className="text-xs text-orange-600 mt-1">⚠️ {stats.overdue} overdue</p>
-                            </div>
-                            <div className="bg-blue-100 p-3 rounded-xl">
-                                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                                </svg>
-                            </div>
+                <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-slate-500 text-sm font-medium">In Progress</p>
+                            <p className="text-3xl font-bold text-blue-600 mt-2">{stats.inProgress}</p>
+                            <p className="text-xs text-orange-600 mt-1">⚠️ {stats.overdue} overdue</p>
+                        </div>
+                        <div className="bg-blue-100 p-3 rounded-xl">
+                            <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                            </svg>
                         </div>
                     </div>
+                </div>
 
-                    <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-slate-500 text-sm font-medium">Budget</p>
-                                <p className="text-3xl font-bold text-purple-600 mt-2">${stats.totalBudget.toLocaleString()}</p>
-                                <p className="text-xs text-slate-400 mt-1">Spent: ${stats.totalSpent.toLocaleString()}</p>
-                            </div>
-                            <div className="bg-purple-100 p-3 rounded-xl">
-                                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                </svg>
-                            </div>
+                <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-slate-500 text-sm font-medium">Budget</p>
+                            <p className="text-3xl font-bold text-purple-600 mt-2">${stats.totalBudget.toLocaleString()}</p>
+                            <p className="text-xs text-slate-400 mt-1">Spent: ${stats.totalSpent.toLocaleString()}</p>
+                        </div>
+                        <div className="bg-purple-100 p-3 rounded-xl">
+                            <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
                         </div>
                     </div>
+                </div>
 
-                    <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-slate-500 text-sm font-medium">Hours Logged</p>
-                                <p className="text-3xl font-bold text-orange-600 mt-2">{stats.totalHours}h</p>
-                            </div>
-                            <div className="bg-orange-100 p-3 rounded-xl">
-                                <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                </svg>
-                            </div>
+                <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-200">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-slate-500 text-sm font-medium">Hours Logged</p>
+                            <p className="text-3xl font-bold text-orange-600 mt-2">{stats.totalHours}h</p>
+                        </div>
+                        <div className="bg-orange-100 p-3 rounded-xl">
+                            <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
                         </div>
                     </div>
                 </div>
@@ -1503,7 +1533,9 @@ export class Projects extends Component {
     }
 
     render() {
-        const { view, showModal, showTaskModal, newProject, newTask, loading, teamMembers, selectedProject, tasks } = this.state;
+        const { view, showModal, showTaskModal, newProject, newTask, loading, teamMembers, selectedProject, tasks,
+            showAddUpdateModal, newUpdateText, newUpdateDate, currentProjectForUpdate,
+            showViewUpdateModal, viewUpdateDate, viewedUpdateContent } = this.state;
         const columns = ['Planning', 'In Progress', 'Review', 'Completed'];
         const priorities = ['Low', 'Medium', 'High', 'Urgent'];
         const filteredProjects = this.filterProjects();
@@ -1752,27 +1784,20 @@ export class Projects extends Component {
                             className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
                         >
                             <option value="All">All Priorities</option>
-                            {priorities.map(p => <option key={p} value={p}>{p}</option>)}
+                            <option value="High">High</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Low">Low</option>
                         </select>
-
-                        <div className="relative">
-                            <input
-                                type="date"
-                                className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-emerald-500 outline-none text-slate-600"
-                                value={this.state.filterDate}
-                                onChange={(e) => this.setState({ filterDate: e.target.value })}
-                                placeholder="Filter by Date"
-                            />
-                            {this.state.filterDate && (
-                                <button
-                                    onClick={() => this.setState({ filterDate: '' })}
-                                    className="absolute right-8 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                                    title="Clear date"
-                                >
-                                    ✕
-                                </button>
-                            )}
-                        </div>
+                        <button
+                            onClick={this.toggleUpdatesMode}
+                            className={`px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2 ${this.state.updatesMode
+                                    ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                                }`}
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"></path></svg>
+                            Updates
+                        </button>
                     </div>
                 )
                 }
@@ -2281,44 +2306,97 @@ export class Projects extends Component {
                 }
 
                 {/* Forward Updates Modal */}
-                {/* Forward Single Project Modal */}
-                {this.state.forwardingProject && (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-                        <div className="bg-white rounded-2xl shadow-2xl w-full w-[95%] md:w-auto md:max-w-sm overflow-hidden animate-zoomIn border border-slate-100">
+                {/* Add Update Modal */}
+                {this.state.showAddUpdateModal && (
+                    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-zoomIn border border-slate-100">
                             <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                                 <div>
-                                    <h3 className="text-xl font-bold text-slate-800">Forward Project</h3>
-                                    <p className="text-xs text-slate-500 mt-1">Select date to move this project to</p>
+                                    <h3 className="text-xl font-bold text-slate-800">Add Project Update</h3>
+                                    <p className="text-xs text-slate-500 mt-1">{this.state.currentProjectForUpdate?.name}</p>
                                 </div>
-                                <button onClick={() => this.setState({ forwardingProject: null })} className="text-slate-400 hover:text-slate-600 transition">
+                                <button onClick={() => this.setState({ showAddUpdateModal: false })} className="text-slate-400 hover:text-slate-600 transition">
                                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                                 </button>
                             </div>
-                            <div className="p-6">
-                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Select Date</label>
-                                <input
-                                    type="date"
-                                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-slate-700"
-                                    value={this.state.targetForwardDate}
-                                    onChange={(e) => this.setState({ targetForwardDate: e.target.value })}
-                                />
-                                <div className="mt-2 text-xs text-slate-500">
-                                    Project: <span className="font-semibold">{this.state.forwardingProject.name || this.state.forwardingProject.title}</span>
+                            <div className="p-6 space-y-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Date</label>
+                                    <input
+                                        type="date"
+                                        className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-slate-700"
+                                        value={this.state.newUpdateDate}
+                                        onChange={(e) => this.setState({ newUpdateDate: e.target.value })}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Update Description</label>
+                                    <textarea
+                                        className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-slate-700 h-32 resize-none"
+                                        placeholder="What happened with this project today?"
+                                        value={this.state.newUpdateText}
+                                        onChange={(e) => this.setState({ newUpdateText: e.target.value })}
+                                    ></textarea>
                                 </div>
                             </div>
                             <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
                                 <button
-                                    onClick={() => this.setState({ forwardingProject: null })}
+                                    onClick={() => this.setState({ showAddUpdateModal: false })}
                                     className="px-4 py-2 text-slate-600 font-semibold text-sm hover:bg-slate-200 rounded-lg transition"
                                 >
                                     Cancel
                                 </button>
                                 <button
-                                    onClick={this.confirmSingleForward}
-                                    disabled={!this.state.targetForwardDate || this.state.loading}
+                                    onClick={this.saveUpdate}
+                                    disabled={!this.state.newUpdateText.trim() || !this.state.newUpdateDate || this.state.loading}
                                     className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-lg text-sm font-bold shadow-lg shadow-emerald-200 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                                 >
-                                    {this.state.loading ? 'Moving...' : 'Move Project'}
+                                    {this.state.loading ? 'Saving...' : 'Save Update'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* View Update Modal */}
+                {this.state.showViewUpdateModal && (
+                    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-zoomIn border border-slate-100">
+                            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                                <div>
+                                    <h3 className="text-xl font-bold text-slate-800">View Updates</h3>
+                                    <p className="text-xs text-slate-500 mt-1">{this.state.currentProjectForUpdate?.name}</p>
+                                </div>
+                                <button onClick={() => this.setState({ showViewUpdateModal: false })} className="text-slate-400 hover:text-slate-600 transition">
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                </button>
+                            </div>
+                            <div className="p-6 space-y-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Select Date to View</label>
+                                    <input
+                                        type="date"
+                                        className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-slate-700"
+                                        value={this.state.viewUpdateDate}
+                                        onChange={this.handleViewDateChange}
+                                    />
+                                </div>
+                                <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 min-h-[150px]">
+                                    {this.state.loading ? (
+                                        <div className="flex items-center justify-center h-full text-slate-400">Loading...</div>
+                                    ) : (
+                                        <p className="text-slate-700 text-sm whitespace-pre-wrap leading-relaxed">
+                                            {this.state.viewedUpdateContent || <span className="text-slate-400 italic">No updates found for this date.</span>}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+                                <button
+                                    onClick={() => this.setState({ showViewUpdateModal: false })}
+                                    className="px-4 py-2 text-slate-600 font-semibold text-sm hover:bg-slate-200 rounded-lg transition"
+                                >
+                                    Close
                                 </button>
                             </div>
                         </div>
