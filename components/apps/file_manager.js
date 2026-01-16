@@ -655,7 +655,7 @@ export class FileManager extends Component {
     }
 }
 
-export const displayFiles = () => {
+export const displayFileManager = () => {
     return <FileManager />;
 };
 
