@@ -778,10 +778,18 @@ export class Projects extends Component {
             // Create date at noon to avoid timezone rolling issues
             const newDate = new Date(year, month - 1, day, 12, 0, 0);
 
-            const projectRef = doc(db, 'projects', forwardingProject.id);
-            await updateDoc(projectRef, {
-                updatedAt: Timestamp.fromDate(newDate)
-            });
+            // Create a duplicate of the project data
+            const projectData = { ...forwardingProject };
+            delete projectData.id; // Remove the old ID to generate a new one
+
+            // Set the new date as both created and updated date for the copy
+            // This effectively "moves" a copy of the work to that day
+            const timestamp = Timestamp.fromDate(newDate);
+            projectData.createdAt = timestamp;
+            projectData.updatedAt = timestamp;
+
+            // Add as a new document to the projects collection
+            await addDoc(collection(db, 'projects'), projectData);
 
             this.setState({
                 forwardingProject: null,
