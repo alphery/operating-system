@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 import { db } from '../../config/firebase';
-import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, query, orderBy, getDoc, setDoc } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, query, orderBy, getDoc } from 'firebase/firestore';
 import { useAuth } from '../../context/AuthContext';
 
 export class Projects extends Component {
@@ -81,20 +81,7 @@ export class Projects extends Component {
             searchQuery: '',
             filterStatus: 'All',
             filterPriority: 'All',
-            filterDate: '', // YYYY-MM-DD
             loading: true,
-
-            // UPDATES SYSTEM
-            updatesMode: false,
-            showAddUpdateModal: false,
-            newUpdateText: '',
-            newUpdateDate: '',
-            currentProjectForUpdate: null,
-
-            showViewUpdateModal: false,
-            viewUpdateDate: '',
-            viewedUpdateContent: '',
-
             isMobile: false
         };
         this.unsubscribeProjects = null;
@@ -110,11 +97,6 @@ export class Projects extends Component {
         this.setupKeyboardShortcuts();
         this.checkMobile();
         window.addEventListener('resize', this.checkMobile);
-
-        // Set default filter date to today
-        const today = new Date();
-        const todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
-        this.setState({ filterDate: todayStr });
     }
 
     componentWillUnmount() {
@@ -749,247 +731,7 @@ export class Projects extends Component {
             filtered = filtered.filter(p => p.priority === this.state.filterPriority);
         }
 
-        if (this.state.filterDate) {
-            filtered = filtered.filter(p => {
-                const dateToCheck = p.updatedAt ? p.updatedAt : p.createdAt;
-                if (!dateToCheck) return false;
-
-                // Handle Firestore Timestamp or Date object
-                const dateObj = dateToCheck.toDate ? dateToCheck.toDate() : new Date(dateToCheck);
-                const dateStr = dateObj.getFullYear() + '-' + String(dateObj.getMonth() + 1).padStart(2, '0') + '-' + String(dateObj.getDate()).padStart(2, '0');
-
-                return dateStr === this.state.filterDate;
-            });
-        }
-
         return filtered;
-    }
-
-    // ============ UPDATES SYSTEM ============
-
-    // Toggle View Mode
-    toggleUpdatesMode = () => {
-        this.setState(prev => ({ updatesMode: !prev.updatesMode }));
-    }
-
-    // --- ADD UPDATE ---
-    openAddUpdateModal = (project) => {
-        const today = new Date();
-        const todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
-
-        this.setState({
-            showAddUpdateModal: true,
-            currentProjectForUpdate: project,
-            newUpdateDate: todayStr,
-            newUpdateText: ''
-        });
-    }
-
-    saveUpdate = async () => {
-        const { currentProjectForUpdate, newUpdateDate, newUpdateText } = this.state;
-        if (!currentProjectForUpdate || !newUpdateDate || !newUpdateText.trim()) return;
-
-        this.setState({ loading: true });
-
-        try {
-            // Create a composite ID: projectId_date
-            const updateId = `${currentProjectForUpdate.id}_${newUpdateDate}`;
-            const updateRef = doc(db, 'project_updates', updateId);
-
-            await setDoc(updateRef, {
-                projectId: currentProjectForUpdate.id,
-                date: newUpdateDate,
-                content: newUpdateText,
-                updatedAt: serverTimestamp()
-            });
-
-            this.setState({
-                showAddUpdateModal: false,
-                loading: false,
-                currentProjectForUpdate: null,
-                newUpdateText: '',
-                newUpdateDate: ''
-            });
-
-        } catch (error) {
-            console.error("Error saving update: ", error);
-            this.setState({ loading: false });
-            alert("Failed to save update");
-        }
-    }
-
-    // --- VIEW UPDATE ---
-    openViewUpdateModal = (project) => {
-        if (!this.state.updatesMode) return;
-
-        const today = new Date();
-        const todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
-
-        this.setState({
-            showViewUpdateModal: true,
-            currentProjectForUpdate: project,
-            viewUpdateDate: todayStr,
-            viewedUpdateContent: '' // Clear previous content
-        }, () => {
-            this.fetchUpdate(project.id, todayStr);
-        });
-    }
-
-    fetchUpdate = async (projectId, date) => {
-        if (!projectId || !date) return;
-
-        this.setState({ loading: true, viewedUpdateContent: '' });
-
-        try {
-            const updateId = `${projectId}_${date}`;
-            const updateRef = doc(db, 'project_updates', updateId);
-            const docSnap = await getDoc(updateRef);
-
-            if (docSnap.exists()) {
-                this.setState({ viewedUpdateContent: docSnap.data().content, loading: false });
-            } else {
-                this.setState({ viewedUpdateContent: 'No updates recorded for this date.', loading: false });
-            }
-        } catch (error) {
-            console.error("Error fetching update: ", error);
-            this.setState({ viewedUpdateContent: 'Error loading update.', loading: false });
-        }
-    }
-
-    handleViewDateChange = (e) => {
-        const newDate = e.target.value;
-        this.setState({ viewUpdateDate: newDate });
-        if (this.state.currentProjectForUpdate) {
-            this.fetchUpdate(this.state.currentProjectForUpdate.id, newDate);
-        }
-    }
-
-    // ============ UPDATES SECTION (Legacy/Display) ============
-    renderUpdates = () => {
-        const { projects, quotations, documents, tasks } = this.state;
-
-        // Helper to format date
-        const formatDate = (timestamp) => {
-            if (!timestamp) return new Date();
-            // Handle Firestore Timestamp
-            if (timestamp.toDate) return timestamp.toDate();
-            // Handle ISO string or other formats
-            return new Date(timestamp);
-        };
-
-        const allItems = [
-            ...projects.map(p => ({ ...p, type: 'Project', date: formatDate(p.updatedAt || p.createdAt), label: 'Project Updated' })),
-            ...quotations.map(q => ({ ...q, type: 'Quotation', date: formatDate(q.updatedAt || q.createdAt), label: 'Quotation Updated' })),
-            ...documents.map(d => ({ ...d, type: 'Document', date: formatDate(d.updatedAt || d.uploadedDate), label: 'Document Added' })),
-            ...tasks.map(t => ({ ...t, type: 'Task', date: formatDate(t.updatedAt || t.createdAt), label: 'Task Updated' }))
-        ].sort((a, b) => b.date - a.date);
-
-        // Filter by selected date if set
-        const filteredItems = this.state.filterDate ? allItems.filter(item => {
-            const itemDateStr = item.date.getFullYear() + '-' + String(item.date.getMonth() + 1).padStart(2, '0') + '-' + String(item.date.getDate()).padStart(2, '0');
-            return itemDateStr === this.state.filterDate;
-        }) : allItems;
-
-        // Group by Month Year
-        const grouped = {};
-        filteredItems.forEach(item => {
-            const date = item.date;
-            const monthYear = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-            const day = date.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' });
-
-            if (!grouped[monthYear]) grouped[monthYear] = {};
-            if (!grouped[monthYear][day]) grouped[monthYear][day] = [];
-
-            grouped[monthYear][day].push(item);
-        });
-
-        return (
-            <div className="p-6 pb-24 space-y-8 h-full overflow-y-auto bg-slate-50">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                    <div>
-                        <h2 className="text-2xl font-bold text-slate-800">Daily Updates</h2>
-                        <p className="text-sm font-medium text-slate-500 mt-1">Track projects, quotations, documents, and process changes by date.</p>
-                    </div>
-                </div>
-
-                {Object.entries(grouped).length === 0 ? (
-                    <div className="text-center py-20 text-slate-400">
-                        <p>No recent activity found.</p>
-                    </div>
-                ) : (
-                    Object.entries(grouped).map(([month, days]) => (
-                        <div key={month} className="space-y-4">
-                            <div className="sticky top-0 bg-slate-50/95 backdrop-blur py-3 z-10 border-b border-slate-200">
-                                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                                    <span className="w-1.5 h-6 bg-emerald-500 rounded-full"></span>
-                                    {month}
-                                </h3>
-                            </div>
-
-                            <div className="pl-2 md:pl-6 border-l-2 border-slate-200 ml-2 md:ml-3 space-y-8">
-                                {Object.entries(days).map(([day, items]) => (
-                                    <div key={day} className="relative group">
-                                        <div className="absolute -left-[17px] md:-left-[33px] top-1.5 w-4 h-4 bg-white border-4 border-slate-300 rounded-full group-hover:border-emerald-400 transition-colors"></div>
-                                        <h4 className="text-sm font-bold text-slate-500 mb-4 uppercase tracking-wider flex items-center gap-2">
-                                            {day}
-                                        </h4>
-
-                                        <div className="grid gap-3">
-                                            {items.map((item, idx) => (
-                                                <div key={item.id + idx + item.type} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-start md:items-center gap-4 hover:shadow-md transition-all hover:border-emerald-100 group/item">
-                                                    <div className={`w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center text-lg shadow-inner
-                                                        ${item.type === 'Project' ? 'bg-emerald-50 text-emerald-600' :
-                                                            item.type === 'Quotation' ? 'bg-blue-50 text-blue-600' :
-                                                                item.type === 'Document' ? 'bg-purple-50 text-purple-600' : 'bg-orange-50 text-orange-600'}`}>
-                                                        {item.type === 'Project' ? '🚀' : item.type === 'Quotation' ? '📋' : item.type === 'Document' ? '📁' : '✅'}
-                                                    </div>
-
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex justify-between items-start">
-                                                            <div>
-                                                                <h5 className="font-bold text-slate-800 truncate pr-2">{item.title || item.name || 'Untitled Item'}</h5>
-                                                                <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-2">
-                                                                    <span className={`font-semibold ${item.type === 'Project' ? 'text-emerald-600' :
-                                                                        item.type === 'Quotation' ? 'text-blue-600' :
-                                                                            item.type === 'Document' ? 'text-purple-600' : 'text-orange-600'
-                                                                        }`}>{item.type}</span>
-                                                                    {item.status && (
-                                                                        <>
-                                                                            <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
-                                                                            <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">{item.status}</span>
-                                                                        </>
-                                                                    )}
-                                                                </p>
-                                                            </div>
-                                                            <span className="text-xs font-mono text-slate-400 bg-slate-50 px-2 py-1 rounded border border-slate-100 whitespace-nowrap">
-                                                                {item.date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                            </span>
-                                                        </div>
-                                                        {(item.description || item.overview) && (
-                                                            <p className="text-sm text-slate-600 mt-2 line-clamp-1 group-hover/item:line-clamp-2 transition-all">
-                                                                {item.description || item.overview}
-                                                            </p>
-                                                        )}
-                                                    </div>
-
-                                                    <button onClick={() => {
-                                                        if (item.type === 'Project') this.openEdit(item);
-                                                        else if (item.type === 'Quotation') this.openEditQuotation(item);
-                                                        else if (item.type === 'Document') this.openEditDocument(item);
-                                                    }} className="hidden md:flex opacity-0 group-hover/item:opacity-100 items-center justify-center p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all">
-                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    ))
-                )}
-            </div>
-        );
     }
 
     // ============ RENDER SECTIONS ============
@@ -1091,23 +833,19 @@ export class Projects extends Component {
                                     </tr>
                                 ) : (
                                     filteredProjects.map((project, index) => (
-                                        <tr key={project.id} onClick={() => !this.state.updatesMode && this.openEdit(project)} className="group hover:bg-slate-50 cursor-pointer transition-colors duration-200">
+                                        <tr key={project.id} onClick={() => this.openEdit(project)} className="group hover:bg-slate-50 cursor-pointer transition-colors duration-200">
                                             <td className="px-4 py-3 align-middle text-center">
                                                 <span className="text-slate-500 font-medium text-xs">
                                                     {index + 1}
                                                 </span>
                                             </td>
                                             <td className="px-4 py-3 align-middle">
-                                                <div
-                                                    className={`font-semibold text-sm truncate cursor-pointer ${this.state.updatesMode ? 'text-emerald-600 hover:text-emerald-800 hover:underline' : 'text-slate-900'}`}
-                                                    title={project.name || project.title}
-                                                    onClick={() => this.state.updatesMode && this.openViewUpdateModal(project)}
-                                                >
+                                                <div className="font-semibold text-slate-900 text-sm truncate" title={project.name || project.title}>
                                                     {project.name || project.title || '-'}
                                                 </div>
                                             </td>
                                             <td className="px-4 py-3 align-middle">
-                                                <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide truncate max-w-full ${typeColors[project.type] || 'bg-slate-100 text-slate-600'}`}>
+                                                <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide truncate max-w-full ${typeColors[project.type] ? typeColors[project.type].replace('bg-', 'bg-opacity-10 text-') : 'bg-slate-100 text-slate-600'}`}>
                                                     {project.type || 'Dev'}
                                                 </span>
                                             </td>
@@ -1142,15 +880,15 @@ export class Projects extends Component {
                                             </td>
                                             <td className="px-4 py-3 align-middle text-right">
                                                 {this.canEdit() && (
-                                                    <div className="flex items-center justify-end gap-1">
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); this.openAddUpdateModal(project); }}
-                                                            className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-all"
-                                                            title="Add Update to Date"
-                                                        >
-                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-                                                        </button>
-                                                    </div>
+                                                    <button
+                                                        onClick={(e) => this.deleteProject(project.id, e)}
+                                                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-all"
+                                                        title="Delete"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                                        </svg>
+                                                    </button>
                                                 )}
                                             </td>
                                         </tr>
@@ -1533,9 +1271,7 @@ export class Projects extends Component {
     }
 
     render() {
-        const { view, showModal, showTaskModal, newProject, newTask, loading, teamMembers, selectedProject, tasks,
-            showAddUpdateModal, newUpdateText, newUpdateDate, currentProjectForUpdate,
-            showViewUpdateModal, viewUpdateDate, viewedUpdateContent } = this.state;
+        const { view, showModal, showTaskModal, newProject, newTask, loading, teamMembers, selectedProject, tasks } = this.state;
         const columns = ['Planning', 'In Progress', 'Review', 'Completed'];
         const priorities = ['Low', 'Medium', 'High', 'Urgent'];
         const filteredProjects = this.filterProjects();
@@ -1632,6 +1368,9 @@ export class Projects extends Component {
                                         <option value="Documents">📁 Documents</option>
                                         <option value="Process">⚙️ Process</option>
                                     </select>
+                                    <svg className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-emerald-600 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                                    </svg>
                                 </div>
                             </div>
 
@@ -1662,7 +1401,13 @@ export class Projects extends Component {
                             {/* Desktop Controls */}
                             {!this.state.isMobile && (
                                 <>
-
+                                    <button
+                                        onClick={this.toggleDarkMode}
+                                        className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-xl transition hover:scale-110"
+                                        title="Toggle Dark Mode"
+                                    >
+                                        {this.state.darkMode ? '🌙' : '☀️'}
+                                    </button>
 
                                     <button
                                         onClick={this.exportToExcel}
@@ -1677,7 +1422,7 @@ export class Projects extends Component {
 
                                     {this.state.activeSection === 'Projects' && (
                                         <div className="bg-slate-100 p-1 rounded-lg flex text-xs font-semibold">
-                                            {['table', 'kanban', 'analytics'].map(v => (
+                                            {['table', 'kanban', 'list', 'analytics'].map(v => (
                                                 <button
                                                     key={v}
                                                     onClick={() => this.setState({ view: v })}
@@ -1711,23 +1456,21 @@ export class Projects extends Component {
 
                             {/* Dynamic New Button (Responsive) */}
                             {this.state.activeSection === 'Projects' && this.canEdit() && (
-                                <>
-                                    <button
-                                        onClick={() => this.setState({
-                                            showModal: true,
-                                            activeProject: null,
-                                            newProject: {
-                                                name: '', type: 'Development', overview: '', status: 'Planning',
-                                                timeline: '', tagged: [], requirements: '', modifications: '',
-                                                currentProgress: '', pendingChanges: '', finisherTimeline: ''
-                                            }
-                                        })}
-                                        className={`bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white px-5 py-2.5 rounded-lg shadow-lg text-sm font-semibold transition transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2 ${this.state.isMobile ? 'w-full' : ''}`}
-                                    >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
-                                        New Project
-                                    </button>
-                                </>
+                                <button
+                                    onClick={() => this.setState({
+                                        showModal: true,
+                                        activeProject: null,
+                                        newProject: {
+                                            name: '', type: 'Development', overview: '', status: 'Planning',
+                                            timeline: '', tagged: [], requirements: '', modifications: '',
+                                            currentProgress: '', pendingChanges: '', finisherTimeline: ''
+                                        }
+                                    })}
+                                    className={`bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white px-5 py-2.5 rounded-lg shadow-lg text-sm font-semibold transition transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2 ${this.state.isMobile ? 'w-full' : ''}`}
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
+                                    New Project
+                                </button>
                             )}
 
                             {this.state.activeSection === 'Quotations' && this.canEdit() && (
@@ -1784,20 +1527,8 @@ export class Projects extends Component {
                             className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
                         >
                             <option value="All">All Priorities</option>
-                            <option value="High">High</option>
-                            <option value="Medium">Medium</option>
-                            <option value="Low">Low</option>
+                            {priorities.map(p => <option key={p} value={p}>{p}</option>)}
                         </select>
-                        <button
-                            onClick={this.toggleUpdatesMode}
-                            className={`px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2 ${this.state.updatesMode
-                                    ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-                                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-                                }`}
-                        >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"></path></svg>
-                            Updates
-                        </button>
                     </div>
                 )
                 }
@@ -1988,8 +1719,7 @@ export class Projects extends Component {
                                                 </table>
                                             </div>
                                         </div>
-                                    )
-                    }
+                                    )}
                 </div>
 
                 {/* Project Modal */}
@@ -2304,108 +2034,12 @@ export class Projects extends Component {
                         </div>
                     )
                 }
-
-                {/* Forward Updates Modal */}
-                {/* Add Update Modal */}
-                {this.state.showAddUpdateModal && (
-                    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-zoomIn border border-slate-100">
-                            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                                <div>
-                                    <h3 className="text-xl font-bold text-slate-800">Add Project Update</h3>
-                                    <p className="text-xs text-slate-500 mt-1">{this.state.currentProjectForUpdate?.name}</p>
-                                </div>
-                                <button onClick={() => this.setState({ showAddUpdateModal: false })} className="text-slate-400 hover:text-slate-600 transition">
-                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                                </button>
-                            </div>
-                            <div className="p-6 space-y-4">
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Date</label>
-                                    <input
-                                        type="date"
-                                        className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-slate-700"
-                                        value={this.state.newUpdateDate}
-                                        onChange={(e) => this.setState({ newUpdateDate: e.target.value })}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Update Description</label>
-                                    <textarea
-                                        className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-slate-700 h-32 resize-none"
-                                        placeholder="What happened with this project today?"
-                                        value={this.state.newUpdateText}
-                                        onChange={(e) => this.setState({ newUpdateText: e.target.value })}
-                                    ></textarea>
-                                </div>
-                            </div>
-                            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
-                                <button
-                                    onClick={() => this.setState({ showAddUpdateModal: false })}
-                                    className="px-4 py-2 text-slate-600 font-semibold text-sm hover:bg-slate-200 rounded-lg transition"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={this.saveUpdate}
-                                    disabled={!this.state.newUpdateText.trim() || !this.state.newUpdateDate || this.state.loading}
-                                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-lg text-sm font-bold shadow-lg shadow-emerald-200 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                                >
-                                    {this.state.loading ? 'Saving...' : 'Save Update'}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* View Update Modal */}
-                {this.state.showViewUpdateModal && (
-                    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-zoomIn border border-slate-100">
-                            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                                <div>
-                                    <h3 className="text-xl font-bold text-slate-800">View Updates</h3>
-                                    <p className="text-xs text-slate-500 mt-1">{this.state.currentProjectForUpdate?.name}</p>
-                                </div>
-                                <button onClick={() => this.setState({ showViewUpdateModal: false })} className="text-slate-400 hover:text-slate-600 transition">
-                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                                </button>
-                            </div>
-                            <div className="p-6 space-y-4">
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Select Date to View</label>
-                                    <input
-                                        type="date"
-                                        className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-slate-700"
-                                        value={this.state.viewUpdateDate}
-                                        onChange={this.handleViewDateChange}
-                                    />
-                                </div>
-                                <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 min-h-[150px]">
-                                    {this.state.loading ? (
-                                        <div className="flex items-center justify-center h-full text-slate-400">Loading...</div>
-                                    ) : (
-                                        <p className="text-slate-700 text-sm whitespace-pre-wrap leading-relaxed">
-                                            {this.state.viewedUpdateContent || <span className="text-slate-400 italic">No updates found for this date.</span>}
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-                            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
-                                <button
-                                    onClick={() => this.setState({ showViewUpdateModal: false })}
-                                    className="px-4 py-2 text-slate-600 font-semibold text-sm hover:bg-slate-200 rounded-lg transition"
-                                >
-                                    Close
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
             </div >
         );
     }
 
 }
 
-
+export const displayProject = () => {
+    return <Projects />;
+}
