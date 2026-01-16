@@ -788,6 +788,9 @@ export class Projects extends Component {
             projectData.createdAt = timestamp;
             projectData.updatedAt = timestamp;
 
+            // Sanitize object to remove undefined values which Firestore rejects
+            Object.keys(projectData).forEach(key => projectData[key] === undefined && delete projectData[key]);
+
             // Add as a new document to the projects collection
             await addDoc(collection(db, 'projects'), projectData);
 
