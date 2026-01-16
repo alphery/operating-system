@@ -83,6 +83,9 @@ export class Projects extends Component {
             filterPriority: 'All',
             filterDate: '', // YYYY-MM-DD
             loading: true,
+            showForwardModal: false,
+            forwardProjectsList: [],
+            selectedForwardProjects: [],
             isMobile: false
         };
         this.unsubscribeProjects = null;
@@ -98,6 +101,11 @@ export class Projects extends Component {
         this.setupKeyboardShortcuts();
         this.checkMobile();
         window.addEventListener('resize', this.checkMobile);
+
+        // Set default filter date to today
+        const today = new Date();
+        const todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+        this.setState({ filterDate: todayStr });
     }
 
     componentWillUnmount() {
@@ -987,7 +995,7 @@ export class Projects extends Component {
                                                 </div>
                                             </td>
                                             <td className="px-4 py-3 align-middle">
-                                                <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide truncate max-w-full ${typeColors[project.type] ? typeColors[project.type].replace('bg-', 'bg-opacity-10 text-') : 'bg-slate-100 text-slate-600'}`}>
+                                                <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide truncate max-w-full ${typeColors[project.type] || 'bg-slate-100 text-slate-600'}`}>
                                                     {project.type || 'Dev'}
                                                 </span>
                                             </td>
@@ -1540,13 +1548,7 @@ export class Projects extends Component {
                             {/* Desktop Controls */}
                             {!this.state.isMobile && (
                                 <>
-                                    <button
-                                        onClick={this.toggleDarkMode}
-                                        className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-xl transition hover:scale-110"
-                                        title="Toggle Dark Mode"
-                                    >
-                                        {this.state.darkMode ? '🌙' : '☀️'}
-                                    </button>
+
 
                                     <button
                                         onClick={this.exportToExcel}
@@ -1561,7 +1563,7 @@ export class Projects extends Component {
 
                                     {this.state.activeSection === 'Projects' && (
                                         <div className="bg-slate-100 p-1 rounded-lg flex text-xs font-semibold">
-                                            {['table', 'kanban', 'list', 'analytics'].map(v => (
+                                            {['table', 'kanban', 'analytics'].map(v => (
                                                 <button
                                                     key={v}
                                                     onClick={() => this.setState({ view: v })}
@@ -1595,21 +1597,31 @@ export class Projects extends Component {
 
                             {/* Dynamic New Button (Responsive) */}
                             {this.state.activeSection === 'Projects' && this.canEdit() && (
-                                <button
-                                    onClick={() => this.setState({
-                                        showModal: true,
-                                        activeProject: null,
-                                        newProject: {
-                                            name: '', type: 'Development', overview: '', status: 'Planning',
-                                            timeline: '', tagged: [], requirements: '', modifications: '',
-                                            currentProgress: '', pendingChanges: '', finisherTimeline: ''
-                                        }
-                                    })}
-                                    className={`bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white px-5 py-2.5 rounded-lg shadow-lg text-sm font-semibold transition transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2 ${this.state.isMobile ? 'w-full' : ''}`}
-                                >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
-                                    New Project
-                                </button>
+                                <>
+                                    <button
+                                        onClick={this.openForwardModal}
+                                        className="bg-white border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 px-4 py-2.5 rounded-lg shadow-sm text-sm font-semibold transition flex items-center justify-center gap-2"
+                                        title="Forward updates from yesterday"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                                        Forward
+                                    </button>
+                                    <button
+                                        onClick={() => this.setState({
+                                            showModal: true,
+                                            activeProject: null,
+                                            newProject: {
+                                                name: '', type: 'Development', overview: '', status: 'Planning',
+                                                timeline: '', tagged: [], requirements: '', modifications: '',
+                                                currentProgress: '', pendingChanges: '', finisherTimeline: ''
+                                            }
+                                        })}
+                                        className={`bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white px-5 py-2.5 rounded-lg shadow-lg text-sm font-semibold transition transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2 ${this.state.isMobile ? 'w-full' : ''}`}
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
+                                        New Project
+                                    </button>
+                                </>
                             )}
 
                             {this.state.activeSection === 'Quotations' && this.canEdit() && (
@@ -2193,6 +2205,69 @@ export class Projects extends Component {
                         </div>
                     )
                 }
+
+                {/* Forward Updates Modal */}
+                {this.state.showForwardModal && (
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-zoomIn border border-slate-100">
+                            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                                <div>
+                                    <h3 className="text-xl font-bold text-slate-800">Forward Yesterday's Work</h3>
+                                    <p className="text-xs text-slate-500 mt-1">Select projects to carry forward to today</p>
+                                </div>
+                                <button onClick={() => this.setState({ showForwardModal: false })} className="text-slate-400 hover:text-slate-600 transition">
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                </button>
+                            </div>
+                            <div className="p-6 max-h-[60vh] overflow-y-auto">
+                                <div className="space-y-3">
+                                    {this.state.forwardProjectsList.map(project => (
+                                        <div
+                                            key={project.id}
+                                            className={`p-3 rounded-xl border flex items-center gap-4 cursor-pointer transition-all ${this.state.selectedForwardProjects.includes(project.id)
+                                                ? 'border-emerald-500 bg-emerald-50'
+                                                : 'border-slate-200 hover:border-emerald-200'
+                                                }`}
+                                            onClick={() => this.toggleForwardSelection(project.id)}
+                                        >
+                                            <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${this.state.selectedForwardProjects.includes(project.id)
+                                                ? 'bg-emerald-500 border-emerald-500 text-white'
+                                                : 'border-slate-300 bg-white'
+                                                }`}>
+                                                {this.state.selectedForwardProjects.includes(project.id) && (
+                                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
+                                                )}
+                                            </div>
+                                            <div className="flex-1">
+                                                <h4 className="font-bold text-slate-800 text-sm">{project.name || project.title}</h4>
+                                                <p className="text-xs text-slate-500 truncate">{project.overview || 'No description'}</p>
+                                            </div>
+                                            <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${project.status === 'In Progress' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'
+                                                }`}>
+                                                {project.status}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+                                <button
+                                    onClick={() => this.setState({ showForwardModal: false })}
+                                    className="px-4 py-2 text-slate-600 font-semibold text-sm hover:bg-slate-200 rounded-lg transition"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={this.handleForward}
+                                    disabled={this.state.selectedForwardProjects.length === 0 || this.state.loading}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-lg text-sm font-bold shadow-lg shadow-emerald-200 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                >
+                                    {this.state.loading ? 'Updating...' : `Forward (${this.state.selectedForwardProjects.length})`}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div >
         );
     }
