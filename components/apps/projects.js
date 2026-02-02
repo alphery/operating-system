@@ -1528,7 +1528,7 @@ export class Projects extends Component {
     }
 
     render() {
-        const { view, showModal, showQuotationModal, showDocumentModal, newProject, newQuotation, newDocument, loading, teamMembers, tasks, selectedProject } = this.state;
+        const { view, showModal, showTaskModal, showQuotationModal, showDocumentModal, newProject, newTask, newQuotation, newDocument, loading, teamMembers, tasks, selectedProject } = this.state;
         const columns = ['Planning', 'In Progress', 'Review', 'Completed'];
         const priorities = ['Low', 'Medium', 'High', 'Urgent'];
         const filteredProjects = this.filterProjects();
