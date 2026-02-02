@@ -15,11 +15,13 @@ import { TasksModule } from './tasks/tasks.module';
 import { CrmModule } from './crm/crm.module';
 import { SalesModule } from './sales/sales.module';
 import { DocumentsModule } from './documents/documents.module';
+import { TenantModule } from './core/tenant/tenant.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
+    TenantModule,
     RealtimeModule,
     // RedisModule, // Commented out - Install Redis first for caching
     StorageModule,

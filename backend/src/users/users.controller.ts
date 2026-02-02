@@ -34,6 +34,7 @@ export class UsersController {
     async createUser(@Body() data: any) {
         return await this.prisma.user.create({
             data: {
+                tenantId: data.tenantId || 'default-tenant',
                 email: data.email,
                 password: data.password,
                 firstName: data.firstName,

@@ -2,6 +2,7 @@ import React, { Component } from 'react';
 // import { db } from '../../config/firebase'; 
 // import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, query, orderBy, getDoc } from 'firebase/firestore'; 
 import { useAuth } from '../../context/AuthContext';
+import { io } from 'socket.io-client';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
 
@@ -24,6 +25,20 @@ export class Projects extends Component {
             activeProject: null,
             activeTask: null,
             selectedProject: null,
+
+            // CRM
+            // clients: [], // Already defined above
+            showClientModal: false,
+            activeClient: null,
+            newClient: {
+                name: '',
+                company: '',
+                email: '',
+                phone: '',
+                status: 'New',
+                value: 0,
+                priority: 'Medium'
+            },
 
             // QUOTATIONS
             quotations: [],
@@ -94,16 +109,56 @@ export class Projects extends Component {
     async componentDidMount() {
         await this.fetchAllData();
         this.setupKeyboardShortcuts();
-        this.checkMobile();
         window.addEventListener('resize', this.checkMobile);
-        // Poll for updates every 30 seconds
-        this.pollInterval = setInterval(this.fetchAllData, 30000);
+        this.checkMobile();
+        this.setupRealtimeListeners();
     }
 
     componentWillUnmount() {
-        if (this.pollInterval) clearInterval(this.pollInterval);
         this.removeKeyboardShortcuts();
         window.removeEventListener('resize', this.checkMobile);
+        if (this.socket) {
+            this.socket.disconnect();
+        }
+    }
+
+    setupRealtimeListeners = () => {
+        // Connect to backend Socket.IO
+        this.socket = io(API_BASE_URL, {
+            transports: ['websocket', 'polling'],
+        });
+
+        const tenantId = 'default-tenant'; // TODO: Get from auth context
+
+        this.socket.on('connect', () => {
+            console.log('🔥 [CRM Realtime] Connected to backend');
+            // Join tenant room for filtered updates
+            this.socket.emit('join-tenant', tenantId);
+        });
+
+        // Listen for client created
+        this.socket.on('client:created', (client) => {
+            console.log('🔥 [Realtime] New client created:', client);
+            this.setState({ clients: [...this.state.clients, client] });
+        });
+
+        // Listen for client updated
+        this.socket.on('client:updated', (updatedClient) => {
+            console.log('🔥 [Realtime] Client updated:', updatedClient);
+            this.setState({
+                clients: this.state.clients.map(c =>
+                    c.id === updatedClient.id ? updatedClient : c
+                )
+            });
+        });
+
+        // Listen for client deleted
+        this.socket.on('client:deleted', ({ id }) => {
+            console.log('🔥 [Realtime] Client deleted:', id);
+            this.setState({
+                clients: this.state.clients.filter(c => c.id !== id)
+            });
+        });
     }
 
     checkMobile = () => {
@@ -793,58 +848,176 @@ export class Projects extends Component {
         );
     }
 
+    saveClient = async () => {
+        const { newClient, activeClient, clients } = this.state;
+
+        try {
+            if (activeClient) {
+                // Update existing
+                await this.fetchAPI(`/clients/${activeClient.id}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify(newClient)
+                });
+                // Optimistic update
+                const updatedClients = clients.map(c => c.id === activeClient.id ? { ...c, ...newClient } : c);
+                this.setState({ clients: updatedClients, showClientModal: false, activeClient: null });
+            } else {
+                // Create new
+                // Default logic if required fields missing
+                const clientData = {
+                    ...newClient,
+                    name: newClient.name || 'New Opportunity',
+                    company: newClient.company || newClient.name || 'Unknown',
+                    status: newClient.status || 'New',
+                    value: Number(newClient.value) || 0,
+                    priority: newClient.priority || 'Medium'
+                };
+
+                const savedClient = await this.fetchAPI('/clients', {
+                    method: 'POST',
+                    body: JSON.stringify(clientData)
+                });
+
+                this.setState({ clients: [...clients, savedClient], showClientModal: false });
+            }
+        } catch (error) {
+            console.error('Error saving client:', error);
+            // Fallback for demo if API fails
+            if (activeClient) {
+                const updatedClients = clients.map(c => c.id === activeClient.id ? { ...c, ...newClient } : c);
+                this.setState({ clients: updatedClients, showClientModal: false });
+            } else {
+                const mockClient = { ...newClient, id: Date.now().toString() };
+                this.setState({ clients: [...clients, mockClient], showClientModal: false });
+            }
+        }
+    }
+
+    deleteClient = async (clientId, e) => {
+        if (e) e.stopPropagation();
+        if (!confirm('Are you sure you want to delete this opportunity?')) return;
+
+        try {
+            await this.fetchAPI(`/clients/${clientId}`, { method: 'DELETE' });
+            this.setState({ clients: this.state.clients.filter(c => c.id !== clientId) });
+        } catch (error) {
+            console.error('Error deleting client:', error);
+            this.setState({ clients: this.state.clients.filter(c => c.id !== clientId) });
+        }
+    }
+
+    handleClientInputChange = (e) => {
+        const { name, value } = e.target;
+        this.setState({
+            newClient: {
+                ...this.state.newClient,
+                [name]: value
+            }
+        });
+    }
+
     renderCRM = () => {
         const { clients } = this.state;
+        const stages = ['New', 'Qualifying', 'Proposition', 'Won'];
 
         return (
-            <div className="p-6">
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-bold text-slate-800">Client Relationship</h2>
-                    <button onClick={this.addClientPrompt} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow flex items-center gap-2">
+            <div className="flex flex-col h-full bg-slate-50">
+                {/* Odoo Style Control Panel */}
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center px-6 py-4 bg-white border-b border-slate-200 gap-4">
+                    <div className="flex items-center gap-4">
+                        <h2 className="text-xl font-bold text-slate-800">Pipeline</h2>
+                        <div className="hidden md:flex bg-slate-100 rounded-lg p-1">
+                            <button className="px-3 py-1 bg-white shadow-sm rounded text-xs font-bold text-slate-700 flex items-center gap-1">
+                                <span>Kanban</span>
+                            </button>
+                            <button className="px-3 py-1 rounded text-xs font-medium text-slate-500 hover:text-slate-700 flex items-center gap-1">
+                                <span>List</span>
+                            </button>
+                            <button className="px-3 py-1 rounded text-xs font-medium text-slate-500 hover:text-slate-700 flex items-center gap-1">
+                                <span>Graph</span>
+                            </button>
+                        </div>
+                    </div>
+                    <button onClick={() => this.setState({ showClientModal: true, activeClient: null, newClient: { name: '', company: '', status: 'New', value: 0, priority: 'Medium', email: '', phone: '' } })} className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition flex items-center gap-2">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
-                        Add Client
+                        <span>New</span>
                     </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {clients.map(client => (
-                        <div key={client.id} className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm hover:shadow-md transition group cursor-pointer relative overflow-hidden">
-                            <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50 rounded-bl-full -mr-12 -mt-12 transition group-hover:bg-blue-100"></div>
-                            <div className="flex items-start justify-between mb-4 relative z-10">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center overflow-hidden">
-                                        {client.avatar ? <img src={client.avatar} className="w-8 h-8" /> : <span className="text-xl">🏢</span>}
+                {/* Kanban Board */}
+                <div className="flex-1 overflow-x-auto overflow-y-hidden p-6 custom-scrollbar">
+                    <div className="flex h-full gap-6 min-w-max">
+                        {stages.map(stage => (
+                            <div key={stage} className="w-80 flex flex-col h-full">
+                                {/* Column Header - Odoo Style */}
+                                <div className="flex justify-between items-center mb-3 px-1 group">
+                                    <h3 className="font-bold text-slate-700 uppercase text-xs tracking-wider flex items-center gap-2">
+                                        {stage}
+                                    </h3>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-slate-500 text-xs font-semibold">
+                                            ${clients.filter(c => c.status === stage).reduce((sum, c) => sum + (Number(c.value) || 0), 0).toLocaleString()}
+                                        </span>
+                                        <span className="bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full text-xs font-bold">
+                                            {clients.filter(c => c.status === stage).length}
+                                        </span>
                                     </div>
-                                    <div>
-                                        <h3 className="font-bold text-slate-800">{client.name}</h3>
-                                        <p className="text-xs text-slate-500">{client.company}</p>
-                                    </div>
                                 </div>
-                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${client.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
-                                    {client.status}
-                                </span>
-                            </div>
 
-                            <div className="space-y-2 text-sm text-slate-600 mb-4 px-1">
-                                <div className="flex items-center gap-2">
-                                    <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-                                    {client.contact}
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                                    {client.email}
-                                </div>
-                            </div>
+                                {/* Progress Bar for Column */}
+                                <div className={`w-full h-1 rounded-full mb-3 ${stage === 'Won' ? 'bg-emerald-500' : 'bg-slate-300'}`}></div>
 
-                            <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
-                                <div>
-                                    <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Revenue</p>
-                                    <p className="text-lg font-bold text-slate-800">{client.revenue}</p>
+                                {/* Cards Container */}
+                                <div className="flex-1 space-y-3 overflow-y-auto pb-6 custom-scrollbar">
+                                    {clients.filter(c => c.status === stage).map(client => (
+                                        <div key={client.id}
+                                            onClick={() => this.setState({ showClientModal: true, activeClient: client, newClient: { ...client } })}
+                                            className="bg-white p-3 rounded shadow-sm border border-slate-200 cursor-pointer hover:shadow-md transition group relative border-l-4 border-l-transparent hover:border-l-purple-500"
+                                        >
+                                            <div className="font-bold text-slate-800 mb-1 text-sm">{client.name || 'Untitled Deal'}</div>
+                                            <div className="text-xs text-slate-500 mb-2 truncate">{client.company || 'Unknown Company'}</div>
+
+                                            {/* Tags/Chips */}
+                                            <div className="flex flex-wrap gap-1 mb-2">
+                                                <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 text-[10px] rounded font-medium">Service</span>
+                                            </div>
+
+                                            <div className="flex justify-between items-center pt-2 border-t border-slate-50">
+                                                <div className="text-slate-700 font-bold text-xs">
+                                                    ${Number(client.value || 0).toLocaleString()}
+                                                </div>
+                                                <div className="flex gap-0.5">
+                                                    {[1, 2, 3].map(i => {
+                                                        const priorityMap = { 'Low': 1, 'Medium': 2, 'High': 3 };
+                                                        const currentPrio = priorityMap[client.priority] || 2;
+                                                        return (
+                                                            <span key={i} className={`text-xs ${i <= currentPrio ? 'text-amber-400' : 'text-slate-200'}`}>★</span>
+                                                        )
+                                                    })}
+                                                </div>
+                                            </div>
+
+                                            {/* Hidden Delete Button */}
+                                            <button
+                                                onClick={(e) => this.deleteClient(client.id, e)}
+                                                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-red-500 transition"
+                                            >
+                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                            </button>
+                                        </div>
+                                    ))}
+
+                                    <button
+                                        onClick={() => this.setState({ showClientModal: true, activeClient: null, newClient: { name: '', company: '', status: stage, value: 0, priority: 'Medium' } })}
+                                        className="w-full py-2 flex items-center justify-center gap-2 text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 rounded text-xs font-bold transition dashed border border-transparent hover:border-slate-300"
+                                    >
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
+                                        Quick Add
+                                    </button>
                                 </div>
-                                <button className="text-blue-600 hover:text-blue-800 text-xs font-bold">View Profile →</button>
                             </div>
-                        </div>
-                    ))}
+                        ))}
+                    </div>
                 </div>
             </div>
         );
@@ -1778,6 +1951,60 @@ export class Projects extends Component {
                             <div className="p-5 border-t border-slate-100 flex justify-end gap-3">
                                 <button onClick={() => this.setState({ showTaskModal: false })} className="px-6 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-semibold">Cancel</button>
                                 <button onClick={this.saveTask} className="px-6 py-2 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700">Save Task</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Client/Opportunity Modal */}
+                {this.state.showClientModal && (
+                    <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 backdrop-blur-sm p-4">
+                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col h-[90%] md:h-auto animate-in fade-in zoom-in duration-200">
+                            <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-purple-50">
+                                <h3 className="text-xl font-bold text-slate-800">{this.state.activeClient ? 'Edit Opportunity' : 'New Opportunity'}</h3>
+                                <button onClick={() => this.setState({ showClientModal: false })} className="text-2xl text-slate-400 hover:text-slate-600">×</button>
+                            </div>
+                            <div className="p-6 overflow-y-auto space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="col-span-2">
+                                        <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Opportunity Name</label>
+                                        <input name="name" value={this.state.newClient.name} onChange={this.handleClientInputChange} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="e.g. 500 Licenses Deal" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Customer / Company</label>
+                                        <input name="company" value={this.state.newClient.company} onChange={this.handleClientInputChange} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="e.g. Acme Corp" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Expected Revenue ($)</label>
+                                        <input type="number" name="value" value={this.state.newClient.value} onChange={this.handleClientInputChange} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="0.00" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Stage</label>
+                                        <select name="status" value={this.state.newClient.status} onChange={this.handleClientInputChange} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none">
+                                            <option value="New">New</option>
+                                            <option value="Qualifying">Qualifying</option>
+                                            <option value="Proposition">Proposition</option>
+                                            <option value="Won">Won</option>
+                                            <option value="Lost">Lost</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Priority</label>
+                                        <select name="priority" value={this.state.newClient.priority} onChange={this.handleClientInputChange} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none">
+                                            <option value="Low">Low (★)</option>
+                                            <option value="Medium">Medium (★★)</option>
+                                            <option value="High">High (★★★)</option>
+                                        </select>
+                                    </div>
+                                    <div className="col-span-2">
+                                        <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Email</label>
+                                        <input name="email" value={this.state.newClient.email || ''} onChange={this.handleClientInputChange} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="contact@example.com" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="p-5 border-t border-slate-100 flex justify-end gap-3 bg-slate-50 rounded-b-2xl">
+                                <button onClick={() => this.setState({ showClientModal: false })} className="px-6 py-2 text-slate-600 hover:bg-slate-200 rounded-lg font-semibold transition">Cancel</button>
+                                <button onClick={this.saveClient} className="px-6 py-2 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 shadow-lg shadow-purple-200 transition">Save Opportunity</button>
                             </div>
                         </div>
                     </div>

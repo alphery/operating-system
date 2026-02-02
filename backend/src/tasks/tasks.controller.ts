@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Request } from '@nestjs/common';
 import { TasksService } from './tasks.service';
 
 @Controller('tasks')
@@ -6,13 +6,15 @@ export class TasksController {
     constructor(private readonly tasksService: TasksService) { }
 
     @Post()
-    create(@Body() createTaskDto: any) {
-        return this.tasksService.create(createTaskDto);
+    create(@Request() req, @Body() createTaskDto: any) {
+        const tenantId = req.user?.tenantId || 'default-tenant';
+        return this.tasksService.create(tenantId, createTaskDto);
     }
 
     @Get()
-    findAll() {
-        return this.tasksService.findAll();
+    findAll(@Request() req) {
+        const tenantId = req.user?.tenantId || 'default-tenant';
+        return this.tasksService.findAll(tenantId);
     }
 
     @Get(':id')

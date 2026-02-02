@@ -8,9 +8,24 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  subdomain String?  @unique
+  plan      String   @default("free") // free, pro, enterprise
+  users     User[]
+  clients   Client[]
+  projects  Project[]
+  tasks     Task[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model User {
   id             String       @id @default(uuid())
-  email          String       @unique
+  tenantId       String
+  tenant         Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  email          String       
   password       String
   firstName      String?
   lastName       String?
@@ -22,6 +37,8 @@ model User {
   files          File[]
   tasks          Task[]
   timesheets     Timesheet[]
+
+  @@unique([tenantId, email])
 }
 
 model Organization {
@@ -48,20 +65,29 @@ model File {
 
 model Client {
   id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name      String
   email     String?
   company   String?
   phone     String?
   address   String?
+  status    String   @default("New")
+  value     Float    @default(0)
+  priority  String   @default("Medium")
   projects  Project[]
   quotations Quotation[]
   invoices   Invoice[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
 }
 
 model Project {
   id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   title       String
   description String?
   status      String   @default("Planning") // Planning, In Progress, Review, Completed
@@ -80,10 +106,15 @@ model Project {
   expenses    Expense[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([clientId])
 }
 
 model Task {
   id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   title       String
   description String?
   status      String   @default("To Do")
@@ -97,6 +128,9 @@ model Task {
   timesheets  Timesheet[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([projectId])
 }
 
 model Quotation {

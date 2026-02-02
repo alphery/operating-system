@@ -5,9 +5,10 @@ import { PrismaService } from '../prisma/prisma.service';
 export class TasksService {
     constructor(private prisma: PrismaService) { }
 
-    create(data: any) {
+    create(tenantId: string, data: any) {
         return this.prisma.task.create({
             data: {
+                tenantId,
                 title: data.title,
                 description: data.description,
                 status: data.status,
@@ -19,8 +20,9 @@ export class TasksService {
         });
     }
 
-    findAll() {
+    findAll(tenantId: string) {
         return this.prisma.task.findMany({
+            where: { tenantId },
             include: {
                 project: {
                     select: { title: true, id: true }

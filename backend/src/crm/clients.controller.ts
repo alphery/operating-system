@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Request } from '@nestjs/common';
 import { ClientsService } from './clients.service';
 
 @Controller('clients')
@@ -6,27 +6,33 @@ export class ClientsController {
     constructor(private readonly clientsService: ClientsService) { }
 
     @Post()
-    create(@Body() createClientDto: any) {
-        return this.clientsService.create(createClientDto);
+    create(@Request() req, @Body() createClientDto: any) {
+        // For now, use a default tenant if not authenticated
+        const tenantId = req.user?.tenantId || 'default-tenant';
+        return this.clientsService.create(tenantId, createClientDto);
     }
 
     @Get()
-    findAll() {
-        return this.clientsService.findAll();
+    findAll(@Request() req) {
+        const tenantId = req.user?.tenantId || 'default-tenant';
+        return this.clientsService.findAll(tenantId);
     }
 
     @Get(':id')
-    findOne(@Param('id') id: string) {
-        return this.clientsService.findOne(id);
+    findOne(@Request() req, @Param('id') id: string) {
+        const tenantId = req.user?.tenantId || 'default-tenant';
+        return this.clientsService.findOne(tenantId, id);
     }
 
     @Patch(':id')
-    update(@Param('id') id: string, @Body() updateClientDto: any) {
-        return this.clientsService.update(id, updateClientDto);
+    update(@Request() req, @Param('id') id: string, @Body() updateClientDto: any) {
+        const tenantId = req.user?.tenantId || 'default-tenant';
+        return this.clientsService.update(tenantId, id, updateClientDto);
     }
 
     @Delete(':id')
-    remove(@Param('id') id: string) {
-        return this.clientsService.remove(id);
+    remove(@Request() req, @Param('id') id: string) {
+        const tenantId = req.user?.tenantId || 'default-tenant';
+        return this.clientsService.remove(tenantId, id);
     }
 }

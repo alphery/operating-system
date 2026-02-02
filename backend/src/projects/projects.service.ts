@@ -6,9 +6,10 @@ import { CreateProjectDto } from './dto/create-project.dto';
 export class ProjectsService {
     constructor(private prisma: PrismaService) { }
 
-    create(createProjectDto: CreateProjectDto) {
+    create(tenantId: string, createProjectDto: CreateProjectDto) {
         return this.prisma.project.create({
             data: {
+                tenantId,
                 title: createProjectDto.title || createProjectDto.name || 'Untitled Project',
                 description: createProjectDto.description || createProjectDto.overview,
                 status: createProjectDto.status || 'Planning',
@@ -23,8 +24,9 @@ export class ProjectsService {
         });
     }
 
-    findAll() {
+    findAll(tenantId: string) {
         return this.prisma.project.findMany({
+            where: { tenantId },
             include: {
                 client: true,
                 _count: {
