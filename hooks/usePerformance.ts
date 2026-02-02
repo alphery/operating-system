@@ -86,7 +86,7 @@ export function useInView(options?: IntersectionObserverInit) {
  * Perfect for: Smooth animations, 60fps updates
  */
 export function useRAF(callback: () => void, deps: any[] = []) {
-    const rafId = useRef<number>();
+    const rafId = useRef<number | undefined>(undefined);
 
     useEffect(() => {
         const animate = () => {
