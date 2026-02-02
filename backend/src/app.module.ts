@@ -8,18 +8,18 @@ import { RealtimeModule } from './realtime/realtime.module';
 import { StorageModule } from './storage/storage.module';
 import { AuthModule } from './auth/auth.module';
 import { HealthController } from './health/health.controller';
-// import { PrismaModule } from './prisma/prisma.module'; // Temporarily disabled - Prisma 7 compatibility
-// import { UsersModule } from './users/users.module'; // Temporarily disabled - depends on Prisma
+import { PrismaModule } from './prisma/prisma.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    // PrismaModule, //Temporarily disabled - Prisma 7 compatibility
+    PrismaModule,
     RealtimeModule,
-    // RedisModule, // Commented out - Install Redis first or use docker-compose
+    // RedisModule, // Commented out - Install Redis first for caching
     StorageModule,
     AuthModule,
-    // UsersModule, // Temporarily disabled - depends on Prisma
+    UsersModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService],
