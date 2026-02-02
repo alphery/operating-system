@@ -11,6 +11,10 @@ import { HealthController } from './health/health.controller';
 import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
 import { ProjectsModule } from './projects/projects.module';
+import { TasksModule } from './tasks/tasks.module';
+import { CrmModule } from './crm/crm.module';
+import { SalesModule } from './sales/sales.module';
+import { DocumentsModule } from './documents/documents.module';
 
 @Module({
   imports: [
@@ -22,6 +26,10 @@ import { ProjectsModule } from './projects/projects.module';
     AuthModule,
     UsersModule,
     ProjectsModule,
+    TasksModule,
+    CrmModule,
+    SalesModule,
+    DocumentsModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService],

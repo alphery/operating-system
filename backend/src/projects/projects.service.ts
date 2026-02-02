@@ -9,9 +9,17 @@ export class ProjectsService {
     create(createProjectDto: CreateProjectDto) {
         return this.prisma.project.create({
             data: {
-                ...createProjectDto,
+                title: createProjectDto.title || createProjectDto.name,
+                description: createProjectDto.description || createProjectDto.overview,
                 status: createProjectDto.status || 'Planning',
                 priority: createProjectDto.priority || 'Medium',
+                budget: createProjectDto.budget,
+                spent: createProjectDto.spent,
+                progress: createProjectDto.progress,
+                startDate: createProjectDto.startDate,
+                endDate: createProjectDto.endDate,
+                // store extra data in description or a flexible field if we had one. 
+                // For now, simple mapping to avoid crashes.
             },
         });
     }
@@ -44,9 +52,22 @@ export class ProjectsService {
     }
 
     update(id: string, updateProjectDto: any) {
+        const { title, name, description, overview, status, priority, budget, spent, progress, startDate, endDate, clientId } = updateProjectDto;
+        const data: any = {};
+        if (title || name) data.title = title || name;
+        if (description || overview) data.description = description || overview;
+        if (status) data.status = status;
+        if (priority) data.priority = priority;
+        if (budget !== undefined) data.budget = budget;
+        if (spent !== undefined) data.spent = spent;
+        if (progress !== undefined) data.progress = progress;
+        if (startDate) data.startDate = startDate;
+        if (endDate) data.endDate = endDate;
+        if (clientId) data.clientId = clientId;
+
         return this.prisma.project.update({
             where: { id },
-            data: updateProjectDto,
+            data: data,
         });
     }
 

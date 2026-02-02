@@ -166,3 +166,10 @@ model Expense {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+enum Role {
+  ADMIN
+  BUSINESS
+  USER
+  TEAM
+}
