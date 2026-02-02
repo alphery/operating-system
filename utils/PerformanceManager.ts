@@ -105,18 +105,22 @@ export class PerformanceManager {
 
         switch (this.performanceLevel) {
             case 'low':
-                // ONLY disable effects if FPS is critically low (<20)
-                if (this.fps < 20 && this.fps > 0) {
-                    console.warn('[PerformanceManager] Critical FPS detected - disabling effects');
+                // For low-end devices, disable effects IMMEDIATELY to prevent initial jank
+                // But allow re-enabling if user explicitly requests (future feature)
+
+                // Only keep effects if FPS is consistently high (unexpected for low-end)
+                if (this.fps > 55) {
+                    console.log('[PerformanceManager] Low-end device but FPS is great - allowing effects');
+                    root.style.removeProperty('--backdrop-blur');
+                    root.style.removeProperty('--window-transparency');
+                    root.style.removeProperty('--panel-opacity');
+                    document.body.classList.remove('low-performance-mode');
+                } else {
+                    console.warn('[PerformanceManager] Low-end device - optimizations active');
                     root.style.setProperty('--backdrop-blur', '0px');
                     root.style.setProperty('--window-transparency', '1');
                     root.style.setProperty('--panel-opacity', '1');
                     document.body.classList.add('low-performance-mode');
-                } else {
-                    // Apply technical optimizations only (GPU hints, containment)
-                    // Visual effects remain unchanged
-                    document.body.classList.remove('low-performance-mode');
-                    console.log('[PerformanceManager] Low-end detected but FPS acceptable - keeping visual effects');
                 }
 
                 localStorage.setItem('performance-mode', 'low');
