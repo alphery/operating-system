@@ -9,17 +9,16 @@ export class ProjectsService {
     create(createProjectDto: CreateProjectDto) {
         return this.prisma.project.create({
             data: {
-                title: createProjectDto.title || createProjectDto.name,
+                title: createProjectDto.title || createProjectDto.name || 'Untitled Project',
                 description: createProjectDto.description || createProjectDto.overview,
                 status: createProjectDto.status || 'Planning',
                 priority: createProjectDto.priority || 'Medium',
                 budget: createProjectDto.budget,
                 spent: createProjectDto.spent,
-                progress: createProjectDto.progress,
+                progress: createProjectDto.progress || 0,
                 startDate: createProjectDto.startDate,
                 endDate: createProjectDto.endDate,
-                // store extra data in description or a flexible field if we had one. 
-                // For now, simple mapping to avoid crashes.
+                clientId: createProjectDto.clientId,
             },
         });
     }

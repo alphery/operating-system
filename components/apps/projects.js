@@ -3,7 +3,7 @@ import React, { Component } from 'react';
 // import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, query, orderBy, getDoc } from 'firebase/firestore'; 
 import { useAuth } from '../../context/AuthContext';
 
-const API_BASE_URL = 'http://localhost:3001'; // Backend Port
+const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
 
 export class Projects extends Component {
     constructor() {

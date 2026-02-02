@@ -1,12 +1,22 @@
-import { IsString, IsOptional, IsEnum, IsNumber, IsArray } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsNumber, IsArray, IsDate } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateProjectDto {
     @IsString()
-    title: string;
+    @IsOptional()
+    title?: string;
+
+    @IsString()
+    @IsOptional()
+    name?: string;
 
     @IsString()
     @IsOptional()
     description?: string;
+
+    @IsString()
+    @IsOptional()
+    overview?: string;
 
     @IsString()
     @IsOptional()
@@ -19,6 +29,22 @@ export class CreateProjectDto {
     @IsNumber()
     @IsOptional()
     budget?: number;
+
+    @IsNumber()
+    @IsOptional()
+    spent?: number;
+
+    @IsNumber()
+    @IsOptional()
+    progress?: number;
+
+    @IsString()
+    @IsOptional()
+    startDate?: string;
+
+    @IsString()
+    @IsOptional()
+    endDate?: string;
 
     @IsString()
     @IsOptional()
