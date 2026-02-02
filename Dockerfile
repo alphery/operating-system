@@ -1,5 +1,5 @@
-# Base image
-FROM node:18-alpine
+# Base image - Node 20 required for Prisma 7
+FROM node:20-alpine
 
 # Create app directory
 WORKDIR /usr/src/app
