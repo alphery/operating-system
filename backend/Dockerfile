@@ -8,6 +8,9 @@ WORKDIR /usr/src/app
 COPY package*.json ./
 COPY prisma ./prisma/
 
+# Install system dependencies (OpenSSL 3 for Prisma)
+RUN apk add --no-cache openssl
+
 # Install app dependencies
 RUN npm install
 
