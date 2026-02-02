@@ -100,7 +100,7 @@ export class StatusCard extends Component {
 					<div className="w-64 pb-1">
 						<div className="mx-2 mb-2 bg-[#1C1C1E] border border-white/10 rounded-xl p-3 shadow-lg flex flex-row items-center justify-between gap-3">
 							<div className="flex items-center gap-3">
-								<img src="./images/logos/Dark Logo H.png" className="w-8 h-8 object-contain" alt="Alphery Logo" />
+								<img src="./images/logos/Dark_Logo_H.png" className="w-8 h-8 object-contain" alt="Alphery Logo" />
 								<div className="flex flex-col">
 									<span className="text-xs font-bold text-white">Install Alphery OS</span>
 									<span className="text-[10px] text-gray-400">Full performance app</span>
