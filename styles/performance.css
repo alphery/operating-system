@@ -1,248 +1,66 @@
-/* ========================================
-   macOS-Like Performance Optimizations
-   Buttery-smooth 120fps animations
-   ======================================== */
+/**
+ * GPU Acceleration & Performance Optimizations
+ * Add this to your main CSS file
+ */
 
-/* === GPU Acceleration & Anti-aliasing === */
-* {
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
-}
+/* ===========================================
+   GPU ACCELERATION FOR SMOOTH ANIMATIONS
+   =========================================== */
 
-html {
-  scroll-behavior: smooth;
-}
-
-body {
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
-}
-
-/* === macOS Easing Functions === */
-:root {
-  --ease-apple: cubic-bezier(0.25, 0.1, 0.25, 1);
-  --ease-apple-in: cubic-bezier(0.42, 0, 1, 1);
-  --ease-apple-out: cubic-bezier(0, 0, 0.58, 1);
-  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  --transition-fast: 150ms;
-  --transition-normal: 250ms;
-  --transition-slow: 350ms;
-}
-
-/* === Window & App Optimizations === */
+/* Force GPU acceleration for all windows */
 .window,
-.app-window,
-[class*="window"],
-[class*="modal"],
-[class*="screen"],
-.react-draggable {
-  will-change: transform;
-  transform: translate3d(0, 0, 0);
+.window-container,
+[class*="window"] {
+  transform: translateZ(0);
   backface-visibility: hidden;
   perspective: 1000px;
-  -webkit-perspective: 1000px;
 }
 
-/* Smooth window dragging */
-.react-draggable-dragging {
-  transition: none !important;
+/* Optimize draggable elements */
+.react-draggable,
+.draggable {
+  will-change: transform;
 }
 
-/* === Interactive Elements (Buttons, Links) === */
-button,
-a,
-input,
-select,
-textarea,
-[role="button"],
-.clickable {
-  transition: all var(--transition-fast) var(--ease-apple);
+/* Optimize desktop icons */
+.desktop-icon,
+[class*="icon"] {
   transform: translateZ(0);
-  will-change: transform, box-shadow;
 }
 
-button:hover,
-[role="button"]:hover,
-.clickable:hover {
-  transform: translateZ(0) scale(1.03);
-  transition: all var(--transition-fast) var(--ease-apple-out);
-}
+/* ===========================================
+   SMOOTH SCROLLING
+   =========================================== */
 
-button:active,
-[role="button"]:active,
-.clickable:active {
-  transform: translateZ(0) scale(0.97);
-  transition: all 80ms var(--ease-apple-in);
-}
-
-/* === Smooth Scrolling === */
-.scrollable,
-.overflow-auto,
-.overflow-y-auto,
-.overflow-x-auto {
-  -webkit-overflow-scrolling: touch;
+* {
   scroll-behavior: smooth;
-  will-change: scroll-position;
 }
 
-/* Hide scrollbar but keep functionality */
-.scrollable::-webkit-scrollbar,
-.overflow-auto::-webkit-scrollbar {
+/* Custom scrollbar performance */
+::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
-.scrollable::-webkit-scrollbar-track,
-.overflow-auto::-webkit-scrollbar-track {
+::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.scrollable::-webkit-scrollbar-thumb,
-.overflow-auto::-webkit-scrollbar-thumb {
+::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.2);
-  border-radius: 10px;
-  transition: background 0.2s var(--ease-apple);
+  border-radius: 4px;
+  transition: background 0.2s ease;
 }
 
-.scrollable::-webkit-scrollbar-thumb:hover,
-.overflow-auto::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
 }
 
-/* === macOS Window Animations === */
-@keyframes windowOpen {
-  0% {
-    opacity: 0;
-    transform: translate3d(0, 0, 0) scale(0.85);
-  }
+/* ===========================================
+   OPTIMIZED ANIMATIONS
+   =========================================== */
 
-  100% {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-}
-
-@keyframes windowClose {
-  0% {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-
-  100% {
-    opacity: 0;
-    transform: translate3d(0, 0, 0) scale(0.85);
-  }
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translate3d(0, 20px, 0);
-  }
-
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-  }
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
-}
-
-/* === App Launch Animation === */
-.app-window,
-.window {
-  animation: windowOpen var(--transition-normal) var(--ease-apple-out) forwards;
-}
-
-.closed-window {
-  animation: windowClose var(--transition-fast) var(--ease-apple-in) forwards;
-}
-
-/* === Context Menu & Dropdown Animations === */
-.context-menu,
-.dropdown-menu,
-.menu {
-  animation: fadeInUp var(--transition-fast) var(--ease-apple-out);
-  will-change: transform, opacity;
-  transform: translateZ(0);
-}
-
-/* === Modal Overlays === */
-.modal-overlay,
-.overlay {
-  backdrop-filter: blur(12px) saturate(180%);
-  -webkit-backdrop-filter: blur(12px) saturate(180%);
-  will-change: opacity;
-  transition: opacity var(--transition-normal) var(--ease-apple);
-}
-
-/* === Prevent Layout Shifts === */
-img,
-video,
-iframe {
-  max-width: 100%;
-  height: auto;
-  transform: translateZ(0);
-}
-
-/* === Dock & Taskbar Optimizations === */
-.dock,
-.sidebar,
-.taskbar,
-[class*="sidebar"],
-[class*="dock"] {
-  will-change: transform;
-  transform: translateZ(0);
-  transition: all var(--transition-normal) var(--ease-apple);
-}
-
-/* === Icon Hover Effects (macOS Dock-like) === */
-.dock-icon,
-.app-icon,
-[class*="icon"]:hover {
-  transform: translateZ(0) translateY(-5px) scale(1.1);
-  transition: all var(--transition-fast) var(--ease-spring);
-}
-
-.dock-icon:active,
-.app-icon:active {
-  transform: translateZ(0) translateY(0) scale(0.95);
-  transition: all 100ms var(--ease-apple-in);
-}
-
-/* === Window Dragging Performance === */
-.window-dragging,
-.react-draggable-dragging {
-  pointer-events: none;
-  user-select: none;
-  cursor: grabbing;
-  opacity: 0.95;
-}
-
-.window-resizing {
-  pointer-events: none;
-  user-select: none;
-}
-
-/* === Desktop Background === */
-#desktop,
-#desktop-background,
-.desktop-bg {
-  will-change: transform;
-  transform: translateZ(0);
-  transition: background-image var(--transition-slow) var(--ease-apple);
-}
-
-/* === Reduce Motion for Accessibility === */
+/* Reduce motion for accessibility */
 @media (prefers-reduced-motion: reduce) {
 
   *,
@@ -255,90 +73,168 @@ iframe {
   }
 }
 
-/* === Enable 120fps animations === */
-@media (prefers-reduced-motion: no-preference) {
-  * {
-    animation-timing-function: var(--ease-apple);
-  }
-
-  /* Force GPU acceleration */
-  .window,
-  .app-window,
-  button,
-  a {
-    transform: translate3d(0, 0, 0);
-  }
+/* Optimize blur effects */
+[class*="blur"],
+.backdrop-blur {
+  will-change: backdrop-filter;
+  transform: translateZ(0);
 }
 
-/* === Performance Hints === */
-.gpu-accelerated {
-  transform: translateZ(0);
+/* ===========================================
+   LOW PERFORMANCE MODE
+   =========================================== */
+
+/* Disable expensive effects in low performance mode */
+body.low-performance-mode * {
+  backdrop-filter: none !important;
+  filter: none !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+
+/* Simplify animations in low performance mode */
+body.low-performance-mode *,
+body.low-performance-mode *::before,
+body.low-performance-mode *::after {
+  animation-duration: 0.15s !important;
+  transition-duration: 0.15s !important;
+}
+
+
+/* ===========================================
+   LAYER PROMOTION (GPU)
+   =========================================== */
+
+/* Promote frequently animated elements to their own layer */
+.window:hover,
+.window.active,
+.app-icon:hover,
+button:hover,
+[class*="animate"] {
   will-change: transform;
 }
 
-.no-repaint {
+/* Remove will-change after animation */
+.window:not(:hover):not(.dragging),
+.app-icon:not(:hover),
+button:not(:hover) {
+  will-change: auto;
+}
+
+/* ===========================================
+   CONTAINMENT FOR PERFORMANCE
+   =========================================== */
+
+/* Contain layout changes */
+.window,
+.app-container {
   contain: layout style paint;
 }
 
-.isolate {
-  isolation: isolate;
+/* Contain for desktop/screen */
+.desktop,
+.screen {
+  contain: layout paint;
 }
 
-/* === Smooth Transitions for Settings Changes === */
-body,
-html,
-#root {
-  transition:
-    background-color var(--transition-normal) var(--ease-apple),
-    color var(--transition-normal) var(--ease-apple),
-    filter var(--transition-normal) var(--ease-apple);
-}
+/* ===========================================
+   FONT RENDERING OPTIMIZATION
+   =========================================== */
 
-/* === Optimize Large Lists === */
-.list,
-.grid,
-[role="list"],
-[role="grid"] {
-  contain: layout style paint;
-  will-change: scroll-position;
-}
-
-/* === Better Text Rendering === */
-p,
-span,
-h1,
-h2,
-h3,
-h4,
-h5,
-h6,
-li,
-a {
-  text-rendering: optimizeLegibility;
+body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
-/* === Shadow Optimizations === */
-.shadow,
-[class*="shadow"] {
-  will-change: box-shadow;
-  transition: box-shadow var(--transition-fast) var(--ease-apple);
+/* Disable font smoothing for low-end */
+body.low-performance-mode {
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
+  text-rendering: optimizeSpeed;
 }
 
-/* === Glassmorphism Effects === */
-.glass,
-.glassmorphism,
-[class*="glass"] {
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  background-color: rgba(255, 255, 255, 0.1);
-  will-change: backdrop-filter;
+/* ===========================================
+   IMAGE OPTIMIZATION
+   =========================================== */
+
+img {
+  image-rendering: -webkit-optimize-contrast;
+  font-display: swap;
 }
 
-/* === Prevent Jank on Focus === */
-:focus-visible {
-  outline: 2px solid var(--accent-color, #007AFF);
-  outline-offset: 2px;
-  transition: outline-offset var(--transition-fast) var(--ease-apple);
+/* Lazy loading hint */
+img[loading="lazy"] {
+  content-visibility: auto;
+}
+
+/* ===========================================
+   CONTENT VISIBILITY (NEW!)
+   =========================================== */
+
+/* Auto-hide off-screen content (huge perf gain) */
+.app-list>*,
+.desktop-icons>*,
+.message-list>* {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 100px;
+}
+
+/* ===========================================
+   TRANSITION OPTIMIZATIONS
+   =========================================== */
+
+/* Only transition transform and opacity (GPU properties) */
+.optimized-transition {
+  transition-property: transform, opacity;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* macOS-like easing */
+.mac-easing {
+  transition-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+/* ===========================================
+   MEMORY OPTIMIZATION
+   =========================================== */
+
+/* Unload content when hidden */
+.hidden-tab,
+.inactive-window:not(.minimized) {
+  content-visibility: hidden;
+}
+
+/* ===========================================
+   MOBILE OPTIMIZATIONS
+   =========================================== */
+
+@media (max-width: 768px) {
+
+  /* Reduce complexity on mobile */
+  * {
+    backdrop-filter: none !important;
+  }
+
+  /* Faster animations on mobile */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.2s !important;
+    transition-duration: 0.2s !important;
+  }
+}
+
+/* ===========================================
+   LOADING PERFORMANCE
+   =========================================== */
+
+/* Critical CSS - load first */
+.critical-render {
+  display: contents;
+}
+
+/* Defer non-critical */
+.non-critical {
+  content-visibility: auto;
 }

@@ -20,6 +20,7 @@ import { displayWeather } from './components/apps/weather';
 import { displayCalendar } from './components/apps/calendar';
 import UserPermissionsManager from './components/apps/user_permissions';
 import { displayAboutAlphery } from './components/apps/about_alphery';
+import RealtimeDemo from './components/apps/realtime_demo';
 
 // Default installed apps for all new users
 const DEFAULT_INSTALLED_APPS = [
@@ -31,7 +32,8 @@ const DEFAULT_INSTALLED_APPS = [
     'files',
     'trash',
     'gedit', // Text Editor
-    'app-store'
+    'app-store',
+    'realtime-demo' // Socket.IO Test
 ];
 
 const apps = [
@@ -224,6 +226,15 @@ const apps = [
         favourite: false,
         desktop_shortcut: false,
         screen: displayGallery,
+    },
+    {
+        id: "realtime-demo",
+        title: "🔴 Realtime Demo",
+        icon: './themes/Yaru/apps/chrome.png',
+        disabled: false,
+        favourite: true,
+        desktop_shortcut: false,
+        screen: () => <RealtimeDemo />,
     }
 ]
 

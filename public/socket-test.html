@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Socket.IO Test Page</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+        
+        h1 {
+            color: #2d3748;
+            margin-bottom: 10px;
+        }
+        
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 30px;
+        }
+        
+        .status.connected {
+            background: #48bb78;
+            color: white;
+        }
+        
+        .status.disconnected {
+            background: #e53e3e;
+            color: white;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .info-grid {
+            display: grid;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .info-item {
+            background: #f7fafc;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .info-label {
+            font-size: 12px;
+            color: #718096;
+            margin-bottom: 5px;
+        }
+        
+        .info-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2d3748;
+            word-break: break-all;
+        }
+        
+        .messages {
+            background: #2d3748;
+            border-radius: 10px;
+            padding: 20px;
+            height: 200px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+        
+        .message {
+            background: rgba(255,255,255,0.1);
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            color: white;
+            font-size: 14px;
+        }
+        
+        .message-time {
+            color: #a0aec0;
+            font-size: 11px;
+        }
+        
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+        
+        input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        
+        input:focus {
+            border-color: #667eea;
+        }
+        
+        button {
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        button:hover {
+            background: #5a67d8;
+        }
+        
+        button:disabled {
+            background: #cbd5e0;
+            cursor: not-allowed;
+        }
+        
+        .empty-state {
+            color: #a0aec0;
+            text-align: center;
+            padding: 40px 20px;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔴 Socket.IO Connection Test</h1>
+        
+        <div id="statusBadge" class="status disconnected">
+            <div class="status-dot"></div>
+            <span id="statusText">Disconnected</span>
+        </div>
+        
+        <div class="info-grid">
+            <div class="info-item">
+                <div class="info-label">Backend URL</div>
+                <div class="info-value" id="backendUrl">-</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Socket ID</div>
+                <div class="info-value" id="socketId">-</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Transport</div>
+                <div class="info-value" id="transport">-</div>
+            </div>
+        </div>
+        
+        <div class="messages" id="messages">
+            <div class="empty-state">Waiting for connection...</div>
+        </div>
+        
+        <div class="input-group">
+            <input 
+                type="text" 
+                id="messageInput" 
+                placeholder="Type a message..." 
+                disabled
+            />
+            <button id="sendBtn" disabled>Send</button>
+        </div>
+    </div>
+    
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script>
+        const backendUrl = 'http://localhost:3001';
+        const messagesDiv = document.getElementById('messages');
+        const statusBadge = document.getElementById('statusBadge');
+        const statusText = document.getElementById('statusText');
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        
+        document.getElementById('backendUrl').textContent = backendUrl;
+        
+        function addMessage(text, type = 'info') {
+            const time = new Date().toLocaleTimeString();
+            const msg = document.createElement('div');
+            msg.className = 'message';
+            msg.innerHTML = `<div>${text}</div><div class="message-time">${time}</div>`;
+            
+            // Remove empty state
+            const emptyState = messagesDiv.querySelector('.empty-state');
+            if (emptyState) emptyState.remove();
+            
+            messagesDiv.appendChild(msg);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        // Initialize Socket.IO
+        const socket = io(backendUrl, {
+            transports: ['websocket', 'polling']
+        });
+        
+        socket.on('connect', () => {
+            statusBadge.className = 'status connected';
+            statusText.textContent = 'Connected';
+            document.getElementById('socketId').textContent = socket.id;
+            document.getElementById('transport').textContent = socket.io.engine.transport.name;
+            messageInput.disabled = false;
+            sendBtn.disabled = false;
+            addMessage('✅ Connected to backend!');
+        });
+        
+        socket.on('disconnect', () => {
+            statusBadge.className = 'status disconnected';
+            statusText.textContent = 'Disconnected';
+            messageInput.disabled = true;
+            sendBtn.disabled = true;
+            addMessage('❌ Disconnected from backend');
+        });
+        
+        socket.on('connect_error', (error) => {
+            addMessage(`⚠️ Connection error: ${error.message}`);
+        });
+        
+        socket.on('message', (data) => {
+            addMessage(`📨 Received: ${data.text}`);
+        });
+        
+        // Update transport on change
+        socket.io.engine.on('upgrade', (transport) => {
+            document.getElementById('transport').textContent = transport.name;
+            addMessage(`🔄 Upgraded to ${transport.name}`);
+        });
+        
+        // Send message
+        function sendMessage() {
+            const text = messageInput.value.trim();
+            if (text && socket.connected) {
+                socket.emit('message', { text, user: 'Test Client' });
+                addMessage(`📤 Sent: ${text}`);
+                messageInput.value = '';
+            }
+        }
+        
+        sendBtn.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+    </script>
+</body>
+</html>

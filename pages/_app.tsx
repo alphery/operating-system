@@ -4,12 +4,18 @@ import '../styles/sf-pro.css'
 import '../styles/index.css'
 import '../styles/performance.css'
 import { AuthProvider } from '../context/AuthContext'
+import { SupabaseAuthProvider } from '../context/SupabaseAuthContext'
+import { SocketProvider } from '../context/SocketContext'
 
 function MyApp({ Component, pageProps }: AppProps) {
   return (
-    <AuthProvider>
-      <Component {...pageProps} />
-    </AuthProvider>
+    <SupabaseAuthProvider>
+      <SocketProvider>
+        <AuthProvider>
+          <Component {...pageProps} />
+        </AuthProvider>
+      </SocketProvider>
+    </SupabaseAuthProvider>
   )
 }
 
