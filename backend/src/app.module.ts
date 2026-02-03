@@ -18,6 +18,8 @@ import { DocumentsModule } from './documents/documents.module';
 import { TenantModule } from './core/tenant/tenant.module';
 import { EntityModule } from './core/entity/entity.module';
 import { InvitationModule } from './invitation/invitation.module';
+import { AuditModule } from './audit/audit.module';
+import { NotificationModule } from './notification/notification.module';
 
 @Module({
   imports: [
@@ -36,6 +38,8 @@ import { InvitationModule } from './invitation/invitation.module';
     DocumentsModule,
     EntityModule,
     InvitationModule,
+    AuditModule,
+    NotificationModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService],

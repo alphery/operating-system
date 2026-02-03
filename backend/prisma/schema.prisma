@@ -320,3 +320,39 @@ model Invitation {
   @@index([email])
   @@index([token])
 }
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  tenantId  String
+  userId    String
+  action    String   // CREATE, UPDATE, DELETE
+  entity    String   // Client, Lead, Project, etc.
+  entityId  String
+  oldValue  Json?    // Previous state (for UPDATE/DELETE)
+  newValue  Json?    // New state (for CREATE/UPDATE)
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([entity])
+  @@index([createdAt])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  tenantId  String
+  userId    String   // Who receives this notification
+  type      String   // MENTION, TASK_ASSIGNED, DEAL_WON, etc.
+  title     String
+  message   String
+  link      String?  // URL to navigate to
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
+}
