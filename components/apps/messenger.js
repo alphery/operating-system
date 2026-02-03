@@ -183,8 +183,16 @@ class Messenger extends Component {
             const snapshot = await getDocs(usersRef);
 
 
+
             // Request notification permission on mount
             this.requestNotificationPermission();
+
+            // Listen for incoming calls
+            this.subscribeToIncomingCalls();
+
+            // Load hidden chats
+            const hidden = JSON.parse(localStorage.getItem(`messenger_hidden_${this.props.user.uid}`) || '[]');
+            this.setState({ hiddenUsers: hidden });
 
             const users = snapshot.docs
                 .map(doc => ({
@@ -956,19 +964,197 @@ class Messenger extends Component {
     }
 
     // ============ VIDEO CALL (SIMULATED/BASIC) ============
-    startVideoCall = () => {
-        this.setState({ callStatus: 'calling' });
-        // In a real app, signal user here via Firestore 'calls' collection
-        // For Demo, go straight to 'connected' after 2s
-        setTimeout(() => {
-            this.setState({ callStatus: 'connected' });
-            this.startCallTimer();
-        }, 2000);
+    // ============ REAL WEB RTC VIDEO CALLING ============
+
+    subscribeToIncomingCalls = () => {
+        const { currentUser } = this.state;
+        const callsRef = collection(db, 'calls');
+        const q = query(callsRef, where('calleeId', '==', currentUser.uid), where('status', '==', 'calling'));
+
+        this.unsubscribeIncomingCalls = onSnapshot(q, (snapshot) => {
+            snapshot.docChanges().forEach((change) => {
+                if (change.type === 'added') {
+                    const callData = change.doc.data();
+                    // Check if not expired (e.g., created in last minute) - omitted for simplicity
+                    this.setState({
+                        incomingCall: { id: change.doc.id, ...callData },
+                        callStatus: 'incoming' // Show answering UI
+                    });
+
+                    // Play ringtone (Simulator)
+                    // const ringtone = new Audio('/sounds/ringtone.mp3'); ringtone.play();
+                }
+            });
+        });
     }
 
-    endCall = () => {
-        this.setState({ callStatus: 'idle', callDuration: 0 });
+    createPeerConnection = () => {
+        const servers = {
+            iceServers: [
+                {
+                    urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302']
+                }
+            ]
+        };
+        this.pc = new RTCPeerConnection(servers);
+
+        // Handle network candidates
+        this.pc.onicecandidate = (event) => {
+            if (event.candidate && this.state.callId) {
+                const candidatesCol = this.state.isCaller
+                    ? 'offerCandidates'
+                    : 'answerCandidates';
+                // We add to our OWN collection
+                const candidatesRef = collection(db, 'calls', this.state.callId, candidatesCol);
+                addDoc(candidatesRef, event.candidate.toJSON());
+            }
+        };
+
+        // Handle remote stream
+        this.pc.ontrack = (event) => {
+            console.log("Remote track received");
+            event.streams[0].getTracks().forEach(track => {
+                this.setState({ remoteStream: event.streams[0] });
+                if (this.remoteVideoRef.current) {
+                    this.remoteVideoRef.current.srcObject = event.streams[0];
+                }
+            });
+        };
+
+        // Push local tracks
+        if (this.state.localStream) {
+            this.state.localStream.getTracks().forEach(track => {
+                this.pc.addTrack(track, this.state.localStream);
+            });
+        }
+    }
+
+    startVideoCall = async () => {
+        const { currentUser, selectedUser } = this.state;
+        if (!selectedUser) return;
+
+        try {
+            // 1. Get Local Media
+            const localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            this.setState({ localStream, callStatus: 'calling', isCaller: true });
+
+            // 2. Create PC
+            this.createPeerConnection();
+
+            // 3. Create Offer
+            const offer = await this.pc.createOffer();
+            await this.pc.setLocalDescription(offer);
+
+            // 4. Create Call Doc in Firestore
+            const callDocRef = doc(collection(db, 'calls'));
+            const callId = callDocRef.id;
+
+            await setDoc(callDocRef, {
+                callerId: currentUser.uid,
+                callerName: currentUser.displayName,
+                callerPhoto: currentUser.photoURL,
+                calleeId: selectedUser.uid, // Assuming 1-on-1 for now
+                offer: { type: offer.type, sdp: offer.sdp },
+                status: 'calling',
+                timestamp: serverTimestamp()
+            });
+
+            this.setState({ callId });
+
+            // 5. Listen for Answer
+            this.unsubscribeCallData = onSnapshot(callDocRef, async (snapshot) => {
+                const data = snapshot.data();
+                if (data && data.answer && !this.pc.currentRemoteDescription) {
+                    const answerDescription = new RTCSessionDescription(data.answer);
+                    await this.pc.setRemoteDescription(answerDescription);
+                    this.setState({ callStatus: 'connected' });
+                    this.startCallTimer();
+                }
+                if (data && data.status === 'ended') {
+                    this.endCall(false); // don't write ended status again
+                }
+            });
+
+            // 6. Listen for Remote ICE Candidates
+            this.listenForCandidates(callId, 'answerCandidates');
+
+        } catch (error) {
+            console.error("Error starting call:", error);
+            alert("Could not start call. Access denied.");
+        }
+    }
+
+    answerCall = async () => {
+        const { incomingCall } = this.state;
+        if (!incomingCall) return;
+
+        try {
+            // 1. Get Local Media
+            const localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            this.setState({ localStream, callStatus: 'connected', callId: incomingCall.id, isCaller: false });
+
+            // 2. Create PC
+            this.createPeerConnection();
+
+            // 3. Set Remote (Offer)
+            await this.pc.setRemoteDescription(new RTCSessionDescription(incomingCall.offer));
+
+            // 4. Create Answer
+            const answer = await this.pc.createAnswer();
+            await this.pc.setLocalDescription(answer);
+
+            // 5. Update Firestore
+            const callRef = doc(db, 'calls', incomingCall.id);
+            await updateDoc(callRef, {
+                answer: { type: answer.type, sdp: answer.sdp },
+                status: 'connected'
+            });
+
+            // 6. Listen for Caller ICE Candidates
+            this.listenForCandidates(incomingCall.id, 'offerCandidates');
+
+            // 7. Cleanup incoming call listener
+            this.startCallTimer();
+
+        } catch (error) {
+            console.error("Error answering call:", error);
+        }
+    }
+
+    listenForCandidates = (callId, collectionName) => {
+        const q = collection(db, 'calls', callId, collectionName);
+        onSnapshot(q, (snapshot) => {
+            snapshot.docChanges().forEach((change) => {
+                if (change.type === 'added') {
+                    const data = change.doc.data();
+                    const candidate = new RTCIceCandidate(data);
+                    this.pc.addIceCandidate(candidate);
+                }
+            });
+        });
+    }
+
+    endCall = async (notifyFirestore = true) => {
+        if (this.state.localStream) {
+            this.state.localStream.getTracks().forEach(track => track.stop());
+        }
+        if (this.pc) {
+            this.pc.close();
+            this.pc = null;
+        }
+
+        if (notifyFirestore && this.state.callId) {
+            try {
+                await updateDoc(doc(db, 'calls', this.state.callId), { status: 'ended' });
+            } catch (e) { }
+        }
+
+        this.setState({ callStatus: 'idle', callDuration: 0, incomingCall: null, callId: null, localStream: null, remoteStream: null });
         if (this.callInterval) clearInterval(this.callInterval);
+        if (this.unsubscribeCallData) {
+            this.unsubscribeCallData();
+            this.unsubscribeCallData = null;
+        }
     }
 
     startCallTimer = () => {
@@ -1026,12 +1212,53 @@ class Messenger extends Component {
             this.setState({ conversations });
         }, (error) => {
             console.error("Error subscribing to chats:", error);
-            // Fallback?
         });
     }
 
-    // Deprecated: saveConversation to localStorage
-    // New Implementation uses updateConversationMetadata
+    // ============ HIDE / DELETE CHAT ============
+    hideChat = (chatId) => {
+        const hidden = JSON.parse(localStorage.getItem(`messenger_hidden_${this.state.currentUser.uid}`) || '[]');
+        if (!hidden.includes(chatId)) {
+            hidden.push(chatId);
+            localStorage.setItem(`messenger_hidden_${this.state.currentUser.uid}`, JSON.stringify(hidden));
+            this.setState({ hiddenUsers: hidden });
+        }
+    }
+
+    unhideChat = (chatId) => {
+        const hidden = JSON.parse(localStorage.getItem(`messenger_hidden_${this.state.currentUser.uid}`) || '[]');
+        const newHidden = hidden.filter(id => id !== chatId);
+        localStorage.setItem(`messenger_hidden_${this.state.currentUser.uid}`, JSON.stringify(newHidden));
+        this.setState({ hiddenUsers: newHidden });
+    }
+
+    handleUserContextMenu = (e, user) => {
+        e.preventDefault();
+        this.setState({
+            contextMenu: {
+                x: e.clientX,
+                y: e.clientY,
+                type: 'user',
+                data: user
+            }
+        });
+    }
+
+    handleDeleteChat = async (user) => {
+        if (!window.confirm("Are you sure you want to delete this chat permanently? History will be lost for everyone.")) return;
+
+        try {
+            const chatId = user.chatId;
+            await deleteDoc(doc(db, 'chats', chatId));
+
+            // Should also delete messages? Skipped for safety/performance in this demo context.
+
+            this.setState({ contextMenu: null, selectedUser: null });
+        } catch (e) {
+            console.error("Delete error", e);
+            alert("Could not delete chat");
+        }
+    }
 
     searchUserByEmail = async (email) => {
         if (!email.trim()) {
@@ -1498,7 +1725,7 @@ class Messenger extends Component {
                         </div>
 
                         {this.state.conversations.filter(u =>
-                            !this.state.hiddenUsers.includes(u.uid) && (
+                            !this.state.hiddenUsers.includes(u.chatId) && ( // Filter by Chat ID
                                 !this.state.searchQuery ||
                                 (u.displayName && u.displayName.toLowerCase().includes(this.state.searchQuery.toLowerCase())) ||
                                 (u.email && u.email.toLowerCase().includes(this.state.searchQuery.toLowerCase()))
@@ -1848,41 +2075,92 @@ class Messenger extends Component {
                 </div>
 
                 {/* Call Overlay */}
-                {
-                    callStatus !== 'idle' && (
-                        <div className="absolute inset-0 z-[100] bg-gray-900 flex flex-col items-center justify-center text-white">
-                            {callStatus === 'connected' ? (
-                                <div className="w-full h-full flex flex-col">
-                                    <div className="flex-1 relative bg-black">
-                                        {/* Remote Video Placeholder */}
-                                        <img src={selectedUser?.photoURL || "https://source.unsplash.com/random/800x600/?person"} className="w-full h-full object-cover opacity-50" />
-                                        <div className="absolute top-4 right-4 w-32 h-48 bg-gray-800 rounded-lg border-2 border-white shadow-lg overflow-hidden">
-                                            {/* Local Video Placeholder */}
-                                            <div className="w-full h-full bg-gray-700 flex items-center justify-center">Me</div>
+                {/* Call Overlay */}
+                {(callStatus === 'calling' || callStatus === 'connected' || callStatus === 'incoming') && (
+                    <div className="absolute inset-0 z-[100] bg-gray-900 flex flex-col items-center justify-center text-white">
+                        {callStatus === 'connected' ? (
+                            <div className="w-full h-full flex flex-col">
+                                <div className="flex-1 relative bg-black">
+                                    {/* Remote Video */}
+                                    {this.state.remoteStream ? (
+                                        <video
+                                            ref={this.remoteVideoRef}
+                                            className="w-full h-full object-cover"
+                                            autoPlay
+                                            playsInline
+                                        />
+                                    ) : (
+                                        <div className="absolute inset-0 flex items-center justify-center z-0">
+                                            <img src={selectedUser?.photoURL} className="w-24 h-24 rounded-full opacity-50" />
+                                            <p className="mt-4 absolute bottom-10">Waiting for video...</p>
                                         </div>
-                                    </div>
-                                    <div className="h-24 bg-gray-900 flex items-center justify-center gap-6">
-                                        <div className="text-xl font-mono">{this.formatDuration(this.state.callDuration)}</div>
-                                        <button onClick={() => this.setState({ isAudioEnabled: !this.state.isAudioEnabled })} className={`p-4 rounded-full ${this.state.isAudioEnabled ? 'bg-gray-700' : 'bg-red-500'}`}>🎤</button>
-                                        <button onClick={this.endCall} className="p-4 rounded-full bg-red-600 hover:bg-red-700 transform hover:scale-110 transition">☎️ End</button>
-                                        <button onClick={() => this.setState({ isVideoEnabled: !this.state.isVideoEnabled })} className={`p-4 rounded-full ${this.state.isVideoEnabled ? 'bg-gray-700' : 'bg-red-500'}`}>📹</button>
+                                    )}
+
+                                    <div className="absolute top-4 right-4 w-32 h-48 bg-gray-800 rounded-lg border-2 border-white shadow-lg overflow-hidden z-10">
+                                        {/* Local Video - Mirror */}
+                                        <video
+                                            ref={(ref) => {
+                                                if (ref && this.state.localStream && ref.srcObject !== this.state.localStream) {
+                                                    ref.srcObject = this.state.localStream;
+                                                    ref.muted = true;
+                                                }
+                                            }}
+                                            className="w-full h-full object-cover scale-x-[-1]"
+                                            autoPlay
+                                            playsInline
+                                            muted
+                                        />
                                     </div>
                                 </div>
-                            ) : (
-                                <div className="text-center">
-                                    <div className="w-24 h-24 rounded-full bg-gray-700 mx-auto mb-6 flex items-center justify-center text-4xl overflow-hidden">
-                                        {selectedUser?.photoURL ? <img src={selectedUser.photoURL} className="w-full h-full object-cover" /> : selectedUser?.displayName[0]}
-                                    </div>
-                                    <h2 className="text-2xl font-bold mb-2">{selectedUser?.displayName}</h2>
-                                    <p className="text-gray-400 animate-pulse mb-8">Calling...</p>
-                                    <button onClick={this.endCall} className="w-16 h-16 rounded-full bg-red-500 flex items-center justify-center text-2xl hover:bg-red-600 transition">
-                                        ☎️
+                                <div className="h-24 bg-gray-900 flex items-center justify-center gap-6">
+                                    <div className="text-xl font-mono">{this.formatDuration(this.state.callDuration)}</div>
+                                    <button onClick={() => {
+                                        const enabled = !this.state.isAudioEnabled;
+                                        this.setState({ isAudioEnabled: enabled });
+                                        if (this.state.localStream) this.state.localStream.getAudioTracks().forEach(t => t.enabled = enabled);
+                                    }} className={`p-4 rounded-full ${this.state.isAudioEnabled ? 'bg-gray-700' : 'bg-red-500'}`}>🎤</button>
+                                    <button onClick={() => this.endCall(true)} className="p-4 rounded-full bg-red-600 hover:bg-red-700 transform hover:scale-110 transition">☎️ End</button>
+                                    <button onClick={() => {
+                                        const enabled = !this.state.isVideoEnabled;
+                                        this.setState({ isVideoEnabled: enabled });
+                                        if (this.state.localStream) this.state.localStream.getVideoTracks().forEach(t => t.enabled = enabled);
+                                    }} className={`p-4 rounded-full ${this.state.isVideoEnabled ? 'bg-gray-700' : 'bg-red-500'}`}>📹</button>
+                                </div>
+                            </div>
+                        ) : callStatus === 'incoming' ? (
+                            <div className="text-center animate-bounce-subtle">
+                                <div className="w-32 h-32 rounded-full border-4 border-green-400 p-1 mx-auto mb-6">
+                                    <img src={this.state.incomingCall?.callerPhoto} className="w-full h-full rounded-full object-cover" />
+                                </div>
+                                <h2 className="text-3xl font-bold mb-2">{this.state.incomingCall?.callerName}</h2>
+                                <p className="text-green-400 mb-8 text-xl">Incoming Video Call...</p>
+                                <div className="flex gap-8 justify-center">
+                                    <button onClick={() => this.endCall(true)} className="w-20 h-20 rounded-full bg-red-500 flex items-center justify-center text-3xl hover:bg-red-600 transition shadow-lg">
+                                        ❌
+                                    </button>
+                                    <button onClick={this.answerCall} className="w-20 h-20 rounded-full bg-green-500 flex items-center justify-center text-3xl hover:bg-green-600 transition shadow-lg animate-pulse">
+                                        📞
                                     </button>
                                 </div>
-                            )}
-                        </div>
-                    )
-                }
+                            </div>
+                        ) : (
+                            // OUTGOING CALLING STATE
+                            <div className="text-center">
+                                <div className="w-24 h-24 rounded-full bg-gray-700 mx-auto mb-6 flex items-center justify-center text-4xl overflow-hidden relative">
+                                    {selectedUser?.photoURL ? <img src={selectedUser.photoURL} className="w-full h-full object-cover" /> : selectedUser?.displayName?.[0]}
+                                    <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center">
+                                        <div className="animate-ping w-16 h-16 rounded-full border-2 border-white"></div>
+                                    </div>
+                                </div>
+                                <h2 className="text-2xl font-bold mb-2">{selectedUser?.displayName}</h2>
+                                <p className="text-gray-400 animate-pulse mb-8">Calling...</p>
+                                <button onClick={() => this.endCall(true)} className="w-16 h-16 rounded-full bg-red-500 flex items-center justify-center text-2xl hover:bg-red-600 transition">
+                                    ☎️
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* Theme Modal */}
                 {
@@ -1904,55 +2182,33 @@ class Messenger extends Component {
                 }
 
                 {/* Context Menu */}
-                {
-                    this.state.contextMenu && (
-                        <div
-                            className="fixed bg-white rounded-lg shadow-2xl border border-gray-200 py-2 z-50 min-w-[200px]"
-                            style={{
-                                left: `${this.state.contextMenu.x}px`,
-                                top: `${this.state.contextMenu.y}px`
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            {this.state.contextMenu.type === 'user' && (
-                                <>
-                                    <button
-                                        onClick={() => this.hideUser(this.state.contextMenu.item)}
-                                        className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-3 text-sm text-gray-700 transition"
-                                    >
-                                        <span>👁️‍🗨️</span>
-                                        <span>Hide Chat</span>
-                                    </button>
-                                    <button
-                                        onClick={() => this.deleteUserChat(this.state.contextMenu.item)}
-                                        className="w-full px-4 py-2 text-left hover:bg-red-50 flex items-center gap-3 text-sm text-red-600 transition"
-                                    >
-                                        <span>🗑️</span>
-                                        <span>
-                                            {this.props.userData?.role === 'super_admin'
-                                                ? '🔒 Delete Chat (Admin)'
-                                                : 'Delete Chat'}
-                                        </span>
-                                    </button>
-                                </>
-                            )}
-
-                            {this.state.contextMenu.type === 'message' && (
-                                <button
-                                    onClick={() => this.deleteMessage(this.state.contextMenu.item)}
-                                    className="w-full px-4 py-2 text-left hover:bg-red-50 flex items-center gap-3 text-sm text-red-600 transition"
-                                >
-                                    <span>🗑️</span>
-                                    <span>
-                                        {this.props.userData?.role === 'super_admin'
-                                            ? '🔒 Delete for Everyone'
-                                            : 'Delete Message'}
-                                    </span>
-                                </button>
-                            )}
-                        </div>
-                    )
-                }
+                {/* Context Menu */}
+                {this.state.contextMenu && (
+                    <div
+                        className="fixed bg-white shadow-xl rounded-lg border border-gray-200 py-1 z-[80] w-[200px]"
+                        style={{ top: this.state.contextMenu.y, left: this.state.contextMenu.x }}
+                    >
+                        {this.state.contextMenu.type === 'message' ? (
+                            <>
+                                <button onClick={() => this.setReplyTo(this.state.contextMenu.data)} className="block w-full text-left px-4 py-2 hover:bg-gray-50 text-xs text-gray-700">Reply</button>
+                                {this.state.contextMenu.data.from === this.state.currentUser.uid && (
+                                    <>
+                                        <button onClick={() => this.startEditMessage(this.state.contextMenu.data)} className="block w-full text-left px-4 py-2 hover:bg-gray-50 text-xs text-gray-700">Edit</button>
+                                        <button onClick={() => this.deleteMessage(this.state.contextMenu.data)} className="block w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 text-xs">Delete</button>
+                                    </>
+                                )}
+                            </>
+                        ) : (
+                            <>
+                                <button onClick={() => this.hideChat(this.state.contextMenu.data.chatId)} className="block w-full text-left px-4 py-2 hover:bg-gray-50 text-xs text-gray-700">Hide Chat</button>
+                                <div className="border-t my-1"></div>
+                                <button onClick={() => this.handleDeleteChat(this.state.contextMenu.data)} className="block w-full text-left px-4 py-2 hover:bg-red-50 text-xs text-red-600">Delete Permanently</button>
+                            </>
+                        )}
+                        <div className="border-t my-1"></div>
+                        <button onClick={() => this.setState({ contextMenu: null })} className="block w-full text-left px-4 py-2 hover:bg-gray-50 text-xs text-gray-400">Cancel</button>
+                    </div>
+                )}
 
                 {/* Create Group Modal */}
                 {
