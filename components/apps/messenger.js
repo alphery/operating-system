@@ -239,7 +239,9 @@ class Messenger extends Component {
         const selectedUid = selectedUser.uid;
 
         let chatId;
-        if (selectedUser.isGroup) {
+        if (selectedUser.chatId) {
+            chatId = selectedUser.chatId;
+        } else if (selectedUser.isGroup) {
             chatId = selectedUser.uid;
         } else {
             chatId = [currentUid, selectedUid].sort().join('_');
@@ -248,16 +250,18 @@ class Messenger extends Component {
         const messagesRef = collection(db, 'messages');
         const q = query(
             messagesRef,
-            where('chatId', '==', chatId),
-            orderBy('timestamp', 'desc'),
-            limit(this.state.messageLimit)
+            where('chatId', '==', chatId)
         );
 
         this.unsubscribeMessages = onSnapshot(q, (snapshot) => {
             const messages = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
-            })).reverse();
+            })).sort((a, b) => {
+                const tA = a.timestamp?.seconds || 0;
+                const tB = b.timestamp?.seconds || 0;
+                return tA - tB;
+            });
 
             // If we are scrolling up (loading more), maintain position
             const container = this.chatContainerRef.current;
