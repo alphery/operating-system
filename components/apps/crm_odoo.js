@@ -17,7 +17,6 @@ export default class CRM extends Component {
             contacts: [],
             activities: [],
             quotes: [],
-            quotes: [],
 
             // UI State
             selectedOpportunity: null,
@@ -556,6 +555,138 @@ export default class CRM extends Component {
                         flex: 1;
                         overflow-y: auto;
                         padding: 24px;
+                    }
+
+                    /* --- SHARED MODAL STYLES --- */
+                    .modal-overlay {
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        right: 0;
+                        bottom: 0;
+                        background: rgba(0, 0, 0, 0.5);
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        z-index: 1000;
+                        backdrop-filter: blur(4px);
+                        animation: fadeIn 0.2s;
+                    }
+
+                    .modal-content {
+                        background: white;
+                        border-radius: 16px;
+                        padding: 32px;
+                        max-width: 600px;
+                        width: 90%;
+                        max-height: 90vh;
+                        overflow-y: auto;
+                        animation: slideUp 0.3s;
+                    }
+
+                    @keyframes slideUp {
+                        from { transform: translateY(20px); opacity: 0; }
+                        to { transform: translateY(0); opacity: 1; }
+                    }
+
+                    .modal-header {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        margin-bottom: 24px;
+                    }
+
+                    .modal-header h2 {
+                        font-size: 24px;
+                        font-weight: 700;
+                        color: #1f2937;
+                    }
+
+                    .modal-header button {
+                        width: 32px;
+                        height: 32px;
+                        border: none;
+                        background: #f3f4f6;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        font-size: 18px;
+                        transition: all 0.2s;
+                    }
+
+                    .modal-header button:hover {
+                        background: #e5e7eb;
+                    }
+
+                    .form-grid {
+                        display: grid;
+                        grid-template-columns: 1fr 1fr;
+                        gap: 20px;
+                        margin-bottom: 24px;
+                    }
+
+                    .form-group {
+                        display: flex;
+                        flex-direction: column;
+                        gap: 8px;
+                    }
+
+                    .form-group label {
+                        font-size: 13px;
+                        font-weight: 600;
+                        color: #374151;
+                    }
+
+                    .form-group input,
+                    .form-group select,
+                    .form-group textarea {
+                        padding: 10px 12px;
+                        border: 1px solid #e5e7eb;
+                        border-radius: 8px;
+                        font-size: 14px;
+                        background: #ffffff !important;
+                        color: #1f2937 !important;
+                        transition: all 0.2s;
+                    }
+
+                    .form-group input::placeholder,
+                    .form-group textarea::placeholder {
+                        color: #9ca3af !important;
+                    }
+
+                    .form-group select option {
+                        color: #111827;
+                        background: white;
+                    }
+
+                    .form-group input:focus,
+                    .form-group select:focus,
+                    .form-group textarea:focus {
+                        outline: none;
+                        border-color: #8b5cf6;
+                        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+                    }
+
+                    .modal-actions {
+                        display: flex;
+                        gap: 12px;
+                        justify-content: flex-end;
+                    }
+
+                    .btn-secondary {
+                        padding: 10px 20px;
+                        background: #f3f4f6;
+                        border: 1px solid #e5e7eb;
+                        border-radius: 8px;
+                        font-weight: 600;
+                        cursor: pointer;
+                        font-size: 14px;
+                        color: #374151;
+                        transition: all 0.2s;
+                    }
+
+                    .btn-secondary:hover {
+                        background: #e5e7eb;
+                        color: #1f2937;
                     }
                 `}</style>
             </div>
@@ -1771,135 +1902,6 @@ export default class CRM extends Component {
                         </div>
                     </form>
                 </div>
-                <style jsx>{`
-                    .modal-overlay {
-                        position: fixed;
-                        top: 0;
-                        left: 0;
-                        right: 0;
-                        bottom: 0;
-                        background: rgba(0, 0, 0, 0.5);
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        z-index: 1000;
-                        backdrop-filter: blur(4px);
-                        animation: fadeIn 0.2s;
-                    }
-
-                    .modal-content {
-                        background: white;
-                        border-radius: 16px;
-                        padding: 32px;
-                        max-width: 600px;
-                        width: 90%;
-                        max-height: 90vh;
-                        overflow-y: auto;
-                        animation: slideUp 0.3s;
-                    }
-
-                    @keyframes slideUp {
-                        from { transform: translateY(20px); opacity: 0; }
-                        to { transform: translateY(0); opacity: 1; }
-                    }
-
-                    .modal-header {
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-                        margin-bottom: 24px;
-                    }
-
-                    .modal-header h2 {
-                        font-size: 24px;
-                        font-weight: 700;
-                        color: #1f2937;
-                    }
-
-                    .modal-header button {
-                        width: 32px;
-                        height: 32px;
-                        border: none;
-                        background: #f3f4f6;
-                        border-radius: 8px;
-                        cursor: pointer;
-                        font-size: 18px;
-                        transition: all 0.2s;
-                    }
-
-                    .modal-header button:hover {
-                        background: #e5e7eb;
-                    }
-
-                    .form-grid {
-                        display: grid;
-                        grid-template-columns: 1fr 1fr;
-                        gap: 20px;
-                        margin-bottom: 24px;
-                    }
-
-                    .form-group {
-                        display: flex;
-                        flex-direction: column;
-                        gap: 8px;
-                    }
-
-                    .form-group label {
-                        font-size: 13px;
-                        font-weight: 600;
-                        color: #374151;
-                    }
-
-                    .form-group input,
-                    .form-group select {
-                        padding: 10px 12px;
-                        border: 1px solid #e5e7eb;
-                        border-radius: 8px;
-                        font-size: 14px;
-                        background: #ffffff !important;
-                        color: #1f2937 !important;
-                        transition: all 0.2s;
-                    }
-
-                    .form-group input::placeholder {
-                        color: #9ca3af !important;
-                    }
-
-                    .form-group select option {
-                        color: #111827;
-                        background: white;
-                    }
-
-                    .form-group input:focus,
-                    .form-group select:focus {
-                        outline: none;
-                        border-color: #8b5cf6;
-                        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
-                    }
-
-                    .modal-actions {
-                        display: flex;
-                        gap: 12px;
-                        justify-content: flex-end;
-                    }
-
-                    .btn-secondary {
-                        padding: 10px 20px;
-                        background: #f3f4f6;
-                        border: 1px solid #e5e7eb;
-                        border-radius: 8px;
-                        font-weight: 600;
-                        cursor: pointer;
-                        font-size: 14px;
-                        color: #374151;
-                        transition: all 0.2s;
-                    }
-
-                    .btn-secondary:hover {
-                        background: #e5e7eb;
-                        color: #1f2937;
-                    }
-                `}</style>
             </div>
         );
     }
