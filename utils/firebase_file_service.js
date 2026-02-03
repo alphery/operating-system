@@ -9,7 +9,8 @@ import {
     deleteDoc,
     doc,
     serverTimestamp,
-    updateDoc
+    updateDoc,
+    onSnapshot
 } from 'firebase/firestore';
 
 export default class FirebaseFileService {
@@ -34,7 +35,10 @@ export default class FirebaseFileService {
             const files = [];
 
             querySnapshot.forEach((doc) => {
-                files.push({ id: doc.id, ...doc.data() });
+                const data = doc.data();
+                if (!data.isTrashed) {
+                    files.push({ id: doc.id, ...data });
+                }
             });
 
             // Sort: folders first, then files, alphabetically
@@ -117,8 +121,107 @@ export default class FirebaseFileService {
         });
     }
 
-    // Delete a file or folder
-    static async deleteItem(item) {
+    // Move to Trash (Soft Delete)
+    static async moveToTrash(item) {
+        if (!auth.currentUser) throw new Error("User not authenticated");
+        try {
+            const itemRef = doc(db, 'users', auth.currentUser.uid, 'files', item.id);
+            await updateDoc(itemRef, {
+                isTrashed: true,
+                trashedAt: serverTimestamp()
+            });
+        } catch (error) {
+            console.error("Error moving to trash:", error);
+            throw error;
+        }
+    }
+
+    // Restore from Trash
+    static async restoreFromTrash(item) {
+        if (!auth.currentUser) throw new Error("User not authenticated");
+        try {
+            const itemRef = doc(db, 'users', auth.currentUser.uid, 'files', item.id);
+            await updateDoc(itemRef, {
+                isTrashed: false,
+                trashedAt: null
+            });
+        } catch (error) {
+            console.error("Error restoring from trash:", error);
+            throw error;
+        }
+    }
+
+    // Real-time Trash Listener
+    static subscribeToTrash(callback) {
+        if (!auth.currentUser) return () => { };
+
+        const q = query(
+            this.getUserCollection(),
+            where("isTrashed", "==", true)
+        );
+
+        return onSnapshot(q, (snapshot) => {
+            const files = [];
+            snapshot.forEach((doc) => {
+                files.push({ id: doc.id, ...doc.data() });
+            });
+            callback(files);
+        }, (error) => {
+            console.error("Trash subscription error:", error);
+        });
+    }
+
+    // Real-time Folder Listener
+    static subscribeToFolder(parentId, callback) {
+        if (!auth.currentUser) return () => { };
+
+        const q = query(
+            this.getUserCollection(),
+            where("parentId", "==", parentId)
+        );
+
+        return onSnapshot(q, (snapshot) => {
+            const files = [];
+            snapshot.forEach((doc) => {
+                const data = doc.data();
+                if (!data.isTrashed) {
+                    files.push({ id: doc.id, ...data });
+                }
+            });
+            // Sort: folders first, then files, alphabetically
+            files.sort((a, b) => {
+                if (a.isFolder && !b.isFolder) return -1;
+                if (!a.isFolder && b.isFolder) return 1;
+                return a.name.localeCompare(b.name);
+            });
+            callback(files);
+        }, (error) => {
+            console.error("Folder subscription error:", error);
+        });
+    }
+
+    // Get Trashed Files (One-time fetch - Legacy)
+    static async getTrashedFiles() {
+        if (!auth.currentUser) throw new Error("User not authenticated");
+        try {
+            const q = query(
+                this.getUserCollection(),
+                where("isTrashed", "==", true)
+            );
+            const querySnapshot = await getDocs(q);
+            const files = [];
+            querySnapshot.forEach((doc) => {
+                files.push({ id: doc.id, ...doc.data() });
+            });
+            return files;
+        } catch (error) {
+            console.error("Error fetching trashed files:", error);
+            throw error;
+        }
+    }
+
+    // Permanently Delete
+    static async permanentlyDelete(item) {
         if (!auth.currentUser) throw new Error("User not authenticated");
 
         try {
@@ -130,18 +233,39 @@ export default class FirebaseFileService {
                 const storageRef = ref(storage, item.storagePath);
                 await deleteObject(storageRef).catch(e => console.warn("Storage delete failed (might be missing):", e));
             } else if (item.isFolder) {
-                // Warning: This implies recursive delete which is complex.
-                // For a simple implementation, we might leave orphaned files or implement cloud functions.
-                // Here we will try to delete children recursively on client side (careful with large folders)
-                const children = await this.getFiles(item.id);
+                // Recursive delete for permanently deleting a folder
+                // Note: We need to find children even if they are trashed or not, strictly speaking
+                // But if the folder is in trash, its children effectively are too.
+                // We'll search for children by parentId, regardless of trash status.
+                const q = query(
+                    this.getUserCollection(),
+                    where("parentId", "==", item.id)
+                );
+                const childrenSnapshot = await getDocs(q);
+                const children = [];
+                childrenSnapshot.forEach((doc) => children.push({ id: doc.id, ...doc.data() }));
+
                 for (const child of children) {
-                    await this.deleteItem(child);
+                    await this.permanentlyDelete(child);
                 }
             }
         } catch (error) {
-            console.error("Error deleting item:", error);
+            console.error("Error deleting item permanently:", error);
             throw error;
         }
+    }
+
+    // Empty Trash
+    static async emptyTrash() {
+        const files = await this.getTrashedFiles();
+        for (const file of files) {
+            await this.permanentlyDelete(file);
+        }
+    }
+
+    // Legacy Delete (Redirects to moveToTrash for backward compatibility with UI calls)
+    static async deleteItem(item) {
+        return this.moveToTrash(item);
     }
 
     // Initialize root folder if it doesn't exist (Optional, technically 'root' parentId implies it)

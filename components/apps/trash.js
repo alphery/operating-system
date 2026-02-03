@@ -1,101 +1,189 @@
 import React, { Component } from 'react';
-import $ from 'jquery';
+import FirebaseFileService from '../../utils/firebase_file_service';
+import { auth } from '../../config/firebase';
 
 export class Trash extends Component {
     constructor() {
         super();
-        this.trashItems = [
-            {
-                name: "node_modules",
-                icon: "./themes/Yaru/system/folder.png"
-            },
-            {
-                name: "Project work",
-                icon: "./themes/Yaru/system/folder.png"
-            },
-            {
-                name: "Project work final",
-                icon: "./themes/Yaru/system/folder.png"
-            },
-            {
-                name: "Project work finalmost",
-                icon: "./themes/Yaru/system/folder.png"
-            },
-            {
-                name: "LCS2020033 Assignment.zip",
-                icon: "./themes/filetypes/zip.png"
-            }
-
-        ];
         this.state = {
-            empty: false,
+            trashItems: [],
+            loading: true,
+            selectedId: null,
+            contextMenu: null
         }
     }
 
     componentDidMount() {
-        // get user preference from local-storage
-        let wasEmpty = localStorage.getItem("trash-empty");
-        if (wasEmpty !== null && wasEmpty !== undefined) {
-            if (wasEmpty === "true") this.setState({ empty: true });
+        this.unsubscribeAuth = auth.onAuthStateChanged((user) => {
+            if (user) {
+                // Subscribe to real-time updates
+                this.unsubscribeTrash = FirebaseFileService.subscribeToTrash((files) => {
+                    this.setState({ trashItems: files, loading: false });
+                });
+            } else {
+                this.setState({ trashItems: [], loading: false });
+            }
+        });
+        window.addEventListener('click', this.closeContextMenu);
+    }
+
+    componentWillUnmount() {
+        if (this.unsubscribeAuth) this.unsubscribeAuth();
+        if (this.unsubscribeTrash) this.unsubscribeTrash();
+        window.removeEventListener('click', this.closeContextMenu);
+    }
+
+    // No longer needed manually, but kept for forceful updates if needed
+    loadTrashedFiles = async () => {
+        // Subscription handles this
+    }
+
+    emptyTrash = async () => {
+        if (!window.confirm("Are you sure you want to permanently delete all items in the Trash?")) return;
+        try {
+            await FirebaseFileService.emptyTrash();
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
+    restoreItem = async (item) => {
+        try {
+            await FirebaseFileService.restoreFromTrash(item);
+        } catch (error) {
+            console.error(error);
         }
     }
 
-    focusFile = (e) => {
-        // icon
-        $(e.target).children().get(0).classList.toggle("opacity-60");
-        // file name
-        $(e.target).children().get(1).classList.toggle("bg-ub-orange");
+    deletePermanently = async (item) => {
+        if (!window.confirm(`Permanently delete "${item.name}"?`)) return;
+        try {
+            await FirebaseFileService.permanentlyDelete(item);
+        } catch (error) {
+            console.error(error);
+        }
     }
 
-    emptyTrash = () => {
-        this.setState({ empty: true });
-        localStorage.setItem("trash-empty", true);
-    };
+    getFileIcon = (type, isFolder) => {
+        if (isFolder) return '📁';
+        const icons = {
+            image: '🖼️', video: '🎥', audio: '🎵', pdf: '📕',
+            document: '📝', spreadsheet: '📊', presentation: '📽️',
+            archive: '🗜️', text: '📃', code: '💻', file: '📄'
+        };
+        return icons[type] || '📄';
+    }
+
+    handleContextMenu = (e, item) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.setState({
+            contextMenu: {
+                x: e.clientX,
+                y: e.clientY,
+                item: item
+            },
+            selectedId: item.id
+        });
+    }
+
+    closeContextMenu = () => {
+        if (this.state.contextMenu) this.setState({ contextMenu: null });
+    }
+
+    renderContextMenu = () => {
+        const { contextMenu } = this.state;
+        if (!contextMenu) return null;
+
+        return (
+            <div
+                className="absolute bg-white border border-slate-200 shadow-xl rounded-lg py-1 w-48 z-50 animate-in fade-in duration-100"
+                style={{ top: contextMenu.y, left: contextMenu.x }}
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div onClick={() => { this.restoreItem(contextMenu.item); this.closeContextMenu(); }} className="px-4 py-2 hover:bg-blue-50 hover:text-blue-600 text-sm cursor-pointer flex items-center gap-2">
+                    <span>♻️</span> Restore
+                </div>
+                <div className="h-px bg-slate-100 my-1"></div>
+                <div onClick={() => { this.deletePermanently(contextMenu.item); this.closeContextMenu(); }} className="px-4 py-2 hover:bg-red-50 hover:text-red-600 text-sm cursor-pointer flex items-center gap-2 text-red-500">
+                    <span>🗑</span> Delete Forever
+                </div>
+            </div>
+        )
+    }
 
     emptyScreen = () => {
         return (
-            <div className="flex-grow flex flex-col justify-center items-center">
-                <img className=" w-24" src="./themes/Yaru/status/user-trash-symbolic.svg" alt="Ubuntu Trash" />
-                <span className="font-bold mt-4 text-xl px-1 text-gray-400">Trash is Empty</span>
+            <div className="flex-grow flex flex-col justify-center items-center opacity-60">
+                <div className="text-6xl mb-4">🗑️</div>
+                <span className="font-bold text-xl text-slate-500">Trash is Empty</span>
+                <span className="text-sm text-slate-400 mt-2">No deleted files here</span>
             </div>
         );
     }
 
     showTrashItems = () => {
         return (
-            <div className="flex-grow ml-4 flex flex-wrap items-start content-start justify-start overflow-y-auto">
-                {
-                    this.trashItems.map((item, index) => {
-                        return (
-                            <div key={index} tabIndex="1" onFocus={this.focusFile} onBlur={this.focusFile} className="flex flex-col items-center text-sm outline-none w-16 my-2 mx-4">
-                                <div className="w-16 h-16 flex items-center justify-center">
-                                    <img src={item.icon} alt="Ubuntu File Icons" />
-                                </div>
-                                <span className="text-center rounded px-0.5">{item.name}</span>
+            <div className="flex-1 overflow-y-auto p-6" onClick={() => this.setState({ selectedId: null })}>
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
+                    {this.state.trashItems.map((item) => (
+                        <div
+                            key={item.id}
+                            onContextMenu={(e) => this.handleContextMenu(e, item)}
+                            onClick={(e) => { e.stopPropagation(); this.setState({ selectedId: item.id }); }}
+                            className={`flex flex-col items-center p-4 rounded-xl cursor-pointer border transition-all relative group
+                                ${this.state.selectedId === item.id ? 'bg-blue-50 border-blue-200 ring-2 ring-blue-100' : 'bg-white border-transparent hover:bg-white/50 hover:shadow-sm'}
+                            `}
+                        >
+                            <div className="text-4xl mb-3 filter drop-shadow-sm transition-transform group-hover:scale-110">
+                                {this.getFileIcon(item.type || 'file', item.isFolder)}
                             </div>
-                        )
-                    })
-                }
+                            <span className="text-sm font-medium text-slate-700 text-center line-clamp-2 leading-tight w-full break-words">
+                                {item.name}
+                            </span>
+                        </div>
+                    ))}
+                </div>
             </div>
         );
     }
 
     render() {
         return (
-            <div className="w-full h-full flex flex-col bg-ub-cool-grey text-white select-none">
-                <div className="flex items-center justify-between w-full bg-ub-warm-grey bg-opacity-40 text-sm">
-                    <span className="font-bold ml-2">Trash</span>
-                    <div className="flex">
-                        <div className="border border-black bg-slate-600 bg-opacity-50 px-3 py-1 my-1 mx-1 rounded text-gray-300">Restore</div>
-                        <div onClick={this.emptyTrash} className="border border-black bg-slate-600 bg-opacity-50 px-3 py-1 my-1 mx-1 rounded hover:bg-opacity-80">Empty</div>
+            <div className="w-full h-full flex flex-col bg-[#f0f2f5] select-none font-sans relative">
+                {/* Header */}
+                <div className="flex items-center justify-between w-full bg-white/80 backdrop-blur-md border-b border-slate-200 h-14 px-4 flex-shrink-0 z-10">
+                    <div className="flex items-center gap-2">
+                        <span className="text-xl">🗑️</span>
+                        <span className="font-bold text-slate-800">Trash</span>
+                        <span className="text-xs font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full ml-2">
+                            {this.state.trashItems.length} items
+                        </span>
+                    </div>
+                    <div className="flex gap-2">
+                        {this.state.trashItems.length > 0 && (
+                            <button
+                                onClick={this.emptyTrash}
+                                className="px-4 py-1.5 bg-red-50 text-red-500 border border-red-200 rounded-lg hover:bg-red-500 hover:text-white transition-all text-sm font-bold flex items-center gap-2 active:scale-95"
+                            >
+                                Empty Trash
+                            </button>
+                        )}
                     </div>
                 </div>
-                {
-                    (this.state.empty
+
+                {/* Content */}
+                {this.state.loading ? (
+                    <div className="flex-grow flex items-center justify-center">
+                        <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+                    </div>
+                ) : (
+                    this.state.trashItems.length === 0
                         ? this.emptyScreen()
                         : this.showTrashItems()
-                    )
-                }
+                )}
+
+                {this.renderContextMenu()}
             </div>
         )
     }
