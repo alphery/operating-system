@@ -1707,15 +1707,33 @@ export default class CRM extends Component {
                         }
 
                         .detail-label {
-                            font-size: 12px;
+                            font-size: 13px;
                             color: #6b7280;
-                            font-weight: 500;
+                            font-weight: 600;
+                            text-transform: uppercase;
+                            letter-spacing: 0.5px;
                         }
 
                         .detail-value {
-                            font-size: 14px;
-                            color: #1f2937;
+                            font-size: 16px;
+                            color: #111827;
                             font-weight: 600;
+                        
+
+.note-input {
+                            width: 100%;
+                            min-height: 80px;
+                            padding: 12px;
+                            border: 1px solid #e5e7eb;
+                            border-radius: 8px;
+                            font-size: 14px;
+                            resize: vertical;
+                            color: #111827;
+                            background: white;
+                        }
+
+                        .note-input::placeholder {
+                            color: #9ca3af;
                         }
 
                         .btn-danger {
