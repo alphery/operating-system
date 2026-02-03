@@ -26,8 +26,12 @@ RUN npm run build
 # DEBUG: List all files in dist to ensure build worked
 RUN ls -R dist/
 
+# Copy and make executable the startup script
+COPY start.sh ./
+RUN chmod +x start.sh
+
 # Expose port
 EXPOSE 3001
 
-# Start the app
-CMD ["node", "dist/main.js"]
+# Start the app with migrations
+CMD ["./start.sh"]
