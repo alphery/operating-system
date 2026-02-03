@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 import FirebaseFileService from '../../utils/firebase_file_service';
+import JSZip from 'jszip';
 import { auth } from '../../config/firebase';
 
 export class FileManager extends Component {
@@ -18,10 +19,24 @@ export class FileManager extends Component {
             uploadProgress: 0,
             isUploading: false,
             storageUsed: 0,
-            storageQuota: 0,
+            storageQuota: 5 * 1024 * 1024 * 1024, // 5GB
             error: null,
             selectedFolder: 'home',
-            user: null
+            user: null,
+
+            // New Features State
+            contextMenu: null,
+            renamingItem: null, // {id, name}
+            selectedItems: [], // array of ids
+            previewItem: null,
+            isDragging: false,
+            trashItems: [],
+
+            // Ultra-Premium State
+            navHistory: [{ id: 'root', name: 'Home' }],
+            historyIndex: 0,
+            sortMode: 'name', // 'name', 'date', 'size'
+            showStarredOnly: false
         };
         this.fileInputRef = React.createRef();
         this.unsubscribeAuth = null;
@@ -32,33 +47,186 @@ export class FileManager extends Component {
             if (user) {
                 this.setState({ user }, () => {
                     this.loadFiles();
+                    this.updateStats();
                 });
             } else {
-                this.setState({
-                    user: null,
-                    files: [],
-                    loading: false,
-                    error: "Please log in to access your files."
-                });
+                this.setState({ user: null, files: [], loading: false });
             }
         });
+        window.addEventListener('click', this.closeContextMenu);
     }
 
     componentWillUnmount() {
         if (this.unsubscribeAuth) this.unsubscribeAuth();
+        window.removeEventListener('click', this.closeContextMenu);
     }
 
-    loadFiles = async () => {
+    updateStats = async () => {
+        const stats = await FirebaseFileService.getStorageStats();
+        this.setState({ storageUsed: stats.used });
+    }
+
+    // Context Menu Logic
+    handleContextMenu = (e, item) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.setState({
+            contextMenu: {
+                x: e.clientX,
+                y: e.clientY,
+                item: item
+            }
+        });
+    }
+
+    closeContextMenu = () => {
+        if (this.state.contextMenu) this.setState({ contextMenu: null });
+    }
+
+    // Selection Logic
+    toggleSelect = (e, itemId) => {
+        e.stopPropagation();
+        const { selectedItems } = this.state;
+        if (selectedItems.includes(itemId)) {
+            this.setState({ selectedItems: selectedItems.filter(id => id !== itemId) });
+        } else {
+            this.setState({ selectedItems: [...selectedItems, itemId] });
+        }
+    }
+
+    // Drag and Drop
+    handleDragEnter = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.setState({ isDragging: true });
+    }
+
+    handleDragLeave = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.setState({ isDragging: false });
+    }
+
+    handleDrop = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.setState({ isDragging: false });
+        const files = Array.from(e.dataTransfer.files);
+        files.forEach(file => this.uploadFile(file));
+    }
+
+    // Renaming
+    startRename = (item) => {
+        this.setState({ renamingItem: { id: item.id, name: item.name }, contextMenu: null });
+    }
+
+    saveRename = async () => {
+        const { renamingItem } = this.state;
+        if (!renamingItem || !renamingItem.name.trim()) return;
+        try {
+            await FirebaseFileService.renameItem(renamingItem.id, renamingItem.name.trim());
+            this.setState({ renamingItem: null });
+            await this.loadFiles();
+        } catch (e) {
+            alert("Rename failed");
+        }
+    }
+
+    // --- Ultra-Premium Features ---
+
+    goBack = () => {
+        const { historyIndex, navHistory } = this.state;
+        if (historyIndex > 0) {
+            const nextIndex = historyIndex - 1;
+            const target = navHistory[nextIndex];
+            this.setState({ historyIndex: nextIndex, currentFolderId: target.id }, () => this.loadFiles(true));
+        }
+    }
+
+    goForward = () => {
+        const { historyIndex, navHistory } = this.state;
+        if (historyIndex < navHistory.length - 1) {
+            const nextIndex = historyIndex + 1;
+            const target = navHistory[nextIndex];
+            this.setState({ historyIndex: nextIndex, currentFolderId: target.id }, () => this.loadFiles(true));
+        }
+    }
+
+    toggleStar = async (item) => {
+        try {
+            await FirebaseFileService.toggleStar(item.id, item.isStarred);
+            await this.loadFiles();
+            this.closeContextMenu();
+        } catch (e) {
+            alert("Failed to toggle star");
+        }
+    }
+
+    createZip = async () => {
+        const selectedFiles = this.state.files.filter(f => this.state.selectedItems.includes(f.id) && !f.isFolder);
+        if (selectedFiles.length === 0) {
+            alert("Please select some files (folders cannot be zipped yet)");
+            return;
+        }
+
+        this.setState({ isUploading: true, uploadProgress: 10 });
+        const zip = new JSZip();
+
+        try {
+            // Fetch and add to ZIP
+            for (const file of selectedFiles) {
+                const response = await fetch(file.url);
+                const blob = await response.blob();
+                zip.file(file.name, blob);
+            }
+
+            const content = await zip.generateAsync({ type: "blob" });
+            const zipFile = new File([content], `archive_${Date.now()}.zip`, { type: "application/zip" });
+
+            await this.uploadFile(zipFile);
+            this.setState({ selectedItems: [] });
+            alert("ZIP created and uploaded successfully!");
+        } catch (e) {
+            console.error(e);
+            alert("Failed to create ZIP: " + e.message);
+        } finally {
+            this.setState({ isUploading: false });
+        }
+    }
+
+    setSortMode = (mode) => {
+        this.setState({ sortMode: mode });
+    }
+
+
+    loadFiles = async (isHistoryAction = false) => {
         if (!this.state.user) return;
 
         this.setState({ loading: true, error: null });
 
         try {
-            const files = await FirebaseFileService.getFiles(this.state.currentFolderId);
+            let files = await FirebaseFileService.getFiles(this.state.currentFolderId);
+
+            // Filter starred if needed
+            if (this.state.showStarredOnly) {
+                files = files.filter(f => f.isStarred);
+            }
+
+            // Client-side Sort
+            files.sort((a, b) => {
+                if (a.isFolder && !b.isFolder) return -1;
+                if (!a.isFolder && b.isFolder) return 1;
+
+                if (this.state.sortMode === 'name') return a.name.localeCompare(b.name);
+                if (this.state.sortMode === 'date') return (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0);
+                if (this.state.sortMode === 'size') return (b.size || 0) - (a.size || 0);
+                return 0;
+            });
+
             this.setState({ files, loading: false });
         } catch (error) {
             console.error('Error loading files:', error);
-            this.setState({ loading: false, error: 'Failed to load files: ' + error.message });
+            this.setState({ loading: false, error: 'Failed to load files' });
         }
     }
 
@@ -118,11 +286,18 @@ export class FileManager extends Component {
         const newStack = [...this.state.folderStack, { name: folder.name, id: folder.id }];
         const path = '/' + newStack.map(f => f.name).join('/');
 
+        // Update History
+        const { navHistory, historyIndex } = this.state;
+        const newHistory = navHistory.slice(0, historyIndex + 1);
+        newHistory.push({ id: folder.id, name: folder.name });
+
         this.setState({
             folderStack: newStack,
             currentFolderId: folder.id,
             currentPath: path,
-            selectedFolder: null // clear sidebar selection
+            selectedFolder: null,
+            navHistory: newHistory,
+            historyIndex: newHistory.length - 1
         }, () => this.loadFiles());
     }
 
@@ -131,10 +306,17 @@ export class FileManager extends Component {
         const folder = newStack[newStack.length - 1];
         const path = '/' + newStack.map(f => f.name).join('/');
 
+        // Update History
+        const { navHistory, historyIndex } = this.state;
+        const newHistory = navHistory.slice(0, historyIndex + 1);
+        newHistory.push({ id: folder.id, name: folder.name });
+
         this.setState({
             folderStack: newStack,
             currentFolderId: folder.id,
-            currentPath: path
+            currentPath: path,
+            navHistory: newHistory,
+            historyIndex: newHistory.length - 1
         }, () => this.loadFiles());
     }
 
@@ -219,7 +401,13 @@ export class FileManager extends Component {
             : files;
 
         return (
-            <div className="w-full h-full flex bg-white text-slate-900 font-sans overflow-hidden">
+            <div
+                className={`w-full h-full flex bg-white text-slate-900 font-sans overflow-hidden relative ${this.state.isDragging ? 'ring-4 ring-blue-400 ring-inset' : ''}`}
+                onDragOver={this.handleDragEnter}
+                onDragEnter={this.handleDragEnter}
+                onDragLeave={this.handleDragLeave}
+                onDrop={this.handleDrop}
+            >
                 {/* Sidebar */}
                 <div className="w-64 bg-slate-50 border-r border-slate-200 flex flex-col flex-shrink-0">
                     <div className="h-14 flex items-center px-4 border-b border-slate-200">
@@ -233,16 +421,31 @@ export class FileManager extends Component {
                         <div className="mb-6">
                             <h3 className="text-xs font-bold text-slate-500 uppercase mb-2 px-2">Favorites</h3>
                             <div className="space-y-1">
-                                <button onClick={() => this.navigateToBase('Home')} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition ${selectedFolder === 'home' ? 'bg-blue-100 text-blue-700' : 'hover:bg-slate-100'}`}>
+                                <button onClick={() => { this.setState({ showStarredOnly: false }, () => this.navigateToBase('Home')) }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition ${selectedFolder === 'home' && !this.state.showStarredOnly ? 'bg-blue-100 text-blue-700' : 'hover:bg-slate-100'}`}>
                                     <span className="text-xl">🏠</span><span className="font-medium">Home</span>
                                 </button>
-                                <button onClick={() => this.navigateToBase('Documents')} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition ${selectedFolder === 'documents' ? 'bg-blue-100 text-blue-700' : 'hover:bg-slate-100'}`}>
+                                <button onClick={() => { this.setState({ showStarredOnly: true, selectedFolder: 'starred' }, () => this.loadFiles()) }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition ${this.state.showStarredOnly ? 'bg-amber-100 text-amber-700' : 'hover:bg-slate-100'}`}>
+                                    <span className="text-xl">⭐️</span><span className="font-medium">Starred</span>
+                                </button>
+                                <button onClick={() => { this.setState({ showStarredOnly: false }, () => this.navigateToBase('Documents')) }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition ${selectedFolder === 'documents' ? 'bg-blue-100 text-blue-700' : 'hover:bg-slate-100'}`}>
                                     <span className="text-xl">📄</span><span className="font-medium">Documents</span>
                                 </button>
-                                <button onClick={() => this.navigateToBase('Pictures')} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition ${selectedFolder === 'pictures' ? 'bg-blue-100 text-blue-700' : 'hover:bg-slate-100'}`}>
+                                <button onClick={() => { this.setState({ showStarredOnly: false }, () => this.navigateToBase('Pictures')) }} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition ${selectedFolder === 'pictures' ? 'bg-blue-100 text-blue-700' : 'hover:bg-slate-100'}`}>
                                     <span className="text-xl">📷</span><span className="font-medium">Pictures</span>
                                 </button>
                             </div>
+                        </div>
+
+                        <div className="mt-auto pt-4 border-t border-slate-200 p-2">
+                            <div className="bg-slate-200 h-2 rounded-full mb-2 overflow-hidden">
+                                <div
+                                    className="bg-blue-500 h-full transition-all duration-500"
+                                    style={{ width: `${Math.min(100, (this.state.storageUsed / this.state.storageQuota) * 100)}%` }}
+                                ></div>
+                            </div>
+                            <p className="text-[10px] text-slate-500 font-bold uppercase">
+                                Storage: {this.formatFileSize(this.state.storageUsed)} / {this.formatFileSize(this.state.storageQuota)}
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -251,12 +454,29 @@ export class FileManager extends Component {
                 <div className="flex-1 flex flex-col overflow-hidden">
                     {/* Toolbar */}
                     <div className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 flex-shrink-0">
-                        <div className="flex items-center gap-2">
-                            <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
-                                <button onClick={() => this.loadFiles()} className="p-2 hover:bg-white rounded transition" title="Refresh">↻</button>
+                        <div className="flex items-center gap-4">
+                            {/* Navigation history */}
+                            <div className="flex items-center bg-slate-100 rounded-lg p-1">
+                                <button
+                                    onClick={this.goBack}
+                                    disabled={this.state.historyIndex <= 0}
+                                    className="p-1.5 hover:bg-white rounded transition disabled:opacity-30 disabled:hover:bg-transparent"
+                                >
+                                    ⬅️
+                                </button>
+                                <button
+                                    onClick={this.goForward}
+                                    disabled={this.state.historyIndex >= this.state.navHistory.length - 1}
+                                    className="p-1.5 hover:bg-white rounded transition disabled:opacity-30 disabled:hover:bg-transparent"
+                                >
+                                    ➡️
+                                </button>
+                                <div className="w-px h-4 bg-slate-300 mx-1"></div>
+                                <button onClick={() => { this.loadFiles(); this.updateStats(); }} className="p-1.5 hover:bg-white rounded transition" title="Refresh">↻</button>
                             </div>
+
                             {/* Breadcrumb */}
-                            <div className="flex items-center gap-1 text-sm ml-4 overflow-hidden">
+                            <div className="flex items-center gap-1 text-sm overflow-hidden">
                                 {folderStack.map((folder, index) => (
                                     <React.Fragment key={folder.id}>
                                         {index > 0 && <span className="text-slate-400">/</span>}
@@ -279,6 +499,18 @@ export class FileManager extends Component {
                                 onChange={(e) => this.setState({ searchQuery: e.target.value })}
                                 className="pl-4 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm w-48 transition-all focus:w-64"
                             />
+
+                            {/* Sort Dropdown */}
+                            <select
+                                className="bg-slate-100 border-none rounded-lg text-sm px-2 py-2 outline-none cursor-pointer hover:bg-slate-200"
+                                value={this.state.sortMode}
+                                onChange={(e) => this.setState({ sortMode: e.target.value }, () => this.loadFiles())}
+                            >
+                                <option value="name">Sort: Name</option>
+                                <option value="date">Sort: Date</option>
+                                <option value="size">Sort: Size</option>
+                            </select>
+
                             <div className="bg-slate-100 p-1 rounded-lg flex gap-1">
                                 <button onClick={() => this.setState({ viewMode: 'grid' })} className={`p-2 rounded ${viewMode === 'grid' ? 'bg-white shadow-sm' : 'hover:bg-white/50'}`}>⊞</button>
                                 <button onClick={() => this.setState({ viewMode: 'list' })} className={`p-2 rounded ${viewMode === 'list' ? 'bg-white shadow-sm' : 'hover:bg-white/50'}`}>☰</button>
@@ -294,12 +526,30 @@ export class FileManager extends Component {
                         <button onClick={() => this.fileInputRef.current.click()} className="px-4 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium">
                             Upload
                         </button>
+
+                        {this.state.selectedItems.length > 0 && (
+                            <div className="flex items-center gap-2">
+                                <div className="w-px h-6 bg-slate-300 mx-2"></div>
+                                <button
+                                    onClick={this.createZip}
+                                    className="px-4 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 transition text-sm font-medium flex items-center gap-1"
+                                >
+                                    📦 ZIP Selected ({this.state.selectedItems.length})
+                                </button>
+                                <button
+                                    onClick={() => { if (confirm(`Delete ${this.state.selectedItems.length} items?`)) this.state.selectedItems.forEach(id => this.deleteItem({ id })) }}
+                                    className="px-4 py-1.5 bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 transition text-sm font-medium"
+                                >
+                                    🗑 Delete
+                                </button>
+                            </div>
+                        )}
                         <div className="flex-grow"></div>
                         <span className="text-xs text-slate-500">{filteredFiles.length} items</span>
                     </div>
 
                     {/* File Area */}
-                    <div className="flex-1 overflow-auto p-6 bg-white relative">
+                    <div className="flex-1 overflow-auto p-6 bg-white relative" onClick={() => this.setState({ selectedItems: [] })}>
                         {error && <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
 
                         {loading ? (
@@ -312,56 +562,97 @@ export class FileManager extends Component {
                         ) : filteredFiles.length === 0 ? (
                             <div className="flex items-center justify-center h-full opacity-60">
                                 <div className="text-center">
-                                    <div className="text-4xl mb-4">☁️</div>
-                                    <p className="text-slate-600 text-lg">No files here yet</p>
+                                    <div className="text-5xl mb-4">{this.state.showStarredOnly ? '⭐️' : '☁️'}</div>
+                                    <p className="text-slate-600 text-lg">{this.state.showStarredOnly ? 'No starred items' : 'No files here yet'}</p>
+                                    <p className="text-slate-400 text-sm">Drag files here to upload</p>
                                 </div>
                             </div>
                         ) : viewMode === 'grid' ? (
                             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
                                 {filteredFiles.map((file) => (
                                     <div key={file.id}
-                                        onDoubleClick={() => file.isFolder && this.openFolder(file)}
-                                        className="bg-white hover:bg-slate-50 rounded-lg p-3 cursor-pointer border border-slate-200 hover:border-blue-400 transition group relative"
+                                        onDoubleClick={() => file.isFolder ? this.openFolder(file) : this.setState({ previewItem: file })}
+                                        onContextMenu={(e) => this.handleContextMenu(e, file)}
+                                        onClick={(e) => this.toggleSelect(e, file.id)}
+                                        className={`bg-white rounded-xl p-3 cursor-pointer border transition group relative
+                                            ${this.state.selectedItems.includes(file.id) ? 'border-blue-500 bg-blue-50 shadow-md ring-1 ring-blue-500' : 'border-slate-200 hover:border-blue-400 hover:shadow-sm'}
+                                        `}
                                     >
-                                        <div className="text-5xl mb-2 text-center">{this.getFileIcon(file.type || 'file', file.isFolder)}</div>
-                                        <p className="text-sm font-medium text-slate-800 truncate text-center mb-1">{file.name}</p>
-                                        {!file.isFolder && <p className="text-xs text-slate-400 text-center">{this.formatFileSize(file.size)}</p>}
+                                        <div className="text-5xl mb-2 text-center select-none transform transition group-hover:scale-105">
+                                            {this.getFileIcon(file.type || 'file', file.isFolder)}
+                                        </div>
 
-                                        <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition bg-white bg-opacity-90 rounded shadow">
-                                            {file.url && (
-                                                <a href={file.url} target="_blank" rel="noopener noreferrer" download className="p-1 hover:text-blue-600" title="Download" onClick={e => e.stopPropagation()}>⬇</a>
-                                            )}
-                                            <button onClick={(e) => { e.stopPropagation(); this.deleteItem(file); }} className="p-1 hover:text-red-600" title="Delete">🗑</button>
+                                        {this.state.renamingItem?.id === file.id ? (
+                                            <input
+                                                autoFocus
+                                                className="w-full text-xs text-center border border-blue-500 rounded px-1 outline-none"
+                                                value={this.state.renamingItem.name}
+                                                onChange={e => this.setState({ renamingItem: { ...this.state.renamingItem, name: e.target.value } })}
+                                                onBlur={this.saveRename}
+                                                onKeyPress={e => e.key === 'Enter' && this.saveRename()}
+                                                onClick={e => e.stopPropagation()}
+                                            />
+                                        ) : (
+                                            <p className="text-sm font-medium text-slate-800 truncate text-center mb-1 select-none flex items-center justify-center gap-1">
+                                                {file.isStarred && <span className="text-amber-500 text-[10px]">⭐️</span>}
+                                                {file.name}
+                                            </p>
+                                        )}
+
+                                        {!file.isFolder && <p className="text-[10px] text-slate-400 text-center uppercase tracking-tighter">{this.formatFileSize(file.size)}</p>}
+
+                                        {/* Multi-select indicator */}
+                                        <div className={`absolute top-2 left-2 w-4 h-4 rounded border transition-all ${this.state.selectedItems.includes(file.id) ? 'bg-blue-500 border-blue-500 scale-110' : 'bg-white border-slate-300 opacity-0 group-hover:opacity-100'}`}>
+                                            {this.state.selectedItems.includes(file.id) && <span className="text-[10px] text-white flex items-center justify-center">✓</span>}
                                         </div>
                                     </div>
                                 ))}
                             </div>
                         ) : (
-                            <table className="w-full text-left">
+                            <table className="w-full text-left" onClick={e => e.stopPropagation()}>
                                 <thead className="bg-slate-50 text-slate-500 font-bold text-xs uppercase border-b">
                                     <tr>
+                                        <th className="px-4 py-3 w-10"></th>
                                         <th className="px-4 py-3">Name</th>
                                         <th className="px-4 py-3">Date</th>
                                         <th className="px-4 py-3">Size</th>
-                                        <th className="px-4 py-3 text-right">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
                                     {filteredFiles.map((file) => (
-                                        <tr key={file.id} onDoubleClick={() => file.isFolder && this.openFolder(file)} className="hover:bg-slate-50 cursor-pointer group">
+                                        <tr
+                                            key={file.id}
+                                            onDoubleClick={() => file.isFolder ? this.openFolder(file) : this.setState({ previewItem: file })}
+                                            onContextMenu={(e) => this.handleContextMenu(e, file)}
+                                            onClick={(e) => this.toggleSelect(e, file.id)}
+                                            className={`hover:bg-slate-50 cursor-pointer group transition ${this.state.selectedItems.includes(file.id) ? 'bg-blue-50' : ''}`}
+                                        >
+                                            <td className="px-4 py-2">
+                                                <div className={`w-4 h-4 rounded border transition-all ${this.state.selectedItems.includes(file.id) ? 'bg-blue-500 border-blue-500' : 'bg-white border-slate-300 opacity-0 group-hover:opacity-100'}`}>
+                                                    {this.state.selectedItems.includes(file.id) && <span className="text-[10px] text-white flex items-center justify-center">✓</span>}
+                                                </div>
+                                            </td>
                                             <td className="px-4 py-2 font-medium flex items-center gap-2">
-                                                <span>{this.getFileIcon(file.type || 'file', file.isFolder)}</span> {file.name}
+                                                <span className="text-xl">{this.getFileIcon(file.type || 'file', file.isFolder)}</span>
+                                                {this.state.renamingItem?.id === file.id ? (
+                                                    <input
+                                                        autoFocus
+                                                        className="text-sm border border-blue-500 rounded px-1 outline-none"
+                                                        value={this.state.renamingItem.name}
+                                                        onChange={e => this.setState({ renamingItem: { ...this.state.renamingItem, name: e.target.value } })}
+                                                        onBlur={this.saveRename}
+                                                        onKeyPress={e => e.key === 'Enter' && this.saveRename()}
+                                                        onClick={e => e.stopPropagation()}
+                                                    />
+                                                ) : (
+                                                    <span className="flex items-center gap-2">
+                                                        {file.isStarred && <span className="text-amber-500">⭐️</span>}
+                                                        {file.name}
+                                                    </span>
+                                                )}
                                             </td>
                                             <td className="px-4 py-2 text-sm text-slate-500">{this.formatDate(file.createdAt)}</td>
                                             <td className="px-4 py-2 text-sm text-slate-500">{this.formatFileSize(file.size)}</td>
-                                            <td className="px-4 py-2 text-right opacity-0 group-hover:opacity-100 transition">
-                                                <div className="flex gap-2 justify-end">
-                                                    {file.url && (
-                                                        <a href={file.url} download target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="text-blue-600 hover:underline text-sm">Download</a>
-                                                    )}
-                                                    <button onClick={(e) => { e.stopPropagation(); this.deleteItem(file); }} className="text-red-600 hover:underline text-sm">Delete</button>
-                                                </div>
-                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -377,15 +668,7 @@ export class FileManager extends Component {
                     <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]" onClick={() => this.setState({ showNewFolderModal: false })}>
                         <div className="bg-white rounded-2xl shadow-2xl w-96 p-6" onClick={(e) => e.stopPropagation()}>
                             <h3 className="text-xl font-bold text-slate-800 mb-4">New Folder</h3>
-                            <input
-                                autoFocus
-                                type="text"
-                                placeholder="Folder name"
-                                value={newFolderName}
-                                onChange={(e) => this.setState({ newFolderName: e.target.value })}
-                                onKeyPress={(e) => e.key === 'Enter' && this.createFolder()}
-                                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none mb-4"
-                            />
+                            <input autoFocus type="text" placeholder="Folder name" value={newFolderName} onChange={(e) => this.setState({ newFolderName: e.target.value })} onKeyPress={(e) => e.key === 'Enter' && this.createFolder()} className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none mb-4" />
                             <div className="flex gap-3 justify-end">
                                 <button onClick={() => this.setState({ showNewFolderModal: false })} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition">Cancel</button>
                                 <button onClick={this.createFolder} disabled={!newFolderName.trim()} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold disabled:opacity-50">Create</button>
@@ -394,15 +677,75 @@ export class FileManager extends Component {
                     </div>
                 )}
 
-                {/* Upload Progress */}
-                {isUploading && (
-                    <div className="absolute bottom-6 right-6 bg-white rounded-xl shadow-2xl p-4 w-80 border border-slate-200 z-[100]">
-                        <div className="flex items-center gap-3 mb-3">
-                            <div className="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full"></div>
-                            <span className="font-semibold text-slate-800">Uploading... {Math.round(uploadProgress)}%</span>
+                {/* Context Menu Overlay */}
+                {this.state.contextMenu && (
+                    <div
+                        className="fixed bg-white shadow-2xl rounded-lg border border-slate-200 py-1 z-[200] w-48 animate-in fade-in zoom-in duration-100"
+                        style={{ top: this.state.contextMenu.y, left: this.state.contextMenu.x }}
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <button onClick={() => this.toggleStar(this.state.contextMenu.item)} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-100 flex items-center gap-2">
+                            <span>{this.state.contextMenu.item.isStarred ? '✖️' : '⭐️'}</span> {this.state.contextMenu.item.isStarred ? 'Unstar' : 'Add to Starred'}
+                        </button>
+                        <button onClick={() => this.startRename(this.state.contextMenu.item)} className="w-full text-left px-4 py-2 text-sm hover:bg-slate-100 flex items-center gap-2">
+                            <span>✏️</span> Rename
+                        </button>
+                        {!this.state.contextMenu.item.isFolder && (
+                            <a href={this.state.contextMenu.item.url} download target="_blank" rel="noreferrer" className="w-full text-left px-4 py-2 text-sm hover:bg-slate-100 flex items-center gap-2">
+                                <span>⬇️</span> Download
+                            </a>
+                        )}
+                        <hr className="my-1 border-slate-100" />
+                        <button onClick={() => { this.deleteItem(this.state.contextMenu.item); this.closeContextMenu(); }} className="w-full text-left px-4 py-2 text-sm hover:bg-red-50 text-red-600 flex items-center gap-2">
+                            <span>🗑️</span> Delete
+                        </button>
+                    </div>
+                )}
+
+                {/* File Preview (Lightbox + Media Engine) */}
+                {this.state.previewItem && (
+                    <div className="fixed inset-0 z-[300] bg-black/95 flex items-center justify-center p-8 backdrop-blur-md animate-in fade-in duration-300" onClick={() => this.setState({ previewItem: null })}>
+                        <button className="absolute top-6 right-6 text-white text-4xl hover:rotate-90 transition-transform duration-300">×</button>
+                        <div className="max-w-5xl w-full flex flex-col items-center gap-6" onClick={e => e.stopPropagation()}>
+                            {this.state.previewItem.type === 'image' ? (
+                                <img src={this.state.previewItem.url} className="max-w-full max-h-[80vh] rounded-lg shadow-2xl border border-white/20 animate-in zoom-in" alt="" />
+                            ) : this.state.previewItem.type === 'video' ? (
+                                <video controls autoPlay className="max-w-full max-h-[80vh] rounded-lg shadow-2xl border border-white/20 animate-in slide-in-from-bottom" src={this.state.previewItem.url} />
+                            ) : this.state.previewItem.type === 'audio' ? (
+                                <div className="bg-white/10 backdrop-blur-xl p-12 rounded-3xl border border-white/20 flex flex-col items-center gap-6 w-full max-w-md animate-in zoom-in">
+                                    <div className="text-9xl animate-pulse">🎵</div>
+                                    <p className="text-white text-xl font-bold text-center">{this.state.previewItem.name}</p>
+                                    <audio controls autoPlay className="w-full mt-4" src={this.state.previewItem.url} />
+                                </div>
+                            ) : (
+                                <div className="bg-white p-16 rounded-3xl flex flex-col items-center gap-6 shadow-2xl animate-in zoom-in">
+                                    <div className="text-9xl drop-shadow-lg">{this.getFileIcon(this.state.previewItem.type, false)}</div>
+                                    <p className="text-2xl font-black text-slate-800">{this.state.previewItem.name}</p>
+                                    <p className="text-slate-400 font-medium">{this.formatFileSize(this.state.previewItem.size)}</p>
+                                    <a href={this.state.previewItem.url} target="_blank" rel="noreferrer" className="mt-4 px-10 py-4 bg-blue-600 text-white rounded-2xl font-black text-lg shadow-lg hover:bg-blue-700 hover:shadow-blue-500/50 transition-all active:scale-95">Download File</a>
+                                </div>
+                            )}
+                            <div className="flex items-center gap-4 bg-black/40 px-6 py-2 rounded-full border border-white/10">
+                                <span className="text-white/60 text-sm">{this.state.previewItem.name}</span>
+                                <div className="w-px h-4 bg-white/10"></div>
+                                <span className="text-white/40 text-xs uppercase">{this.state.previewItem.type}</span>
+                            </div>
                         </div>
-                        <div className="w-full bg-slate-200 rounded-full h-2">
-                            <div className="bg-blue-600 h-2 rounded-full transition-all" style={{ width: `${uploadProgress}%` }}></div>
+                    </div>
+                )}
+
+                {/* ZIP/Upload Progress */}
+                {isUploading && (
+                    <div className="absolute bottom-6 right-6 bg-white rounded-2xl shadow-2xl p-5 w-80 border border-slate-200 z-[400] animate-in slide-in-from-right">
+                        <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-3">
+                                <div className="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                                <span className="font-bold text-slate-800 text-sm">Processing...</span>
+                            </div>
+                            <span className="text-blue-600 font-bold text-xs">{Math.round(uploadProgress)}%</span>
+                        </div>
+                        <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden border border-slate-100">
+                            <div className="bg-gradient-to-r from-blue-400 to-blue-600 h-full transition-all duration-300 ease-out" style={{ width: `${uploadProgress}%` }}></div>
                         </div>
                     </div>
                 )}

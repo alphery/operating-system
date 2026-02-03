@@ -162,4 +162,50 @@ export default class FirebaseFileService {
         };
         return types[ext] || 'file';
     }
+
+    // Rename a file or folder
+    static async renameItem(itemId, newName) {
+        if (!auth.currentUser) throw new Error("User not authenticated");
+        try {
+            const itemRef = doc(db, 'users', auth.currentUser.uid, 'files', itemId);
+            await updateDoc(itemRef, { name: newName });
+        } catch (error) {
+            console.error("Error renaming item:", error);
+            throw error;
+        }
+    }
+
+    // Get total storage usage
+    static async getStorageStats() {
+        if (!auth.currentUser) return { used: 0, count: 0 };
+        try {
+            const q = query(this.getUserCollection());
+            const snapshot = await getDocs(q);
+            let totalSize = 0;
+            let fileCount = 0;
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                if (!data.isFolder) {
+                    totalSize += data.size || 0;
+                    fileCount++;
+                }
+            });
+            return { used: totalSize, count: fileCount };
+        } catch (error) {
+            console.error("Error calculating stats:", error);
+            return { used: 0, count: 0 };
+        }
+    }
+
+    // Toggle star status
+    static async toggleStar(itemId, isStarred) {
+        if (!auth.currentUser) throw new Error("User not authenticated");
+        try {
+            const itemRef = doc(db, 'users', auth.currentUser.uid, 'files', itemId);
+            await updateDoc(itemRef, { isStarred: !isStarred });
+        } catch (error) {
+            console.error("Error toggling star:", error);
+            throw error;
+        }
+    }
 }

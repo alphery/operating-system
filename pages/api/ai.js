@@ -29,29 +29,49 @@ export default async function handler(req, res) {
     }
 
     try {
-        // Call Google Gemini API (REST)
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
+        console.log("Attempting to call Gemini API (v1 with 2.0-flash)...");
+        const model = 'gemini-2.0-flash';
+        const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`;
 
-        const contents = [
-            { role: "user", parts: [{ text: SYSTEM_PROMPT }] },
-            // Add limited history here if desired, simplifying for now
-            { role: "model", parts: [{ text: "Understood. I am Alphery AI." }] },
-            { role: "user", parts: [{ text: message }] }
-        ];
+        // Simplified content structure to avoid role issues
+        const requestBody = {
+            contents: [{
+                role: "user",
+                parts: [{ text: `${SYSTEM_PROMPT}\n\nUser: ${message}` }]
+            }]
+        };
 
-        const response = await axios.post(url, { contents });
+        const response = await axios.post(url, requestBody, {
+            headers: { 'Content-Type': 'application/json' },
+            timeout: 10000
+        });
 
         const aiResponse = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
-        if (!aiResponse) throw new Error("No response from AI");
+        if (!aiResponse) {
+            console.error("Gemini API Response Structure Unexpected:", JSON.stringify(response.data, null, 2));
+            throw new Error("No response text in API result");
+        }
 
         return res.status(200).json({ response: aiResponse });
 
     } catch (error) {
-        console.error("AI API Error:", error.response?.data || error.message);
+        console.error("============= AI API ERROR =============");
+        if (error.response) {
+            // Server responded with a status code outside 2xx
+            console.error("Status:", error.response.status);
+            console.error("Data:", JSON.stringify(error.response.data, null, 2));
+        } else if (error.request) {
+            // Request was made but no response received
+            console.error("No response received:", error.message);
+        } else {
+            console.error("Error setting up request:", error.message);
+        }
+        console.error("========================================");
+
         return res.status(500).json({
-            response: "Oops! My brain froze. 🧊 (API Error)",
-            error: error.message
+            response: "My brain connection is a bit fuzzy. ☁️ (API Error)",
+            debug: error.message
         });
     }
 }
