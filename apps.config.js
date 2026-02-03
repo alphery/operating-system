@@ -10,7 +10,7 @@ import { displayTrash } from './components/apps/trash';
 import { displayGedit } from './components/apps/gedit';
 import { displayAboutAjith } from './components/apps/anurag';
 import { displayCalculator } from './components/apps/calc';
-import { displayProject } from './components/apps/projects_with_auth';
+import { displayProject } from './components/apps/crm_odoo';
 import { displayUserManager } from './components/apps/user_manager';
 import { displayMessenger } from './components/apps/messenger';
 import { displayAppStore } from './components/apps/app_store';
@@ -57,11 +57,11 @@ const apps = [
     },
     {
         id: "projects",
-        title: "Alphery Projects",
+        title: "CRM Pro",
         icon: './themes/Yaru/apps/projects.png',
         disabled: false,
-        favourite: false,
-        desktop_shortcut: false,
+        favourite: true,
+        desktop_shortcut: true,
         screen: displayProject,
     },
     {

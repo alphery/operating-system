@@ -116,7 +116,9 @@ Frontend will run on: `http://localhost:3000`
 - Multi-tenant database
 - CRM with tenant isolation
 - Realtime CRM updates via Socket.IO
-- Kanban pipeline UI
+- ✅ **Fully Functional Kanban Pipeline** (Drag & Drop)
+- ✅ **Contacts Management**
+- ✅ **Quotations Module**
 
 ### ⚠️ Pending (Phase 2)
 - **Authentication**: Currently using 'default-tenant', need JWT login

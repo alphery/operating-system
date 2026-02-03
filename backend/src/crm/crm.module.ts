@@ -4,9 +4,12 @@ import { ClientsController } from './clients.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { RealtimeModule } from '../realtime/realtime.module';
 
+import { ActivitiesService } from './activities.service';
+import { ActivitiesController } from './activities.controller';
+
 @Module({
     imports: [PrismaModule, RealtimeModule],
-    controllers: [ClientsController],
-    providers: [ClientsService],
+    controllers: [ClientsController, ActivitiesController],
+    providers: [ClientsService, ActivitiesService],
 })
 export class CrmModule { }

@@ -17,6 +17,9 @@ model Tenant {
   clients   Client[]
   projects  Project[]
   tasks     Task[]
+  entityDefinitions EntityDefinition[]
+  entityRecords     EntityRecord[]
+  crmActivities     CRMActivity[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -37,6 +40,10 @@ model User {
   files          File[]
   tasks          Task[]
   timesheets     Timesheet[]
+  
+  // Relations for Entity Engine
+  createdRecords EntityRecord[] @relation("CreatedRecords")
+  ownedRecords   EntityRecord[] @relation("OwnedRecords")
 
   @@unique([tenantId, email])
 }
@@ -78,6 +85,7 @@ model Client {
   projects  Project[]
   quotations Quotation[]
   invoices   Invoice[]
+  activities CRMActivity[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -160,6 +168,26 @@ model Invoice {
   updatedAt DateTime @updatedAt
 }
 
+
+model CRMActivity {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  title     String
+  type      String   // Call, Meeting, Email, Task
+  status    String   @default("Pending") // Pending, Completed
+  dueDate   DateTime?
+  completedAt DateTime?
+  notes     String?
+  clientId  String?
+  client    Client?  @relation(fields: [clientId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([clientId])
+}
+
 model Document {
   id        String   @id @default(uuid())
   title     String
@@ -206,4 +234,67 @@ enum Role {
   BUSINESS
   USER
   TEAM
+}
+
+// === DYNAMIC ENTITY ENGINE (THE CORE) ===
+
+model EntityDefinition {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name        String   // e.g. "Lead", "Patient", "Order"
+  slug        String   // e.g. "lead", "patient" (API friendly)
+  icon        String?  // e.g. "user", "heart", "briefcase"
+  description String?
+  
+  fields      EntityField[]
+  records     EntityRecord[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tenantId, slug])
+}
+
+model EntityField {
+  id          String   @id @default(uuid())
+  entityDefId String
+  entityDef   EntityDefinition @relation(fields: [entityDefId], references: [id], onDelete: Cascade)
+  
+  name        String   // e.g. "Budget", "Blood Group"
+  key         String   // e.g. "budget", "blood_group"
+  type        String   // "text", "number", "currency", "date", "status", "relation"
+  options     Json?    // For select/enum types: ["A+", "B+"]
+  isRequired  Boolean  @default(false)
+  isList      Boolean  @default(false)
+  order       Int      @default(0)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([entityDefId, key])
+}
+
+model EntityRecord {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  entityDefId String
+  entityDef   EntityDefinition @relation(fields: [entityDefId], references: [id], onDelete: Cascade)
+  
+  // 🔥 THE MAGIC: All data is stored here dynamically
+  data        Json     // { "budget": 5000, "blood_group": "A+", "status": "New" }
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Standard tracking
+  createdBy   String?
+  creator     User?    @relation("CreatedRecords", fields: [createdBy], references: [id])
+  ownerId     String?
+  owner       User?    @relation("OwnedRecords", fields: [ownerId], references: [id])
+
+  @@index([tenantId])
+  @@index([entityDefId])
 }

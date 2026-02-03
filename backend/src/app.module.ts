@@ -16,6 +16,7 @@ import { CrmModule } from './crm/crm.module';
 import { SalesModule } from './sales/sales.module';
 import { DocumentsModule } from './documents/documents.module';
 import { TenantModule } from './core/tenant/tenant.module';
+import { EntityModule } from './core/entity/entity.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { TenantModule } from './core/tenant/tenant.module';
     CrmModule,
     SalesModule,
     DocumentsModule,
+    EntityModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService],
