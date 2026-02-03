@@ -82,9 +82,9 @@ export default class CRM extends Component {
     fetchAllData = async () => {
         try {
             const [opportunities, quotes, activities] = await Promise.all([
-                fetch(`${API_BASE_URL}/clients`).then(r => r.json()),
-                fetch(`${API_BASE_URL}/quotations`).then(r => r.json()).catch(() => []),
-                fetch(`${API_BASE_URL}/activities`).then(r => r.json()).catch(() => [])
+                fetch(`${API_BASE_URL}/clients`).then(r => r.ok ? r.json() : []).catch(() => []),
+                fetch(`${API_BASE_URL}/quotations`).then(r => r.ok ? r.json() : []).catch(() => []),
+                fetch(`${API_BASE_URL}/activities`).then(r => r.ok ? r.json() : []).catch(() => [])
             ]);
 
             const stats = this.calculateStats(opportunities);

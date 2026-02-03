@@ -3,15 +3,19 @@ import React, { Component } from 'react';
 
 export default class FocusMode extends Component {
     render() {
-        const { activities, opportunities, onCompleteActivity } = this.props;
+        const { activities = [], opportunities = [], onCompleteActivity } = this.props;
+
+        // Defensive checks
+        const safeActivities = Array.isArray(activities) ? activities : [];
+        const safeOpportunities = Array.isArray(opportunities) ? opportunities : [];
 
         // 🧠 LOGIC REFINEMENT
-        const highValueDeals = opportunities
+        const highValueDeals = safeOpportunities
             .filter(o => o.value > 5000 && o.status !== 'Won' && o.status !== 'Lost')
             .sort((a, b) => b.value - a.value)
             .slice(0, 3);
 
-        const overdueActivities = activities.filter(a => {
+        const overdueActivities = safeActivities.filter(a => {
             if (!a.dueDate) return false;
             return new Date(a.dueDate) < new Date() && a.status !== 'Completed';
         });
@@ -20,7 +24,7 @@ export default class FocusMode extends Component {
         const startOfDay = new Date(today.setHours(0, 0, 0, 0));
         const endOfDay = new Date(today.setHours(23, 59, 59, 999));
 
-        const todayActivities = activities.filter(a => {
+        const todayActivities = safeActivities.filter(a => {
             if (!a.dueDate) return false;
             const due = new Date(a.dueDate);
             return due >= startOfDay && due <= endOfDay && a.status !== 'Completed';
