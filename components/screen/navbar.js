@@ -7,8 +7,132 @@ export default class Navbar extends Component {
 	constructor() {
 		super();
 		this.state = {
-			status_card: false
+			status_card: false,
+			active_menu: null
 		};
+	}
+
+	componentDidMount() {
+		document.addEventListener('click', this.handleClickOutside);
+	}
+
+	componentWillUnmount() {
+		document.removeEventListener('click', this.handleClickOutside);
+	}
+
+	handleClickOutside = (e) => {
+		if (this.state.active_menu && !e.target.closest('.navbar-menu-item')) {
+			this.setState({ active_menu: null });
+		}
+	}
+
+	handleMenuClick = (e, menu) => {
+		e.stopPropagation();
+		this.setState({ active_menu: this.state.active_menu === menu ? null : menu });
+	}
+
+	openApp = (appId) => {
+		window.dispatchEvent(new CustomEvent('open_app', { detail: { appId: appId } }));
+		this.setState({ active_menu: null });
+	}
+
+	renderMenuDropdown = (menuName) => {
+		if (this.state.active_menu !== menuName) return null;
+
+		const commonClasses = "absolute top-full left-0 mt-1 min-w-[200px] bg-white/90 backdrop-blur-2xl rounded-xl shadow-2xl py-1.5 border border-white/20 text-slate-800 animate-in fade-in zoom-in-95 duration-150 z-50";
+
+		const itemClasses = "px-4 py-1.5 hover:bg-blue-500 hover:text-white cursor-default rounded-md mx-1 transition-colors font-medium flex justify-between items-center text-sm";
+		const separatorClasses = "h-px bg-slate-200 my-1 mx-2";
+
+		const renderItems = (items) => {
+			return items.map((item, idx) => {
+				if (item.type === 'separator') return <div key={idx} className={separatorClasses}></div>;
+				return (
+					<div
+						key={idx}
+						className={itemClasses}
+						onClick={(e) => {
+							e.stopPropagation();
+							if (item.action) item.action();
+							this.setState({ active_menu: null });
+						}}
+					>
+						<span>{item.label}</span>
+						{item.shortcut && <span className="opacity-50 text-xs ml-4">{item.shortcut}</span>}
+					</div>
+				);
+			});
+		};
+
+		let items = [];
+		switch (menuName) {
+			case 'File':
+				items = [
+					{ label: 'New Window', action: () => this.openApp('terminal') },
+					{ label: 'New Folder', action: () => alert("New Folder action") },
+					{ type: 'separator' },
+					{ label: 'Close', shortcut: '⌘W', action: () => alert("Close Window") },
+				];
+				break;
+			case 'Edit':
+				items = [
+					{ label: 'Undo', shortcut: '⌘Z', action: () => { } },
+					{ label: 'Redo', shortcut: '⇧⌘Z', action: () => { } },
+					{ type: 'separator' },
+					{ label: 'Cut', shortcut: '⌘X', action: () => { } },
+					{ label: 'Copy', shortcut: '⌘C', action: () => { } },
+					{ label: 'Paste', shortcut: '⌘V', action: () => { } },
+					{ check: true, label: 'Select All', shortcut: '⌘A', action: () => { } },
+				];
+				break;
+			case 'View':
+				items = [
+					{ label: 'Enter Full Screen', shortcut: '⌃⌘F', action: () => document.documentElement.requestFullscreen().catch(() => { }) },
+					{ type: 'separator' },
+					{ label: 'Actual Size', action: () => { } },
+					{ label: 'Zoom In', action: () => { } },
+					{ label: 'Zoom Out', action: () => { } },
+				];
+				break;
+			case 'Go':
+				items = [
+					{ label: 'Home', shortcut: '⇧⌘H', action: () => this.openApp('file-manager') },
+					{ label: 'Desktop', shortcut: '⇧⌘D', action: () => { } },
+					{ label: 'Downloads', shortcut: '⌥⌘L', action: () => this.openApp('file-manager') },
+					{ type: 'separator' },
+					{ label: 'Applications', shortcut: '⇧⌘A', action: () => { } },
+					{ label: 'Utilities', shortcut: '⇧⌘U', action: () => this.openApp('settings') },
+				];
+				break;
+			case 'Tools':
+				items = [
+					{ label: 'Terminal', action: () => this.openApp('terminal') },
+					{ label: 'Calculator', action: () => this.openApp('calculator') },
+					{ label: 'Settings', action: () => this.openApp('settings') },
+				];
+				break;
+			case 'Help':
+				items = [
+					{ label: 'Alphery OS Help', action: () => this.openApp('chrome') },
+					{ type: 'separator' },
+					{ label: 'Report an Issue', action: () => { } },
+				];
+				break;
+			default:
+				return null;
+		}
+
+		return (
+			<div className={commonClasses}>
+				{renderItems(items)}
+			</div>
+		);
+	}
+
+	handleMouseEnter = (menu) => {
+		if (this.state.active_menu) {
+			this.setState({ active_menu: menu });
+		}
 	}
 
 	render() {
@@ -31,7 +155,7 @@ export default class Navbar extends Component {
 				</div>
 
 				{/* Desktop Layout (Hidden on Mobile) */}
-				<div tabIndex="0" className="hidden md:flex items-center pl-4 pr-4 h-full outline-none transition duration-100 ease-in-out border-b-2 border-transparent focus:border-white/50">
+				<div className="hidden md:flex items-center pl-4 pr-4 h-full outline-none">
 					{/* Apple Logo */}
 					<div className="mr-5 cursor-default hover:opacity-80 relative group transition-opacity">
 						<img className="h-5 w-auto object-contain drop-shadow-sm" src="./images/logos/Dark_Logo_H.png" alt="Alphery OS Logo" />
@@ -70,17 +194,24 @@ export default class Navbar extends Component {
 						</div>
 					</div>
 
-					{/* App Name */}
-					<span className="font-bold mr-5 cursor-default text-[13px] tracking-wide drop-shadow-sm">Forums</span>
 
 					{/* Menus */}
 					<div className="flex gap-5 text-[13px] font-medium tracking-wide opacity-90 drop-shadow-sm">
-						<span className="cursor-default hover:opacity-70 transition-opacity">File</span>
-						<span className="cursor-default hover:opacity-70 transition-opacity">Edit</span>
-						<span className="cursor-default hover:opacity-70 transition-opacity">View</span>
-						<span className="cursor-default hover:opacity-70 transition-opacity">Go</span>
-						<span className="cursor-default hover:opacity-70 transition-opacity">Tools</span>
-						<span className="cursor-default hover:opacity-70 transition-opacity">Help</span>
+						{['File', 'Edit', 'View', 'Go', 'Tools', 'Help'].map(menu => (
+							<div
+								key={menu}
+								className="relative navbar-menu-item"
+								onMouseEnter={() => this.handleMouseEnter(menu)}
+							>
+								<span
+									className={`cursor-default hover:opacity-100 transition-opacity px-2 py-1 rounded ${this.state.active_menu === menu ? 'bg-white/20' : 'hover:bg-white/10'}`}
+									onClick={(e) => this.handleMenuClick(e, menu)}
+								>
+									{menu}
+								</span>
+								{this.renderMenuDropdown(menu)}
+							</div>
+						))}
 					</div>
 				</div>
 
@@ -97,11 +228,9 @@ export default class Navbar extends Component {
 					</div>
 					<div
 						id="status-bar"
-						tabIndex="0"
-						onFocus={() => {
-							this.setState({ status_card: true });
+						onClick={() => {
+							this.setState({ status_card: !this.state.status_card });
 						}}
-						// removed onBlur from here
 						className={
 							'relative pr-3 pl-3 outline-none transition duration-100 ease-in-out border-b-2 border-transparent focus:border-white/50 py-1 '
 						}
@@ -115,8 +244,8 @@ export default class Navbar extends Component {
 					logOut={this.props.logOut}
 					lockScreen={this.props.lockScreen}
 					visible={this.state.status_card}
-					toggleVisible={() => {
-						// this prop is used in statusCard component in handleClickOutside callback using react-onclickoutside
+					toggleVisible={(e) => {
+						if (e && document.getElementById('status-bar') && document.getElementById('status-bar').contains(e.target)) return;
 						this.setState({ status_card: false });
 					}}
 					showInstallPrompt={this.props.showInstallPrompt}

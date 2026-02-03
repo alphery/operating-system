@@ -58,7 +58,10 @@ export default class Clock extends Component {
         else if (this.props.onlyDay) {
             display_time = day + " " + month + " " + date;
         }
-        else display_time = day + " " + month + " " + date + " " + hour + ":" + minute + " " + meridiem;
+        else {
+            // Shortened format: Day Time AM/PM
+            display_time = `${day} ${hour}:${minute} ${meridiem}`;
+        }
 
         return (
             <div ref={node => this.clockRef = node} className="relative flex items-center justify-center">

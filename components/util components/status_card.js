@@ -33,8 +33,8 @@ export class StatusCard extends Component {
 		};
 	}
 
-	handleClickOutside = () => {
-		this.props.toggleVisible();
+	handleClickOutside = (e) => {
+		this.props.toggleVisible(e);
 	};
 
 	componentDidMount() {
@@ -196,17 +196,6 @@ export class StatusCard extends Component {
 					</div>
 					<div className="w-2/3 flex items-center justify-between text-gray-400">
 						<span>WiFi: {this.state.wifi_status}</span>
-						<SmallArrow angle="right" />
-					</div>
-				</div>
-
-				{/* Bluetooth */}
-				<div className="w-64 py-1.5 flex items-center justify-center bg-ub-cool-grey hover:bg-ub-warm-grey hover:bg-opacity-20">
-					<div className="w-8">
-						<img width="16px" height="16px" src="./themes/Yaru/status/bluetooth-symbolic.svg" alt="ubuntu bluetooth" />
-					</div>
-					<div className="w-2/3 flex items-center justify-between text-gray-400">
-						<span>Bluetooth: {this.state.bluetooth_status}</span>
 						<SmallArrow angle="right" />
 					</div>
 				</div>
