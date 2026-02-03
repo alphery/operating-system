@@ -44,27 +44,43 @@ class Messenger extends Component {
             userStatus: 'online', // 'online', 'away', 'offline'
 
             // NEW: Conversations (privacy feature)
-            conversations: [], // Only users you've chatted with
+            conversations: [],
             showNewChatModal: false,
             searchEmail: '',
+            searchEmail: '',
             searchedUsers: [],
+
+            // Audio Recording
+            isRecording: false,
+            recordingDuration: 0,
+            audioRecorder: null,
+            audioChunks: [],
+
+            // Group Chat
+            showGroupModal: false,
+            groupName: '',
+            selectedGroupMembers: [],
         };
         this.unsubscribeMessages = null;
         this.unsubscribePresence = null;
         this.unsubscribeTyping = null;
+        this.unsubscribeConversations = null;
         this.fileInputRef = React.createRef();
         this.searchInputRef = React.createRef();
+        this.audioInterval = null;
     }
 
     componentDidMount() {
         // Load hidden users from localStorage
+
         if (this.props.user) {
             const hiddenUsersKey = `hidden_chats_${this.props.user.uid}`;
             const hiddenUsers = JSON.parse(localStorage.getItem(hiddenUsersKey) || '[]');
             this.setState({ hiddenUsers });
 
-            // Load conversations
-            this.loadConversations();
+
+            // Load conversations - NOW using Firestore Realtime
+            this.subscribeToConversations();
         }
 
         // Close context menu and emoji picker on any click
@@ -101,6 +117,9 @@ class Messenger extends Component {
         if (this.unsubscribePresence) {
             this.unsubscribePresence();
         }
+        if (this.unsubscribeConversations) {
+            this.unsubscribeConversations();
+        }
         // Mark as offline when leaving
         this.updateMyPresence('offline');
     }
@@ -136,6 +155,10 @@ class Messenger extends Component {
         try {
             const usersRef = collection(db, 'users');
             const snapshot = await getDocs(usersRef);
+
+
+            // Request notification permission on mount
+            this.requestNotificationPermission();
 
             const users = snapshot.docs
                 .map(doc => ({
@@ -207,10 +230,206 @@ class Messenger extends Component {
                 this.scrollToBottom();
                 // Mark incoming messages as read
                 setTimeout(() => this.markMessagesAsRead(), 500);
+
+                // Check for notifications
+                snapshot.docChanges().forEach((change) => {
+                    if (change.type === "added") {
+                        const msg = change.doc.data();
+                        if (msg.from !== this.state.currentUser.uid) {
+                            // Only notify if window hidden or not focused on this user? 
+                            // Basic check:
+                            this.sendNotification(`New message from ${msg.fromName}`, msg.text || (msg.type === 'image' ? 'Sent an image' : 'Sent a file'));
+
+                            // Play sound?
+                            const audio = new Audio('/sounds/message.mp3'); // Assuming file exists, or skip
+                            // audio.play().catch(e => {}); // Silent fail
+                        }
+                    }
+                });
             });
         }, (error) => {
             console.error('Error loading messages:', error);
         });
+    }
+
+    // ============ NOTIFICATIONS ============
+    requestNotificationPermission = async () => {
+        if (!("Notification" in window)) return;
+        if (Notification.permission === "granted") return;
+        await Notification.requestPermission();
+    }
+
+    sendNotification = (title, body) => {
+        if (document.visibilityState === 'visible') return; // Don't notify if focused
+        if (!("Notification" in window) || Notification.permission !== "granted") return;
+
+        new Notification(title, {
+            body: body,
+            icon: '/favicon.ico' // Or app icon
+        });
+    }
+
+    // ============ AUDIO RECORDING ============
+    startRecording = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const mediaRecorder = new MediaRecorder(stream);
+            const chunks = [];
+
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) chunks.push(e.data);
+            };
+
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(chunks, { type: 'audio/webm' });
+                this.uploadAudio(blob);
+                stream.getTracks().forEach(track => track.stop());
+            };
+
+            mediaRecorder.start();
+            this.setState({
+                isRecording: true,
+                audioRecorder: mediaRecorder,
+                audioChunks: chunks,
+                recordingDuration: 0
+            });
+
+            this.audioInterval = setInterval(() => {
+                this.setState(prev => ({ recordingDuration: prev.recordingDuration + 1 }));
+            }, 1000);
+
+        } catch (error) {
+            console.error('Error starting recording:', error);
+            alert('Could not access microphone');
+        }
+    }
+
+    stopRecording = () => {
+        if (this.state.audioRecorder && this.state.isRecording) {
+            this.state.audioRecorder.stop();
+            clearInterval(this.audioInterval);
+            this.setState({ isRecording: false, recordingDuration: 0 });
+        }
+    }
+
+    cancelRecording = () => {
+        if (this.state.audioRecorder && this.state.isRecording) {
+            // Stop but don't upload (hacky way, just clear event handler?)
+            this.state.audioRecorder.onstop = null;
+            this.state.audioRecorder.stop();
+            this.state.audioRecorder.stream.getTracks().forEach(track => track.stop());
+            clearInterval(this.audioInterval);
+            this.setState({ isRecording: false, recordingDuration: 0 });
+        }
+    }
+
+    uploadAudio = async (blob) => {
+        const { currentUser, selectedUser } = this.state;
+        if (!currentUser || !selectedUser) return;
+        const _this = this;
+
+        // Validation for small audio? 
+
+        const filename = `audio/${currentUser.uid}/${Date.now()}.webm`;
+        const storageRef = ref(storage, filename);
+
+        try {
+            // Note: skipping progress for audio as it's usually small
+            const uploadTask = await uploadBytesResumable(storageRef, blob);
+            const downloadURL = await getDownloadURL(uploadTask.ref);
+
+            const chatId = this.getChatId(currentUser.uid, selectedUser.uid);
+
+            await addDoc(collection(db, 'messages'), {
+                from: currentUser.uid,
+                to: selectedUser.uid, // might be group ID
+                type: 'audio',
+                fileURL: downloadURL,
+                timestamp: serverTimestamp(), // Note: was getting error here? No.
+                fromName: currentUser.displayName,
+                chatId: chatId,
+                duration: _this.state.recordingDuration
+            });
+
+            await this.updateConversationMetadata(selectedUser, '🎤 Voice Message', 'audio');
+
+        } catch (error) {
+            console.error('Audio upload error', error);
+        }
+    }
+
+    formatDuration = (sec) => {
+        const min = Math.floor(sec / 60);
+        const s = sec % 60;
+        return `${min}:${s < 10 ? '0' + s : s}`;
+    }
+
+    // ============ GROUPS ============
+    createGroup = async () => {
+        const { groupName, selectedGroupMembers, currentUser } = this.state;
+        if (!groupName.trim() || selectedGroupMembers.length === 0) return;
+
+        try {
+            const groupRef = doc(collection(db, 'chats')); // Auto ID
+            const participants = [currentUser.uid, ...selectedGroupMembers.map(u => u.uid)];
+
+            // Build User Info map for all participants
+            const userInfo = {
+                [currentUser.uid]: {
+                    displayName: currentUser.displayName,
+                    photoURL: currentUser.photoURL,
+                    email: currentUser.email
+                }
+            };
+            selectedGroupMembers.forEach(u => {
+                userInfo[u.uid] = {
+                    displayName: u.displayName,
+                    photoURL: u.photoURL,
+                    email: u.email
+                };
+            });
+
+            await setDoc(groupRef, {
+                isGroup: true,
+                groupName: groupName,
+                groupOwner: currentUser.uid,
+                participants: participants,
+                userInfo: userInfo,
+                timestamp: serverTimestamp(),
+                lastMessage: 'Group created'
+            });
+
+            this.setState({
+                showGroupModal: false,
+                groupName: '',
+                selectedGroupMembers: [],
+                showNewChatModal: false
+            });
+
+            // Select this new group
+            // We need a pseudo "User" object to represent the group for 'selectUser' compatibility
+            const groupObj = {
+                uid: groupRef.id, // Important: For groups, uid IS the chat ID
+                displayName: groupName,
+                isGroup: true,
+                photoURL: null, // Default group icon
+                participants: participants
+            };
+            this.selectUser(groupObj);
+
+        } catch (error) {
+            console.error("Error creating group:", error);
+            alert("Failed to create group");
+        }
+    }
+
+    toggleGroupMember = (user) => {
+        const { selectedGroupMembers } = this.state;
+        if (selectedGroupMembers.find(u => u.uid === user.uid)) {
+            this.setState({ selectedGroupMembers: selectedGroupMembers.filter(u => u.uid !== user.uid) });
+        } else {
+            this.setState({ selectedGroupMembers: [...selectedGroupMembers, user] });
+        }
     }
 
     handleSend = async (e) => {
@@ -224,6 +443,9 @@ class Messenger extends Component {
             this.updateTypingStatus(false);
             if (this.state.typingTimeout) clearTimeout(this.state.typingTimeout);
 
+            const chatId = this.getChatId(currentUser.uid, selectedUser.uid);
+
+            // Add message to subcollection or main collection (keeping main for now for simplicity in querying)
             await addDoc(collection(db, 'messages'), {
                 from: currentUser.uid,
                 to: selectedUser.uid,
@@ -232,20 +454,66 @@ class Messenger extends Component {
                 timestamp: serverTimestamp(),
                 fromName: currentUser.displayName,
                 toName: selectedUser.displayName,
-                readBy: [currentUser.uid], // Sender has read it
-                // Reply fields
+                readBy: [currentUser.uid],
                 replyTo: replyingTo ? replyingTo.id : null,
                 replyToText: replyingTo ? replyingTo.text : null,
-                replyToFrom: replyingTo ? (replyingTo.fromName || 'User') : null
+                replyToFrom: replyingTo ? (replyingTo.fromName || 'User') : null,
+                chatId: chatId // Add chat ID reference
             });
 
-            // Auto-save conversation
-            this.saveConversation(selectedUser);
+            // Update Conversation Metadata in Firestore
+            await this.updateConversationMetadata(selectedUser, messageText.trim());
 
             this.setState({ messageText: '', replyingTo: null });
         } catch (error) {
             console.error('Error sending message:', error);
             alert('Failed to send message. Please try again.');
+        }
+    }
+
+    getChatId = (uid1, uid2) => {
+        // Warning: This logic only works for 1-on-1. For groups, the selectedUser.uid IS the chat ID.
+        if (this.state.selectedUser && this.state.selectedUser.isGroup) {
+            return this.state.selectedUser.uid;
+        }
+        return [uid1, uid2].sort().join('_'); // Standard DM ID
+    }
+
+    updateConversationMetadata = async (otherUser, lastMessageText, type = 'text') => {
+        if (!this.state.currentUser) return;
+
+        let chatId, chatData;
+
+        if (otherUser.isGroup) {
+            chatId = otherUser.uid;
+            const chatRef = doc(db, 'chats', chatId);
+            chatData = {
+                lastMessage: type === 'image' ? '📷 Image' : type === 'audio' ? '🎤 Voice' : type === 'file' ? '📎 File' : lastMessageText,
+                timestamp: serverTimestamp(),
+            }; // Can't update participants simply here, assumes static group for now
+            await setDoc(chatRef, chatData, { merge: true });
+        } else {
+            chatId = this.getChatId(this.state.currentUser.uid, otherUser.uid);
+            const chatRef = doc(db, 'chats', chatId);
+            chatData = {
+                participants: [this.state.currentUser.uid, otherUser.uid],
+                lastMessage: type === 'image' ? '📷 Image' : type === 'audio' ? '🎤 Voice' : type === 'file' ? '📎 File' : lastMessageText,
+                timestamp: serverTimestamp(),
+                userInfo: {
+                    [this.state.currentUser.uid]: {
+                        displayName: this.state.currentUser.displayName,
+                        photoURL: this.state.currentUser.photoURL,
+                        email: this.state.currentUser.email
+                    },
+                    [otherUser.uid]: {
+                        displayName: otherUser.displayName,
+                        photoURL: otherUser.photoURL,
+                        email: otherUser.email
+                    }
+                }
+            };
+            // setDoc with merge: true handles both create and update
+            await setDoc(chatRef, chatData, { merge: true });
         }
     }
 
@@ -267,6 +535,7 @@ class Messenger extends Component {
 
     uploadFile = async (file) => {
         const { currentUser, selectedUser } = this.state;
+        const _this = this; // Capture 'this' for callback
 
         try {
             this.setState({ uploading: true, uploadProgress: 0 });
@@ -294,9 +563,10 @@ class Messenger extends Component {
                     const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
 
                     // Determine file type
-                    const fileType = this.getFileType(file);
+                    const fileType = _this.getFileType(file);
 
                     // Save message with file
+                    const chatId = _this.getChatId(currentUser.uid, selectedUser.uid);
                     await addDoc(collection(db, 'messages'), {
                         from: currentUser.uid,
                         to: selectedUser.uid,
@@ -307,11 +577,15 @@ class Messenger extends Component {
                         mimeType: file.type,
                         timestamp: serverTimestamp(),
                         fromName: currentUser.displayName,
-                        toName: selectedUser.displayName
+                        toName: selectedUser.displayName,
+                        chatId: chatId
                     });
 
-                    this.setState({ uploading: false, uploadProgress: 0, showAttachMenu: false });
-                    this.fileInputRef.current.value = '';
+                    // Update metadata
+                    await _this.updateConversationMetadata(selectedUser, '', fileType);
+
+                    _this.setState({ uploading: false, uploadProgress: 0, showAttachMenu: false });
+                    _this.fileInputRef.current.value = '';
                 }
             );
         } catch (error) {
@@ -587,31 +861,61 @@ class Messenger extends Component {
         }
     }
 
-    // ============ CONVERSATIONS (PRIVACY) ============
-    loadConversations = () => {
+    // ============ CONVERSATIONS (REALTIME FIRESTORE) ============
+    subscribeToConversations = () => {
         if (!this.props.user) return;
 
-        const conversationsKey = `conversations_${this.props.user.uid}`;
-        const saved = localStorage.getItem(conversationsKey);
-        const conversations = saved ? JSON.parse(saved) : [];
+        // Unsubscribe previous listener
+        if (this.unsubscribeConversations) this.unsubscribeConversations();
 
-        this.setState({ conversations });
+        // Query chats where I am a participant
+        const chatsRef = collection(db, 'chats');
+        const q = query(
+            chatsRef,
+            where('participants', 'array-contains', this.props.user.uid),
+            orderBy('timestamp', 'desc')
+        );
+
+        this.unsubscribeConversations = onSnapshot(q, (snapshot) => {
+            const conversations = snapshot.docs.map(doc => {
+                const data = doc.data();
+
+                if (data.isGroup) {
+                    return {
+                        uid: doc.id, // Group ID is chat ID
+                        chatId: doc.id,
+                        lastMessage: data.lastMessage,
+                        timestamp: data.timestamp,
+                        displayName: data.groupName, // Use group name
+                        photoURL: null, // Custom group icon logic?
+                        isGroup: true,
+                        ...data
+                    };
+                }
+
+                const otherUid = data.participants.find(uid => uid !== this.props.user.uid);
+                const otherUserInfo = data.userInfo ? data.userInfo[otherUid] : {};
+
+                return {
+                    uid: otherUid, // Key for selection logic
+                    chatId: doc.id,
+                    lastMessage: data.lastMessage,
+                    timestamp: data.timestamp,
+                    displayName: otherUserInfo?.displayName || 'Unknown User',
+                    photoURL: otherUserInfo?.photoURL,
+                    email: otherUserInfo?.email,
+                    ...data // include everything else
+                };
+            });
+            this.setState({ conversations });
+        }, (error) => {
+            console.error("Error subscribing to chats:", error);
+            // Fallback?
+        });
     }
 
-    saveConversation = (user) => {
-        if (!this.props.user) return;
-
-        const conversationsKey = `conversations_${this.props.user.uid}`;
-        const conversations = this.state.conversations;
-
-        // Check if already exists
-        const exists = conversations.find(c => c.uid === user.uid);
-        if (!exists) {
-            const newConversations = [...conversations, user];
-            this.setState({ conversations: newConversations });
-            localStorage.setItem(conversationsKey, JSON.stringify(newConversations));
-        }
-    }
+    // Deprecated: saveConversation to localStorage
+    // New Implementation uses updateConversationMetadata
 
     searchUserByEmail = async (email) => {
         if (!email.trim()) {
@@ -648,7 +952,8 @@ class Messenger extends Component {
             this.setState({ hiddenUsers: newHiddenUsers });
         }
 
-        this.saveConversation(user);
+        // Create empty chat to start if it doesn't exist
+        this.updateConversationMetadata(user, 'Started a new conversation');
         this.setState({
             showNewChatModal: false,
             searchEmail: '',
@@ -831,6 +1136,23 @@ class Messenger extends Component {
             );
         }
 
+        if (msg.type === 'audio') {
+            return (
+                <div className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-3`}>
+                    <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl shadow-sm
+                        ${isMe ? 'bg-teal-600 text-white rounded-br-none' : 'bg-white text-gray-800 rounded-bl-none'}`}>
+                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white bg-opacity-20">
+                            🎤
+                        </div>
+                        <div>
+                            <audio controls src={msg.fileURL} className="w-48 h-8" />
+                            {msg.duration && <p className="text-[10px] mt-1 opacity-70">{this.formatDuration(msg.duration)}</p>}
+                        </div>
+                    </div>
+                </div>
+            )
+        }
+
         if (['pdf', 'document', 'spreadsheet', 'archive', 'file'].includes(msg.type)) {
             return (
                 <div className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-3`}>
@@ -980,7 +1302,7 @@ class Messenger extends Component {
     }
 
     render() {
-        const { otherUsers, selectedUser, messages, messageText, currentUser, loading, uploading, uploadProgress, showAttachMenu } = this.state;
+        const { otherUsers, selectedUser, messages, messageText, currentUser, loading, uploading, uploadProgress, showAttachMenu, isRecording } = this.state;
 
         if (!this.props.user) {
             return (
@@ -1056,11 +1378,11 @@ class Messenger extends Component {
                                 className={`flex items-center px-4 py-3 cursor-pointer transition border-b border-gray-100 group
                                 ${selectedUser && selectedUser.uid === user.uid ? 'bg-teal-50 border-teal-200' : 'hover:bg-gray-100'}`}>
                                 <div className="relative">
-                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-400 to-blue-500 flex-shrink-0 overflow-hidden flex items-center justify-center text-white font-bold">
+                                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-teal-400 to-blue-500 flex-shrink-0 overflow-hidden flex items-center justify-center text-white font-bold">
                                         {user.photoURL ? (
                                             <img src={user.photoURL} alt={user.displayName} className="w-full h-full object-cover" />
                                         ) : (
-                                            <span>{(user.displayName || user.email || 'U')[0].toUpperCase()}</span>
+                                            <span className="text-lg">{(user.displayName || user.email || 'U')[0].toUpperCase()}</span>
                                         )}
                                     </div>
                                     {/* Online Status Indicator */}
@@ -1068,18 +1390,26 @@ class Messenger extends Component {
                                         this.state.userStatuses.get(user.uid) === 'away' ? 'bg-yellow-500' : 'bg-gray-400'
                                         }`}></div>
                                 </div>
-                                <div className="ml-3 overflow-hidden">
-                                    <p className="font-semibold text-gray-800 truncate">{user.displayName || 'Anonymous'}</p>
-                                    <div className="text-[10px] text-gray-400 truncate">
-                                        <span>{user.email}</span>
+                                <div className="ml-3 overflow-hidden flex-1">
+                                    <div className="flex justify-between items-baseline">
+                                        <p className="font-semibold text-gray-900 truncate">{user.displayName || 'Anonymous'}</p>
+                                        <span className="text-[10px] text-gray-400 ml-2">
+                                            {user.timestamp ? new Date(user.timestamp.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                                        </span>
                                     </div>
+                                    <p className="text-xs text-gray-500 truncate flex items-center gap-1">
+                                        {/* Typing or Last Message */}
+                                        {/* Simplified typing check for now, can be improved */}
+                                        {/* <span>{user.lastMessage || 'Start created'}</span> */}
+                                        <span className="text-gray-500 font-medium">{user.lastMessage || 'New Chat'}</span>
+                                    </p>
                                 </div>
                             </div>
                         ))}
                         {this.state.conversations.length === 0 && (
                             <div className="p-4 text-center text-gray-400 text-xs">
-                                <p>No conversations yet.</p>
-                                <p className="mt-2">Click the + button to start a new chat!</p>
+                                <p>No chats yet.</p>
+                                <p className="mt-2">Use the + button to find people.</p>
                             </div>
                         )}
                     </div>
@@ -1299,21 +1629,45 @@ class Messenger extends Component {
                                         😊
                                     </button>
 
-                                    <input
-                                        className="flex-1 bg-gray-100 border-0 rounded-full px-4 py-2 focus:ring-2 focus:ring-teal-500 outline-none transition text-gray-900"
-                                        placeholder="Type a message..."
-                                        value={messageText}
-                                        onChange={this.handleTyping}
-                                        autoFocus
-                                        disabled={uploading}
-                                    />
-                                    <button
-                                        type="submit"
-                                        className="w-10 h-10 bg-teal-600 hover:bg-teal-700 text-white rounded-full flex items-center justify-center transition shadow-md disabled:opacity-50"
-                                        disabled={!messageText.trim() || uploading}
-                                    >
-                                        <svg className="w-5 h-5 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
-                                    </button>
+
+                                    {/* Audio Record Button */}
+                                    {isRecording ? (
+                                        <div className="flex items-center gap-3 px-3 py-1 bg-red-50 rounded-full border border-red-200 flex-1">
+                                            <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse"></span>
+                                            <span className="text-red-600 font-mono text-xs">{this.formatDuration(this.state.recordingDuration)}</span>
+                                            <div className="flex-1"></div>
+                                            <button type="button" onClick={this.cancelRecording} className="text-gray-500 hover:text-red-500 text-xs text-xs">Cancel</button>
+                                            <button type="button" onClick={this.stopRecording} className="p-1 bg-red-500 text-white rounded-full">
+                                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M5 4v12l10-6-10-6z" /></svg> {/* Icon mimics send/stop */}
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <button
+                                                type="button"
+                                                onClick={this.startRecording}
+                                                className="w-10 h-10 hover:bg-gray-100 rounded-full flex items-center justify-center transition text-gray-600"
+                                                title="Record Voice"
+                                            >
+                                                🎤
+                                            </button>
+                                            <input
+                                                className="flex-1 bg-gray-100 border-0 rounded-full px-4 py-2 focus:ring-2 focus:ring-teal-500 outline-none transition text-gray-900"
+                                                placeholder="Type a message..."
+                                                value={messageText}
+                                                onChange={this.handleTyping}
+                                                autoFocus
+                                                disabled={uploading}
+                                            />
+                                            <button
+                                                type="submit"
+                                                className="w-10 h-10 bg-teal-600 hover:bg-teal-700 text-white rounded-full flex items-center justify-center transition shadow-md disabled:opacity-50"
+                                                disabled={!messageText.trim() || uploading}
+                                            >
+                                                <svg className="w-5 h-5 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                                            </button>
+                                        </>
+                                    )}
                                 </form>
 
                                 {/* Emoji Picker */}
@@ -1387,6 +1741,38 @@ class Messenger extends Component {
                     </div>
                 )}
 
+                {/* Create Group Modal */}
+                {this.state.showGroupModal && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]" onClick={() => this.setState({ showGroupModal: false })}>
+                        <div className="bg-white rounded-lg shadow-2xl w-96 p-6" onClick={(e) => e.stopPropagation()}>
+                            <h3 className="font-bold text-lg mb-4">Create Group</h3>
+                            <input
+                                className="w-full border rounded px-3 py-2 mb-4"
+                                placeholder="Group Name"
+                                value={this.state.groupName}
+                                onChange={e => this.setState({ groupName: e.target.value })}
+                            />
+                            <p className="text-xs font-bold text-gray-500 mb-2">Select Members:</p>
+                            <div className="h-40 overflow-y-auto border rounded mb-4">
+                                {this.state.otherUsers.map(u => (
+                                    <div key={u.uid}
+                                        onClick={() => this.toggleGroupMember(u)}
+                                        className={`flex items-center p-2 hover:bg-gray-50 cursor-pointer ${this.state.selectedGroupMembers.find(m => m.uid === u.uid) ? 'bg-blue-50' : ''}`}>
+                                        <div className={`w-4 h-4 border rounded mr-2 flex items-center justify-center ${this.state.selectedGroupMembers.find(m => m.uid === u.uid) ? 'bg-blue-500 border-blue-500 text-white' : 'border-gray-300'}`}>
+                                            {this.state.selectedGroupMembers.find(m => m.uid === u.uid) && '✓'}
+                                        </div>
+                                        <span className="text-sm truncate">{u.displayName}</span>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="flex justify-end gap-2">
+                                <button onClick={() => this.setState({ showGroupModal: false })} className="px-3 py-2 text-sm text-gray-600">Cancel</button>
+                                <button onClick={this.createGroup} className="px-3 py-2 text-sm bg-teal-600 text-white rounded">Create Group</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* New Chat Modal */}
                 {this.state.showNewChatModal && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => this.setState({ showNewChatModal: false })}>
@@ -1394,6 +1780,13 @@ class Messenger extends Component {
                             {/* Modal Header */}
                             <div className="p-4 border-b border-gray-200 flex items-center justify-between">
                                 <h3 className="font-bold text-lg text-gray-800">New Chat</h3>
+                                <button
+                                    onClick={() => this.setState({ showGroupModal: true })}
+                                    className="p-1 hover:bg-gray-100 rounded-full mr-1 text-teal-600"
+                                    title="Create Group"
+                                >
+                                    <span className="text-xl">👥</span>
+                                </button>
                                 <button
                                     onClick={() => this.setState({ showNewChatModal: false, searchEmail: '', searchedUsers: [] })}
                                     className="p-1 hover:bg-gray-100 rounded-full"
