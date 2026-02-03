@@ -13,6 +13,7 @@ model Tenant {
   name      String
   subdomain String?  @unique
   plan      String   @default("free") // free, pro, enterprise
+  ownerId   String?  // User who created/owns this workspace
   users     User[]
   clients   Client[]
   projects  Project[]
@@ -20,6 +21,7 @@ model Tenant {
   entityDefinitions EntityDefinition[]
   entityRecords     EntityRecord[]
   crmActivities     CRMActivity[]
+  invitations Invitation[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -29,10 +31,13 @@ model User {
   tenantId       String
   tenant         Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   email          String       
-  password       String
+  password       String?      // Optional for Google OAuth users
+  googleId       String?      @unique // Google OAuth ID
+  name           String?      // Full name from Google
   firstName      String?
   lastName       String?
   role           Role         @default(USER)
+  teamRole       String       @default("member") // owner, admin, member, viewer
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id])
   createdAt      DateTime     @default(now())
@@ -297,4 +302,21 @@ model EntityRecord {
 
   @@index([tenantId])
   @@index([entityDefId])
+}
+
+model Invitation {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  email       String
+  role        String   @default("member") // owner, admin, member, viewer
+  status      String   @default("pending") // pending, accepted, expired
+  invitedBy   String   // User ID who sent invitation
+  token       String   @unique // Unique token for invitation link
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  
+  @@index([tenantId])
+  @@index([email])
+  @@index([token])
 }

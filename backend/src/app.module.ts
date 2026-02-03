@@ -17,6 +17,7 @@ import { SalesModule } from './sales/sales.module';
 import { DocumentsModule } from './documents/documents.module';
 import { TenantModule } from './core/tenant/tenant.module';
 import { EntityModule } from './core/entity/entity.module';
+import { InvitationModule } from './invitation/invitation.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { EntityModule } from './core/entity/entity.module';
     SalesModule,
     DocumentsModule,
     EntityModule,
+    InvitationModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService],
