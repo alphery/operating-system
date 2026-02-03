@@ -22,6 +22,10 @@ export class AuthController {
             });
             const payload = ticket.getPayload();
 
+            if (!payload) {
+                throw new UnauthorizedException('Invalid Google token');
+            }
+
             return this.authService.acceptInvitation(
                 body.invitationToken,
                 payload.sub,

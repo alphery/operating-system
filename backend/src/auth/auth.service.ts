@@ -32,11 +32,15 @@ export class AuthService {
 
             const { sub: googleId, email, name, given_name, family_name } = payload;
 
+            if (!email) {
+                throw new UnauthorizedException('Email not provided by Google');
+            }
+
             // Check if user exists
-            let user = await this.prisma.user.findUnique({
+            let user = await this.prisma.user.findUnique(({
                 where: { googleId },
                 include: { tenant: true },
-            });
+            }) as any);
 
             // If user doesn't exist, create new tenant + user
             if (!user) {
@@ -67,9 +71,9 @@ export class AuthService {
                     role: user.teamRole,
                 },
                 tenant: {
-                    id: user.tenant.id,
-                    name: user.tenant.name,
-                    plan: user.tenant.plan,
+                    id: (user as any).tenant.id,
+                    name: (user as any).tenant.name,
+                    plan: (user as any).tenant.plan,
                 },
             };
         } catch (error) {

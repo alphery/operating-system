@@ -33,7 +33,8 @@ export class TenantService {
                     email: data.adminEmail,
                     name: data.adminName,
                     tenantId: tenant.id,
-                    role: 'admin',
+                    role: 'ADMIN',
+                    teamRole: 'owner',
                 },
             });
 
