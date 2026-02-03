@@ -20,6 +20,8 @@ import { EntityModule } from './core/entity/entity.module';
 import { InvitationModule } from './invitation/invitation.module';
 import { AuditModule } from './audit/audit.module';
 import { NotificationModule } from './notification/notification.module';
+import { EmailModule } from './email/email.module';
+import { RoleModule } from './role/role.module';
 
 @Module({
   imports: [
@@ -40,6 +42,8 @@ import { NotificationModule } from './notification/notification.module';
     InvitationModule,
     AuditModule,
     NotificationModule,
+    EmailModule,
+    RoleModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService],

@@ -356,3 +356,37 @@ model Notification {
   @@index([read])
   @@index([createdAt])
 }
+
+model CustomRole {
+  id          String   @id @default(uuid())
+  tenantId    String
+  name        String   // "Sales Manager", "Junior Accountant"
+  description String?
+  permissions Json     // { "client": { "read": true, "write": true, "fields": { "salary": false } }, "lead": { "read": true, "write": false } }
+  isSystem    Boolean  @default(false) // true for owner/admin/member/viewer
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model EmailQueue {
+  id          String   @id @default(uuid())
+  tenantId    String?
+  to          String   // Recipient email
+  from        String?  // Sender email (optional, uses default)
+  subject     String
+  body        String   @db.Text // HTML or plain text
+  template    String?  // Template name (e.g., "invitation", "notification")
+  data        Json?    // Template variables
+  status      String   @default("pending") // pending, sent, failed
+  attempts    Int      @default(0)
+  error       String?  @db.Text
+  sentAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([createdAt])
+}
