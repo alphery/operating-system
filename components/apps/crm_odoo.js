@@ -929,7 +929,7 @@ export default class CRM extends Component {
                     .pipeline-view { animation: fadeIn 0.3s; height: 100%; display: flex; flex-direction: column; }
                     .pipeline-header { margin-bottom: 24px; flex-shrink: 0; }
                     .pipeline-filters { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
-                    .filter-btn { padding: 8px 16px; background: white; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+                    .filter-btn { padding: 8px 16px; background: white; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s; color: #374151; }
                     .filter-btn:hover { border-color: #8b5cf6; color: #8b5cf6; }
                     .filter-btn.active { background: #8b5cf6; color: white; border-color: #8b5cf6; }
                     .kanban-board { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; overflow-x: auto; padding-bottom: 20px; flex: 1; min-height: 0; }
@@ -1561,7 +1561,17 @@ export default class CRM extends Component {
                         border-radius: 8px;
                         font-size: 14px;
                         background: white;
+                        color: #111827;
                         transition: all 0.2s;
+                    }
+
+                    .form-group input::placeholder {
+                        color: #9ca3af;
+                    }
+
+                    .form-group select option {
+                        color: #111827;
+                        background: white;
                     }
 
                     .form-group input:focus,
@@ -1585,11 +1595,13 @@ export default class CRM extends Component {
                         font-weight: 600;
                         cursor: pointer;
                         font-size: 14px;
+                        color: #374151;
                         transition: all 0.2s;
                     }
 
                     .btn-secondary:hover {
                         background: #e5e7eb;
+                        color: #1f2937;
                     }
                 `}</style>
             </div>
@@ -1708,7 +1720,7 @@ export default class CRM extends Component {
 
                         .detail-label {
                             font-size: 13px;
-                            color: #6b7280;
+                            color: #4b5563;
                             font-weight: 600;
                             text-transform: uppercase;
                             letter-spacing: 0.5px;
