@@ -4,6 +4,7 @@ import { collection, query, where, or, and, orderBy, limit, onSnapshot, addDoc, 
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { useAuth } from '../../context/AuthContext';
 import EmojiPicker from 'emoji-picker-react';
+import axios from 'axios';
 
 // Wrapper to use hooks in class component
 function MessengerWithAuth(props) {
@@ -945,19 +946,15 @@ class Messenger extends Component {
     handleAIResponse = async (userMessage) => {
         this.setState({ otherUserTyping: true });
 
-        // Simulate thinking time
-        setTimeout(async () => {
-            const responses = [
-                "I'm Alphery AI 🤖! I can help you organize your tasks.",
-                "That sounds interesting! Tell me more.",
-                "I've noted that down for you.",
-                "Could you clarify what you mean?",
-                "Processing your request... Done! ✅",
-                "Start a video call to test the new features! 📹"
-            ];
-            const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-            const replyText = `AI: ${randomResponse}`; // Simple echo for now
+        try {
+            // Call our local API proxy
+            const res = await axios.post('/api/ai', {
+                message: userMessage
+            });
 
+            const replyText = res.data.response || "I'm speechless!";
+
+            // Add response to Firestore
             await addDoc(collection(db, 'messages'), {
                 from: this.AI_BOT_ID,
                 to: this.state.currentUser.uid,
@@ -969,8 +966,24 @@ class Messenger extends Component {
                 readBy: [],
                 chatId: this.getChatId(this.AI_BOT_ID, this.state.currentUser.uid)
             });
+
+        } catch (error) {
+            console.error("AI Error:", error);
+            // Fallback error message
+            await addDoc(collection(db, 'messages'), {
+                from: this.AI_BOT_ID,
+                to: this.state.currentUser.uid,
+                text: "Sorry, I'm having trouble connecting to my brain right now. 🤯",
+                type: 'text',
+                timestamp: serverTimestamp(),
+                fromName: 'Alphery AI',
+                toName: this.state.currentUser.displayName,
+                readBy: [],
+                chatId: this.getChatId(this.AI_BOT_ID, this.state.currentUser.uid)
+            });
+        } finally {
             this.setState({ otherUserTyping: false });
-        }, 1500);
+        }
     }
 
     // ============ VIDEO CALL (SIMULATED/BASIC) ============
