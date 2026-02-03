@@ -98,11 +98,9 @@ export class Desktop extends Component {
         if (!username) return;
 
         const savedDesktopApps = SessionManager.getDesktopApps(username);
-        if (savedDesktopApps.length > 0) {
-            apps.forEach(app => {
-                if (savedDesktopApps.includes(app.id)) app.desktop_shortcut = true;
-            });
-        }
+        // Mutation removed: We don't want to modify the global apps config based on session state.
+        // Logic moved to fetchAppsData where we check SessionManager directly if needed, 
+        // but now we strictly rely on userDesktop list.
         this.fetchAppsData();
     }
 
@@ -305,9 +303,10 @@ export class Desktop extends Component {
                 minimized_windows[app.id] = false;
             }
 
-            // Desktop shortcuts: Only show if installed  
-            // Priority: User setting > Default config
-            const isOnDesktop = userDesktop.length > 0 ? userDesktop.includes(app.id) : app.desktop_shortcut;
+            // Desktop shortcuts: Only show if user explicitly added them
+            // We no longer fallback to app.desktop_shortcut to prevent auto-adding new apps
+            const isOnDesktop = userDesktop.includes(app.id);
+
             if (isOnDesktop && isInstalled) {
                 desktop_apps.push(app.id);
             }

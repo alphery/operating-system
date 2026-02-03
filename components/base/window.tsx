@@ -81,15 +81,6 @@ const Window: React.FC<WindowProps> = (props) => {
 
     const handleDrag = (e: any, d: any) => {
         setPosition({ x: d.x, y: d.y });
-        checkOverlap(d.x);
-    };
-
-    const checkOverlap = (x: number) => {
-        if (x < 50) {
-            props.hideSideBar(id, true);
-        } else {
-            props.hideSideBar(id, false);
-        }
     };
 
     const maximizeWindow = () => {

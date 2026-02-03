@@ -61,7 +61,7 @@ const apps = [
         icon: './themes/Yaru/apps/projects.png',
         disabled: false,
         favourite: true,
-        desktop_shortcut: true,
+        desktop_shortcut: false,
         screen: displayProject,
     },
     {
