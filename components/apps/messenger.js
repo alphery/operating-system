@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 import { db, storage } from '../../config/firebase';
-import { collection, query, where, or, and, orderBy, onSnapshot, addDoc, getDocs, serverTimestamp, updateDoc, doc, getDoc, deleteField, setDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, or, and, orderBy, limit, onSnapshot, addDoc, getDocs, serverTimestamp, updateDoc, doc, getDoc, deleteField, setDoc, deleteDoc } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { useAuth } from '../../context/AuthContext';
 import EmojiPicker from 'emoji-picker-react';
@@ -1174,8 +1174,7 @@ class Messenger extends Component {
         const chatsRef = collection(db, 'chats');
         const q = query(
             chatsRef,
-            where('participants', 'array-contains', this.props.user.uid),
-            orderBy('timestamp', 'desc')
+            where('participants', 'array-contains', this.props.user.uid)
         );
 
         this.unsubscribeConversations = onSnapshot(q, (snapshot) => {
@@ -1208,6 +1207,10 @@ class Messenger extends Component {
                     email: otherUserInfo?.email,
                     ...data // include everything else
                 };
+            }).sort((a, b) => {
+                const tA = a.timestamp?.seconds || 0;
+                const tB = b.timestamp?.seconds || 0;
+                return tB - tA;
             });
             this.setState({ conversations });
         }, (error) => {
