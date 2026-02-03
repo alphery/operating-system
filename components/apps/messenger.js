@@ -60,14 +60,40 @@ class Messenger extends Component {
             showGroupModal: false,
             groupName: '',
             selectedGroupMembers: [],
+
+            // New Features
+            messageLimit: 20,
+            chatTheme: 'bg-white', // 'bg-white', 'bg-blue-50', 'bg-gray-900', etc.
+            showThemeModal: false,
+
+            // Video Call
+            callStatus: 'idle', // idle, calling, ringing, connected
+            callDuration: 0,
+            localStream: null,
+            remoteStream: null,
+            isVideoEnabled: true,
+            isAudioEnabled: true
         };
         this.unsubscribeMessages = null;
         this.unsubscribePresence = null;
         this.unsubscribeTyping = null;
         this.unsubscribeConversations = null;
+
+        // AI Bot Definition
+        this.AI_BOT_ID = 'alphery_ai_assistant';
+        this.AI_BOT_USER = {
+            uid: this.AI_BOT_ID,
+            displayName: 'Alphery AI 🤖',
+            email: 'ai@alphery.os',
+            photoURL: 'https://api.dicebear.com/7.x/bottts/svg?seed=AlpheryAI',
+            isBot: true
+        };
+
         this.fileInputRef = React.createRef();
         this.searchInputRef = React.createRef();
+        this.chatContainerRef = React.createRef(); // For scroll handling
         this.audioInterval = null;
+        this.callInterval = null;
     }
 
     componentDidMount() {
@@ -204,30 +230,42 @@ class Messenger extends Component {
         const currentUid = this.state.currentUser.uid;
         const selectedUid = selectedUser.uid;
 
+        let chatId;
+        if (selectedUser.isGroup) {
+            chatId = selectedUser.uid;
+        } else {
+            chatId = [currentUid, selectedUid].sort().join('_');
+        }
+
         const messagesRef = collection(db, 'messages');
         const q = query(
             messagesRef,
-            or(
-                and(
-                    where('from', '==', currentUid),
-                    where('to', '==', selectedUid)
-                ),
-                and(
-                    where('from', '==', selectedUid),
-                    where('to', '==', currentUid)
-                )
-            ),
-            orderBy('timestamp', 'asc')
+            where('chatId', '==', chatId),
+            orderBy('timestamp', 'desc'),
+            limit(this.state.messageLimit)
         );
 
         this.unsubscribeMessages = onSnapshot(q, (snapshot) => {
             const messages = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
-            }));
+            })).reverse();
 
-            this.setState({ messages }, () => {
-                this.scrollToBottom();
+            // If we are scrolling up (loading more), maintain position
+            const container = this.chatContainerRef.current;
+            const previousHeight = container ? container.scrollHeight : 0;
+            const previousScrollTop = container ? container.scrollTop : 0;
+
+            this.setState({ messages, loading: false }, () => {
+                // If it was a generic load (limit 20), scroll to bottom.
+                // If we loaded MORE (limit > 20), restore position.
+                if (this.state.messageLimit === 20) {
+                    this.scrollToBottom();
+                } else if (container) {
+                    // Primitive scroll restoration
+                    container.scrollTop = container.scrollHeight - previousHeight + previousScrollTop;
+                }
+
                 // Mark incoming messages as read
                 setTimeout(() => this.markMessagesAsRead(), 500);
 
@@ -461,8 +499,13 @@ class Messenger extends Component {
                 chatId: chatId // Add chat ID reference
             });
 
-            // Update Conversation Metadata in Firestore
+            // Update Conversation Metadata
             await this.updateConversationMetadata(selectedUser, messageText.trim());
+
+            // AI BOT LOGIC
+            if (selectedUser.uid === this.AI_BOT_ID) {
+                this.handleAIResponse(messageText.trim());
+            }
 
             this.setState({ messageText: '', replyingTo: null });
         } catch (error) {
@@ -861,6 +904,79 @@ class Messenger extends Component {
         }
     }
 
+    // ============ SCROLL & THEMES ============
+    handleScroll = (e) => {
+        const { scrollTop } = e.target;
+        if (scrollTop === 0 && !this.state.loading) {
+            // Load more messages
+            // Check if we have more? For now just try to load more
+            this.setState(prev => ({ messageLimit: prev.messageLimit + 20 }), () => {
+                this.subscribeToMessages();
+            });
+        }
+    }
+
+    setTheme = async (themeClass) => {
+        this.setState({ chatTheme: themeClass, showThemeModal: false });
+        if (this.state.selectedUser && !this.state.selectedUser.isBot) {
+            // Save preference? For now just local state for session
+        }
+    }
+
+    // ============ AI BOT ============
+    handleAIResponse = async (userMessage) => {
+        this.setState({ otherUserTyping: true });
+
+        // Simulate thinking time
+        setTimeout(async () => {
+            const responses = [
+                "I'm Alphery AI 🤖! I can help you organize your tasks.",
+                "That sounds interesting! Tell me more.",
+                "I've noted that down for you.",
+                "Could you clarify what you mean?",
+                "Processing your request... Done! ✅",
+                "Start a video call to test the new features! 📹"
+            ];
+            const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+            const replyText = `AI: ${randomResponse}`; // Simple echo for now
+
+            await addDoc(collection(db, 'messages'), {
+                from: this.AI_BOT_ID,
+                to: this.state.currentUser.uid,
+                text: replyText,
+                type: 'text',
+                timestamp: serverTimestamp(),
+                fromName: 'Alphery AI',
+                toName: this.state.currentUser.displayName,
+                readBy: [],
+                chatId: this.getChatId(this.AI_BOT_ID, this.state.currentUser.uid)
+            });
+            this.setState({ otherUserTyping: false });
+        }, 1500);
+    }
+
+    // ============ VIDEO CALL (SIMULATED/BASIC) ============
+    startVideoCall = () => {
+        this.setState({ callStatus: 'calling' });
+        // In a real app, signal user here via Firestore 'calls' collection
+        // For Demo, go straight to 'connected' after 2s
+        setTimeout(() => {
+            this.setState({ callStatus: 'connected' });
+            this.startCallTimer();
+        }, 2000);
+    }
+
+    endCall = () => {
+        this.setState({ callStatus: 'idle', callDuration: 0 });
+        if (this.callInterval) clearInterval(this.callInterval);
+    }
+
+    startCallTimer = () => {
+        this.callInterval = setInterval(() => {
+            this.setState(prev => ({ callDuration: prev.callDuration + 1 }));
+        }, 1000);
+    }
+
     // ============ CONVERSATIONS (REALTIME FIRESTORE) ============
     subscribeToConversations = () => {
         if (!this.props.user) return;
@@ -1103,7 +1219,7 @@ class Messenger extends Component {
 
         if (msg.type === 'image') {
             return (
-                <div className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-3`}>
+                <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-3`}>
                     <div className={`max-w-xs md:max-w-md rounded-2xl overflow-hidden shadow-sm
                         ${isMe ? 'bg-teal-600 rounded-br-none' : 'bg-white rounded-bl-none'}`}>
                         <img
@@ -1122,7 +1238,7 @@ class Messenger extends Component {
 
         if (msg.type === 'video') {
             return (
-                <div className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-3`}>
+                <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-3`}>
                     <div className={`max-w-xs md:max-w-md rounded-2xl overflow-hidden shadow-sm
                         ${isMe ? 'bg-teal-600 rounded-br-none' : 'bg-white rounded-bl-none'}`}>
                         <video controls className="w-full h-auto">
@@ -1138,7 +1254,7 @@ class Messenger extends Component {
 
         if (msg.type === 'audio') {
             return (
-                <div className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-3`}>
+                <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-3`}>
                     <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl shadow-sm
                         ${isMe ? 'bg-teal-600 text-white rounded-br-none' : 'bg-white text-gray-800 rounded-bl-none'}`}>
                         <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white bg-opacity-20">
@@ -1155,7 +1271,7 @@ class Messenger extends Component {
 
         if (['pdf', 'document', 'spreadsheet', 'archive', 'file'].includes(msg.type)) {
             return (
-                <div className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-3`}>
+                <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-3`}>
                     <div className={`max-w-xs md:max-w-md px-4 py-3 rounded-2xl shadow-sm cursor-pointer
                         ${isMe ? 'bg-teal-600 text-white rounded-br-none' : 'bg-white text-gray-800 rounded-bl-none'}`}
                         onClick={() => window.open(msg.fileURL, '_blank')}>
@@ -1302,7 +1418,7 @@ class Messenger extends Component {
     }
 
     render() {
-        const { otherUsers, selectedUser, messages, messageText, currentUser, loading, uploading, uploadProgress, showAttachMenu, isRecording } = this.state;
+        const { otherUsers, selectedUser, messages, messageText, currentUser, loading, uploading, uploadProgress, showAttachMenu, isRecording, chatTheme, callStatus } = this.state;
 
         if (!this.props.user) {
             return (
@@ -1365,6 +1481,22 @@ class Messenger extends Component {
                         </div>
                     </div>
                     <div className="flex-1 overflow-y-auto">
+                        {/* AI BOT PINNED */}
+                        <div
+                            onClick={() => this.selectUser(this.AI_BOT_USER)}
+                            className={`flex items-center px-4 py-3 cursor-pointer transition border-b border-gray-100 group bg-purple-50 hover:bg-purple-100`}
+                        >
+                            <div className="relative">
+                                <div className="w-12 h-12 rounded-full bg-indigo-600 flex items-center justify-center text-white text-2xl">
+                                    🤖
+                                </div>
+                            </div>
+                            <div className="ml-3 overflow-hidden">
+                                <p className="font-bold text-indigo-900">Alphery AI</p>
+                                <p className="text-xs text-indigo-600">Your AI Assistant</p>
+                            </div>
+                        </div>
+
                         {this.state.conversations.filter(u =>
                             !this.state.hiddenUsers.includes(u.uid) && (
                                 !this.state.searchQuery ||
@@ -1409,7 +1541,7 @@ class Messenger extends Component {
                         {this.state.conversations.length === 0 && (
                             <div className="p-4 text-center text-gray-400 text-xs">
                                 <p>No chats yet.</p>
-                                <p className="mt-2">Use the + button to find people.</p>
+                                <p className="mt-2">Start a conversation!</p>
                             </div>
                         )}
                     </div>
@@ -1462,6 +1594,20 @@ class Messenger extends Component {
                             {/* Chat Header */}
                             <div className="h-16 flex items-center justify-between px-6 border-b border-gray-200 bg-white shadow-sm z-10">
                                 <div className="flex items-center gap-2 md:gap-3">
+                                    <button
+                                        onClick={() => this.setState({ showThemeModal: true })}
+                                        className="p-1.5 hover:bg-gray-100 rounded-full text-gray-500 mr-1"
+                                        title="Change Theme"
+                                    >
+                                        🎨
+                                    </button>
+                                    <button
+                                        onClick={this.startVideoCall}
+                                        className="p-1.5 hover:bg-gray-100 rounded-full text-gray-500 mr-2"
+                                        title="Video Call"
+                                    >
+                                        📹
+                                    </button>
                                     <button
                                         onClick={() => this.setState({ selectedUser: null })}
                                         className="md:hidden p-1 mr-1 text-gray-600 hover:bg-gray-100 rounded-full"
@@ -1523,7 +1669,16 @@ class Messenger extends Component {
                             </div>
 
                             {/* Messages */}
-                            <div id="chat-history-box" className="flex-1 overflow-y-auto p-6">
+                            <div
+                                id="chat-history-box"
+                                ref={this.chatContainerRef}
+                                onScroll={this.handleScroll}
+                                className={`flex-1 overflow-y-auto p-6 ${this.state.selectedUser?.isBot ? 'bg-slate-900' : chatTheme} transition-colors duration-300`}
+                            >
+                                {messages.length === 0 && loading && (
+                                    <div className="flex justify-center p-4"><span className="animate-spin">⌛</span></div>
+                                )}
+
                                 {messages.map((msg) => this.renderMessage(msg))}
                                 {messages.length === 0 && (
                                     <div className="flex justify-center mt-20">
@@ -1692,181 +1847,243 @@ class Messenger extends Component {
                     )}
                 </div>
 
+                {/* Call Overlay */}
+                {
+                    callStatus !== 'idle' && (
+                        <div className="absolute inset-0 z-[100] bg-gray-900 flex flex-col items-center justify-center text-white">
+                            {callStatus === 'connected' ? (
+                                <div className="w-full h-full flex flex-col">
+                                    <div className="flex-1 relative bg-black">
+                                        {/* Remote Video Placeholder */}
+                                        <img src={selectedUser?.photoURL || "https://source.unsplash.com/random/800x600/?person"} className="w-full h-full object-cover opacity-50" />
+                                        <div className="absolute top-4 right-4 w-32 h-48 bg-gray-800 rounded-lg border-2 border-white shadow-lg overflow-hidden">
+                                            {/* Local Video Placeholder */}
+                                            <div className="w-full h-full bg-gray-700 flex items-center justify-center">Me</div>
+                                        </div>
+                                    </div>
+                                    <div className="h-24 bg-gray-900 flex items-center justify-center gap-6">
+                                        <div className="text-xl font-mono">{this.formatDuration(this.state.callDuration)}</div>
+                                        <button onClick={() => this.setState({ isAudioEnabled: !this.state.isAudioEnabled })} className={`p-4 rounded-full ${this.state.isAudioEnabled ? 'bg-gray-700' : 'bg-red-500'}`}>🎤</button>
+                                        <button onClick={this.endCall} className="p-4 rounded-full bg-red-600 hover:bg-red-700 transform hover:scale-110 transition">☎️ End</button>
+                                        <button onClick={() => this.setState({ isVideoEnabled: !this.state.isVideoEnabled })} className={`p-4 rounded-full ${this.state.isVideoEnabled ? 'bg-gray-700' : 'bg-red-500'}`}>📹</button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="text-center">
+                                    <div className="w-24 h-24 rounded-full bg-gray-700 mx-auto mb-6 flex items-center justify-center text-4xl overflow-hidden">
+                                        {selectedUser?.photoURL ? <img src={selectedUser.photoURL} className="w-full h-full object-cover" /> : selectedUser?.displayName[0]}
+                                    </div>
+                                    <h2 className="text-2xl font-bold mb-2">{selectedUser?.displayName}</h2>
+                                    <p className="text-gray-400 animate-pulse mb-8">Calling...</p>
+                                    <button onClick={this.endCall} className="w-16 h-16 rounded-full bg-red-500 flex items-center justify-center text-2xl hover:bg-red-600 transition">
+                                        ☎️
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )
+                }
+
+                {/* Theme Modal */}
+                {
+                    this.state.showThemeModal && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]" onClick={() => this.setState({ showThemeModal: false })}>
+                            <div className="bg-white rounded-lg p-6 w-80">
+                                <h3 className="font-bold mb-4">Choose Theme</h3>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button onClick={() => this.setTheme('bg-white')} className="p-4 border rounded hover:bg-gray-50 text-center">Default (White)</button>
+                                    <button onClick={() => this.setTheme('bg-slate-50')} className="p-4 border rounded bg-slate-50 hover:bg-slate-100 text-center">Slate</button>
+                                    <button onClick={() => this.setTheme('bg-orange-50')} className="p-4 border rounded bg-orange-50 hover:bg-orange-100 text-center">Warm</button>
+                                    <button onClick={() => this.setTheme('bg-blue-50')} className="p-4 border rounded bg-blue-50 hover:bg-blue-100 text-center">Blue</button>
+                                    <button onClick={() => this.setTheme('bg-pink-50')} className="p-4 border rounded bg-pink-50 hover:bg-pink-100 text-center">Pink</button>
+                                    <button onClick={() => this.setTheme('bg-gradient-to-br from-indigo-50 to-purple-50')} className="p-4 border rounded bg-gradient-to-br from-indigo-50 to-purple-50 text-center">Dreamy</button>
+                                </div>
+                            </div>
+                        </div>
+                    )
+                }
+
                 {/* Context Menu */}
-                {this.state.contextMenu && (
-                    <div
-                        className="fixed bg-white rounded-lg shadow-2xl border border-gray-200 py-2 z-50 min-w-[200px]"
-                        style={{
-                            left: `${this.state.contextMenu.x}px`,
-                            top: `${this.state.contextMenu.y}px`
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        {this.state.contextMenu.type === 'user' && (
-                            <>
+                {
+                    this.state.contextMenu && (
+                        <div
+                            className="fixed bg-white rounded-lg shadow-2xl border border-gray-200 py-2 z-50 min-w-[200px]"
+                            style={{
+                                left: `${this.state.contextMenu.x}px`,
+                                top: `${this.state.contextMenu.y}px`
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {this.state.contextMenu.type === 'user' && (
+                                <>
+                                    <button
+                                        onClick={() => this.hideUser(this.state.contextMenu.item)}
+                                        className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-3 text-sm text-gray-700 transition"
+                                    >
+                                        <span>👁️‍🗨️</span>
+                                        <span>Hide Chat</span>
+                                    </button>
+                                    <button
+                                        onClick={() => this.deleteUserChat(this.state.contextMenu.item)}
+                                        className="w-full px-4 py-2 text-left hover:bg-red-50 flex items-center gap-3 text-sm text-red-600 transition"
+                                    >
+                                        <span>🗑️</span>
+                                        <span>
+                                            {this.props.userData?.role === 'super_admin'
+                                                ? '🔒 Delete Chat (Admin)'
+                                                : 'Delete Chat'}
+                                        </span>
+                                    </button>
+                                </>
+                            )}
+
+                            {this.state.contextMenu.type === 'message' && (
                                 <button
-                                    onClick={() => this.hideUser(this.state.contextMenu.item)}
-                                    className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-3 text-sm text-gray-700 transition"
-                                >
-                                    <span>👁️‍🗨️</span>
-                                    <span>Hide Chat</span>
-                                </button>
-                                <button
-                                    onClick={() => this.deleteUserChat(this.state.contextMenu.item)}
+                                    onClick={() => this.deleteMessage(this.state.contextMenu.item)}
                                     className="w-full px-4 py-2 text-left hover:bg-red-50 flex items-center gap-3 text-sm text-red-600 transition"
                                 >
                                     <span>🗑️</span>
                                     <span>
                                         {this.props.userData?.role === 'super_admin'
-                                            ? '🔒 Delete Chat (Admin)'
-                                            : 'Delete Chat'}
+                                            ? '🔒 Delete for Everyone'
+                                            : 'Delete Message'}
                                     </span>
                                 </button>
-                            </>
-                        )}
-
-                        {this.state.contextMenu.type === 'message' && (
-                            <button
-                                onClick={() => this.deleteMessage(this.state.contextMenu.item)}
-                                className="w-full px-4 py-2 text-left hover:bg-red-50 flex items-center gap-3 text-sm text-red-600 transition"
-                            >
-                                <span>🗑️</span>
-                                <span>
-                                    {this.props.userData?.role === 'super_admin'
-                                        ? '🔒 Delete for Everyone'
-                                        : 'Delete Message'}
-                                </span>
-                            </button>
-                        )}
-                    </div>
-                )}
+                            )}
+                        </div>
+                    )
+                }
 
                 {/* Create Group Modal */}
-                {this.state.showGroupModal && (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]" onClick={() => this.setState({ showGroupModal: false })}>
-                        <div className="bg-white rounded-lg shadow-2xl w-96 p-6" onClick={(e) => e.stopPropagation()}>
-                            <h3 className="font-bold text-lg mb-4">Create Group</h3>
-                            <input
-                                className="w-full border rounded px-3 py-2 mb-4"
-                                placeholder="Group Name"
-                                value={this.state.groupName}
-                                onChange={e => this.setState({ groupName: e.target.value })}
-                            />
-                            <p className="text-xs font-bold text-gray-500 mb-2">Select Members:</p>
-                            <div className="h-40 overflow-y-auto border rounded mb-4">
-                                {this.state.otherUsers.map(u => (
-                                    <div key={u.uid}
-                                        onClick={() => this.toggleGroupMember(u)}
-                                        className={`flex items-center p-2 hover:bg-gray-50 cursor-pointer ${this.state.selectedGroupMembers.find(m => m.uid === u.uid) ? 'bg-blue-50' : ''}`}>
-                                        <div className={`w-4 h-4 border rounded mr-2 flex items-center justify-center ${this.state.selectedGroupMembers.find(m => m.uid === u.uid) ? 'bg-blue-500 border-blue-500 text-white' : 'border-gray-300'}`}>
-                                            {this.state.selectedGroupMembers.find(m => m.uid === u.uid) && '✓'}
+                {
+                    this.state.showGroupModal && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]" onClick={() => this.setState({ showGroupModal: false })}>
+                            <div className="bg-white rounded-lg shadow-2xl w-96 p-6" onClick={(e) => e.stopPropagation()}>
+                                <h3 className="font-bold text-lg mb-4">Create Group</h3>
+                                <input
+                                    className="w-full border rounded px-3 py-2 mb-4"
+                                    placeholder="Group Name"
+                                    value={this.state.groupName}
+                                    onChange={e => this.setState({ groupName: e.target.value })}
+                                />
+                                <p className="text-xs font-bold text-gray-500 mb-2">Select Members:</p>
+                                <div className="h-40 overflow-y-auto border rounded mb-4">
+                                    {this.state.otherUsers.map(u => (
+                                        <div key={u.uid}
+                                            onClick={() => this.toggleGroupMember(u)}
+                                            className={`flex items-center p-2 hover:bg-gray-50 cursor-pointer ${this.state.selectedGroupMembers.find(m => m.uid === u.uid) ? 'bg-blue-50' : ''}`}>
+                                            <div className={`w-4 h-4 border rounded mr-2 flex items-center justify-center ${this.state.selectedGroupMembers.find(m => m.uid === u.uid) ? 'bg-blue-500 border-blue-500 text-white' : 'border-gray-300'}`}>
+                                                {this.state.selectedGroupMembers.find(m => m.uid === u.uid) && '✓'}
+                                            </div>
+                                            <span className="text-sm truncate">{u.displayName}</span>
                                         </div>
-                                        <span className="text-sm truncate">{u.displayName}</span>
-                                    </div>
-                                ))}
-                            </div>
-                            <div className="flex justify-end gap-2">
-                                <button onClick={() => this.setState({ showGroupModal: false })} className="px-3 py-2 text-sm text-gray-600">Cancel</button>
-                                <button onClick={this.createGroup} className="px-3 py-2 text-sm bg-teal-600 text-white rounded">Create Group</button>
+                                    ))}
+                                </div>
+                                <div className="flex justify-end gap-2">
+                                    <button onClick={() => this.setState({ showGroupModal: false })} className="px-3 py-2 text-sm text-gray-600">Cancel</button>
+                                    <button onClick={this.createGroup} className="px-3 py-2 text-sm bg-teal-600 text-white rounded">Create Group</button>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                )}
+                    )
+                }
 
                 {/* New Chat Modal */}
-                {this.state.showNewChatModal && (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => this.setState({ showNewChatModal: false })}>
-                        <div className="bg-white rounded-lg shadow-2xl w-96 max-h-[600px] flex flex-col" onClick={(e) => e.stopPropagation()}>
-                            {/* Modal Header */}
-                            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-                                <h3 className="font-bold text-lg text-gray-800">New Chat</h3>
-                                <button
-                                    onClick={() => this.setState({ showGroupModal: true })}
-                                    className="p-1 hover:bg-gray-100 rounded-full mr-1 text-teal-600"
-                                    title="Create Group"
-                                >
-                                    <span className="text-xl">👥</span>
-                                </button>
-                                <button
-                                    onClick={() => this.setState({ showNewChatModal: false, searchEmail: '', searchedUsers: [] })}
-                                    className="p-1 hover:bg-gray-100 rounded-full"
-                                >
-                                    <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-                                    </svg>
-                                </button>
-                            </div>
-
-                            {/* Search Input */}
-                            <div className="p-4 border-b border-gray-200">
-                                <div className="relative">
-                                    <input
-                                        type="email"
-                                        placeholder="Search by email address..."
-                                        value={this.state.searchEmail}
-                                        onChange={(e) => {
-                                            this.setState({ searchEmail: e.target.value });
-                                            this.searchUserByEmail(e.target.value);
-                                        }}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none text-sm text-gray-900"
-                                        autoFocus
-                                    />
-                                    <svg className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 transform -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                                    </svg>
+                {
+                    this.state.showNewChatModal && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => this.setState({ showNewChatModal: false })}>
+                            <div className="bg-white rounded-lg shadow-2xl w-96 max-h-[600px] flex flex-col" onClick={(e) => e.stopPropagation()}>
+                                {/* Modal Header */}
+                                <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+                                    <h3 className="font-bold text-lg text-gray-800">New Chat</h3>
+                                    <button
+                                        onClick={() => this.setState({ showGroupModal: true })}
+                                        className="p-1 hover:bg-gray-100 rounded-full mr-1 text-teal-600"
+                                        title="Create Group"
+                                    >
+                                        <span className="text-xl">👥</span>
+                                    </button>
+                                    <button
+                                        onClick={() => this.setState({ showNewChatModal: false, searchEmail: '', searchedUsers: [] })}
+                                        className="p-1 hover:bg-gray-100 rounded-full"
+                                    >
+                                        <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                                        </svg>
+                                    </button>
                                 </div>
-                                <p className="text-xs text-gray-500 mt-2">Enter the email address of the person you want to chat with</p>
-                            </div>
 
-                            {/* Search Results */}
-                            <div className="flex-1 overflow-y-auto p-4">
-                                {this.state.searchedUsers.length > 0 ? (
-                                    this.state.searchedUsers.map(user => (
-                                        <div
-                                            key={user.uid}
-                                            onClick={() => this.startConversation(user)}
-                                            className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition mb-2"
-                                        >
-                                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-400 to-blue-500 flex items-center justify-center text-white font-bold flex-shrink-0">
-                                                {user.photoURL ? (
-                                                    <img src={user.photoURL} alt={user.displayName} className="w-full h-full object-cover rounded-full" />
-                                                ) : (
-                                                    <span>{(user.displayName || user.email || 'U')[0].toUpperCase()}</span>
-                                                )}
-                                            </div>
-                                            <div className="flex-1 overflow-hidden">
-                                                <p className="font-semibold text-gray-800 truncate">{user.displayName || 'Anonymous'}</p>
-                                                <p className="text-xs text-gray-500 truncate">{user.email}</p>
-                                            </div>
-                                            <div className="text-teal-600">
-                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path>
-                                                </svg>
-                                            </div>
-                                        </div>
-                                    ))
-                                ) : this.state.searchEmail ? (
-                                    <div className="text-center py-8 text-gray-400">
-                                        <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                {/* Search Input */}
+                                <div className="p-4 border-b border-gray-200">
+                                    <div className="relative">
+                                        <input
+                                            type="email"
+                                            placeholder="Search by email address..."
+                                            value={this.state.searchEmail}
+                                            onChange={(e) => {
+                                                this.setState({ searchEmail: e.target.value });
+                                                this.searchUserByEmail(e.target.value);
+                                            }}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent outline-none text-sm text-gray-900"
+                                            autoFocus
+                                        />
+                                        <svg className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 transform -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                                         </svg>
-                                        <p className="text-sm">No users found</p>
-                                        <p className="text-xs mt-1">Try a different email address</p>
                                     </div>
-                                ) : (
-                                    <div className="text-center py-8 text-gray-400">
-                                        <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-                                        </svg>
-                                        <p className="text-sm">Search for users by email</p>
-                                        <p className="text-xs mt-1">Start typing to see results</p>
-                                    </div>
-                                )}
+                                    <p className="text-xs text-gray-500 mt-2">Enter the email address of the person you want to chat with</p>
+                                </div>
+
+                                {/* Search Results */}
+                                <div className="flex-1 overflow-y-auto p-4">
+                                    {this.state.searchedUsers.length > 0 ? (
+                                        this.state.searchedUsers.map(user => (
+                                            <div
+                                                key={user.uid}
+                                                onClick={() => this.startConversation(user)}
+                                                className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition mb-2"
+                                            >
+                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-400 to-blue-500 flex items-center justify-center text-white font-bold flex-shrink-0">
+                                                    {user.photoURL ? (
+                                                        <img src={user.photoURL} alt={user.displayName} className="w-full h-full object-cover rounded-full" />
+                                                    ) : (
+                                                        <span>{(user.displayName || user.email || 'U')[0].toUpperCase()}</span>
+                                                    )}
+                                                </div>
+                                                <div className="flex-1 overflow-hidden">
+                                                    <p className="font-semibold text-gray-800 truncate">{user.displayName || 'Anonymous'}</p>
+                                                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                                                </div>
+                                                <div className="text-teal-600">
+                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path>
+                                                    </svg>
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : this.state.searchEmail ? (
+                                        <div className="text-center py-8 text-gray-400">
+                                            <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                            </svg>
+                                            <p className="text-sm">No users found</p>
+                                            <p className="text-xs mt-1">Try a different email address</p>
+                                        </div>
+                                    ) : (
+                                        <div className="text-center py-8 text-gray-400">
+                                            <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                                            </svg>
+                                            <p className="text-sm">Search for users by email</p>
+                                            <p className="text-xs mt-1">Start typing to see results</p>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                )}
-            </div>
+                    )
+                }
+            </div >
         );
     }
 }
