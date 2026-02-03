@@ -24,21 +24,66 @@ export class StatusCard extends Component {
 		super();
 		this.wrapperRef = React.createRef();
 		this.state = {
-			sound_level: 75, // better of setting default values from localStorage
-			brightness_level: 100 // setting default value to 100 so that by default its always full.
+			sound_level: 75,
+			brightness_level: 100,
+			battery_level: 100,
+			battery_charging: false,
+			bluetooth_status: 'Off',
+			wifi_status: 'On'
 		};
 	}
+
 	handleClickOutside = () => {
 		this.props.toggleVisible();
 	};
+
 	componentDidMount() {
 		this.setState({
 			sound_level: localStorage.getItem('sound-level') || 75,
 			brightness_level: localStorage.getItem('brightness-level') || 100
 		}, () => {
-			document.getElementById('monitor-screen').style.filter = `brightness(${3 / 400 * this.state.brightness_level +
-				0.25})`;
-		})
+			const screen = document.getElementById('monitor-screen');
+			if (screen) {
+				screen.style.filter = `brightness(${3 / 400 * this.state.brightness_level + 0.25})`;
+			}
+		});
+
+		// Battery Status
+		if (navigator.getBattery) {
+			navigator.getBattery().then(battery => {
+				this.updateBatteryStatus(battery);
+				battery.addEventListener('levelchange', () => this.updateBatteryStatus(battery));
+				battery.addEventListener('chargingchange', () => this.updateBatteryStatus(battery));
+			});
+		}
+
+		// WiFi Status
+		this.updateNetworkStatus();
+		window.addEventListener('online', this.updateNetworkStatus);
+		window.addEventListener('offline', this.updateNetworkStatus);
+
+		// Bluetooth Availability
+		if (navigator.bluetooth && navigator.bluetooth.getAvailability) {
+			navigator.bluetooth.getAvailability().then(available => {
+				this.setState({ bluetooth_status: available ? 'On' : 'Off' });
+			});
+		}
+	}
+
+	componentWillUnmount() {
+		window.removeEventListener('online', this.updateNetworkStatus);
+		window.removeEventListener('offline', this.updateNetworkStatus);
+	}
+
+	updateBatteryStatus = (battery) => {
+		this.setState({
+			battery_level: Math.round(battery.level * 100),
+			battery_charging: battery.charging
+		});
+	}
+
+	updateNetworkStatus = () => {
+		this.setState({ wifi_status: navigator.onLine ? 'On' : 'Off' });
 	}
 
 	playTone = (vol, freq) => {
@@ -68,10 +113,10 @@ export class StatusCard extends Component {
 		const val = e.target.value;
 		this.setState({ brightness_level: val });
 		localStorage.setItem('brightness-level', val);
-		document.getElementById('monitor-screen').style.filter = `brightness(${3 / 400 * val + 0.25})`;
-
-		// Pitch maps to brightness (low=deep, high=sharp)
-		// Volume fixed at current sound level
+		const screen = document.getElementById('monitor-screen');
+		if (screen) {
+			screen.style.filter = `brightness(${3 / 400 * val + 0.25})`;
+		}
 		this.playTone(this.state.sound_level, 200 + (val * 5));
 	};
 
@@ -79,7 +124,7 @@ export class StatusCard extends Component {
 		const val = e.target.value;
 		this.setState({ sound_level: val });
 		localStorage.setItem('sound-level', val);
-		this.playTone(val, 440); // Fixed pitch A4
+		this.playTone(val, 440);
 	};
 
 	render() {
@@ -91,7 +136,6 @@ export class StatusCard extends Component {
 					(this.props.visible ? ' visible animateShow' : ' invisible')
 				}
 			>
-				{' '}
 				{/* Status Card */}
 				<div className="absolute w-0 h-0 -top-1 right-6 top-arrow-up" />
 
@@ -107,7 +151,6 @@ export class StatusCard extends Component {
 								</div>
 							</div>
 							<div className="flex gap-2">
-								{/* <button className="text-[10px] text-gray-400 font-medium hover:text-white transition">Later</button> */}
 								<button
 									onClick={this.props.handleInstallClick}
 									className="bg-white text-black px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-gray-200 transition shadow-sm"
@@ -145,33 +188,40 @@ export class StatusCard extends Component {
 				<div className="w-64 flex content-center justify-center">
 					<div className="w-2/4 border-black border-opacity-50 border-b my-2 border-solid" />
 				</div>
+
+				{/* WiFi */}
 				<div className="w-64 py-1.5 flex items-center justify-center bg-ub-cool-grey hover:bg-ub-warm-grey hover:bg-opacity-20">
 					<div className="w-8">
-						<img width="16px" height="16px" src="./themes/Yaru/status/network-wireless-signal-good-symbolic.svg" alt="ubuntu wifi" />
+						<img width="16px" height="16px" src={`./themes/Yaru/status/network-wireless-signal-${this.state.wifi_status === 'On' ? 'good' : 'none'}-symbolic.svg`} alt="ubuntu wifi" />
 					</div>
 					<div className="w-2/3 flex items-center justify-between text-gray-400">
-						<span>WiFi</span>
+						<span>WiFi: {this.state.wifi_status}</span>
 						<SmallArrow angle="right" />
 					</div>
 				</div>
+
+				{/* Bluetooth */}
 				<div className="w-64 py-1.5 flex items-center justify-center bg-ub-cool-grey hover:bg-ub-warm-grey hover:bg-opacity-20">
 					<div className="w-8">
 						<img width="16px" height="16px" src="./themes/Yaru/status/bluetooth-symbolic.svg" alt="ubuntu bluetooth" />
 					</div>
 					<div className="w-2/3 flex items-center justify-between text-gray-400">
-						<span>Off</span>
+						<span>Bluetooth: {this.state.bluetooth_status}</span>
 						<SmallArrow angle="right" />
 					</div>
 				</div>
+
+				{/* Battery */}
 				<div className="w-64 py-1.5 flex items-center justify-center bg-ub-cool-grey hover:bg-ub-warm-grey hover:bg-opacity-20">
 					<div className="w-8">
 						<img width="16px" height="16px" src="./themes/Yaru/status/battery-good-symbolic.svg" alt="ubuntu battery" />
 					</div>
 					<div className="w-2/3 flex items-center justify-between text-gray-400">
-						<span>2:40 Remaining (69%)</span>
+						<span>{this.state.battery_charging ? 'Charging' : 'Remaining'} ({this.state.battery_level}%)</span>
 						<SmallArrow angle="right" />
 					</div>
 				</div>
+
 				<div className="w-64 flex content-center justify-center">
 					<div className="w-2/4 border-black border-opacity-50 border-b my-2 border-solid" />
 				</div>
