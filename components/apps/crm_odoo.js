@@ -2,7 +2,8 @@ import React, { Component } from 'react';
 import { io } from 'socket.io-client';
 import FocusMode from './crm/FocusMode';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+// REMOVED DEFAULT API_BASE_URL to prefer State Logic
+// const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
 
 export default class CRM extends Component {
     constructor(props) {
@@ -38,11 +39,30 @@ export default class CRM extends Component {
         };
 
         this.socket = null;
+        this.state = {
+            ...this.state,
+            isAuthenticated: false,
+            authToken: null,
+            backendUrl: 'http://localhost:3001', // Default, but user can change
+            authError: null,
+            isLoading: false
+        };
     }
 
     componentDidMount() {
-        this.connectSocket();
-        this.fetchAllData();
+        const storedToken = localStorage.getItem('crm_auth_token');
+        const storedUrl = localStorage.getItem('crm_backend_url');
+
+        if (storedUrl) {
+            this.setState({ backendUrl: storedUrl });
+        }
+
+        if (storedToken) {
+            this.setState({ isAuthenticated: true, authToken: storedToken }, () => {
+                this.connectSocket();
+                this.fetchAllData();
+            });
+        }
     }
 
     componentWillUnmount() {
@@ -52,7 +72,14 @@ export default class CRM extends Component {
     }
 
     connectSocket = () => {
-        this.socket = io(API_BASE_URL);
+        const { backendUrl, authToken } = this.state;
+        if (!backendUrl || !authToken) return;
+
+        this.socket = io(backendUrl, {
+            extraHeaders: {
+                Authorization: `Bearer ${authToken}`
+            }
+        });
         this.socket.on('connect', () => {
             console.log('🔥 CRM connected to backend');
             this.socket.emit('join-tenant', 'default-tenant');
@@ -81,11 +108,22 @@ export default class CRM extends Component {
     };
 
     fetchAllData = async () => {
+        const { backendUrl, authToken } = this.state;
+        if (!backendUrl || !authToken) return;
+
+        const headers = {
+            'Authorization': `Bearer ${authToken}`,
+            'Content-Type': 'application/json'
+        };
+
         try {
             const [opportunities, quotes, activities] = await Promise.all([
-                fetch(`${API_BASE_URL}/clients`).then(r => r.ok ? r.json() : []).catch(() => []),
-                fetch(`${API_BASE_URL}/quotations`).then(r => r.ok ? r.json() : []).catch(() => []),
-                fetch(`${API_BASE_URL}/activities`).then(r => r.ok ? r.json() : []).catch(() => [])
+                fetch(`${backendUrl}/clients`, { headers }).then(r => {
+                    if (r.status === 401) throw new Error('Unauthorized');
+                    return r.ok ? r.json() : [];
+                }).catch(() => []),
+                fetch(`${backendUrl}/quotations`, { headers }).then(r => r.ok ? r.json() : []).catch(() => []),
+                fetch(`${backendUrl}/activities`, { headers }).then(r => r.ok ? r.json() : []).catch(() => [])
             ]);
 
             const stats = this.calculateStats(opportunities);
@@ -130,10 +168,14 @@ export default class CRM extends Component {
     };
 
     createOpportunity = async (data) => {
+        const { backendUrl, authToken } = this.state;
         try {
-            const response = await fetch(`${API_BASE_URL}/clients`, {
+            const response = await fetch(`${backendUrl}/clients`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                },
                 body: JSON.stringify({
                     ...data,
                     tenantId: 'default-tenant'
@@ -148,10 +190,14 @@ export default class CRM extends Component {
     };
 
     updateOpportunity = async (id, updates) => {
+        const { backendUrl, authToken } = this.state;
         try {
-            await fetch(`${API_BASE_URL}/clients/${id}`, {
+            await fetch(`${backendUrl}/clients/${id}`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                },
                 body: JSON.stringify(updates)
             });
             this.fetchAllData();
@@ -161,9 +207,11 @@ export default class CRM extends Component {
     };
 
     deleteOpportunity = async (id) => {
+        const { backendUrl, authToken } = this.state;
         try {
-            await fetch(`${API_BASE_URL}/clients/${id}`, {
-                method: 'DELETE'
+            await fetch(`${backendUrl}/clients/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${authToken}` }
             });
         } catch (error) {
             console.error('Error deleting opportunity:', error);
@@ -171,10 +219,14 @@ export default class CRM extends Component {
     };
 
     createQuote = async (data) => {
+        const { backendUrl, authToken } = this.state;
         try {
-            const response = await fetch(`${API_BASE_URL}/quotations`, {
+            const response = await fetch(`${backendUrl}/quotations`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                },
                 body: JSON.stringify(data)
             });
             const newQuote = await response.json();
@@ -188,10 +240,14 @@ export default class CRM extends Component {
     // --- ACTIVITIES MANAGEMENT ---
     // --- ACTIVITIES MANAGEMENT (REAL API) ---
     createActivity = async (data) => {
+        const { backendUrl, authToken } = this.state;
         try {
-            const response = await fetch(`${API_BASE_URL}/activities`, {
+            const response = await fetch(`${backendUrl}/activities`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                },
                 body: JSON.stringify(data)
             });
             const newActivity = await response.json();
@@ -205,10 +261,14 @@ export default class CRM extends Component {
     };
 
     updateActivity = async (id, data) => {
+        const { backendUrl, authToken } = this.state;
         try {
-            const response = await fetch(`${API_BASE_URL}/activities/${id}`, {
+            const response = await fetch(`${backendUrl}/activities/${id}`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                },
                 body: JSON.stringify(data)
             });
             const updated = await response.json();
@@ -222,8 +282,12 @@ export default class CRM extends Component {
     };
 
     deleteActivity = async (id) => {
+        const { backendUrl, authToken } = this.state;
         try {
-            await fetch(`${API_BASE_URL}/activities/${id}`, { method: 'DELETE' });
+            await fetch(`${backendUrl}/activities/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${authToken}` }
+            });
             this.setState(prevState => ({
                 activities: prevState.activities.filter(a => a.id !== id)
             }));
@@ -276,8 +340,178 @@ export default class CRM extends Component {
         }
     };
 
+    handleLogin = async (e) => {
+        e.preventDefault();
+        const { backendUrl } = this.state;
+        // Basic validation
+        if (!backendUrl) return;
+
+        // Save URL preference
+        localStorage.setItem('crm_backend_url', backendUrl);
+
+        this.setState({ isLoading: true, authError: null });
+
+        try {
+            // Check if backend is reachable
+            // const res = await fetch(`${backendUrl}/api/health`).catch(() => null);
+
+            // Allow bypassing auth for DEMO purposes if the user types 'demo' as token
+            const tokenInput = document.getElementById('api-token-input')?.value;
+
+            if (tokenInput) {
+                this.setState({
+                    isAuthenticated: true,
+                    authToken: tokenInput,
+                    isLoading: false
+                }, () => {
+                    localStorage.setItem('crm_auth_token', tokenInput);
+                    this.connectSocket();
+                    this.fetchAllData();
+                });
+            } else {
+                // If no token, maybe we can try to hit a login endpoint if one existed
+                // const res = await fetch(`${backendUrl}/auth/login`, ...);
+                throw new Error("Please enter a valid Access Token.");
+            }
+        } catch (err) {
+            this.setState({
+                authError: 'Connection Failed: ' + err.message,
+                isLoading: false
+            });
+        }
+    };
+
+    renderLoginScreen() {
+        const { backendUrl, authError, isLoading } = this.state;
+        return (
+            <div className="login-container">
+                <div className="login-box">
+                    <div className="login-logo">
+                        <span className="logo-icon">💼</span>
+                        <span className="logo-text">CRM Pro</span>
+                    </div>
+                    <p className="login-desc">Connect to your Enterprise ERP Backend</p>
+
+                    {authError && <div className="error-banner">{authError}</div>}
+
+                    <form onSubmit={this.handleLogin}>
+                        <div className="form-group">
+                            <label>Backend Server URL</label>
+                            <input
+                                type="text"
+                                className="glass-input"
+                                value={backendUrl}
+                                onChange={(e) => this.setState({ backendUrl: e.target.value })}
+                                placeholder="https://api.example.com"
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label>Access Token (JWT)</label>
+                            <input
+                                id="api-token-input"
+                                type="text"
+                                className="glass-input"
+                                placeholder="Paste your JWT Token here..."
+                            />
+                            <p className="help-text">Use the token from your backend login response.</p>
+                        </div>
+                        <button type="submit" className="login-btn" disabled={isLoading}>
+                            {isLoading ? 'Connecting...' : 'Connect System'}
+                        </button>
+                    </form>
+                </div>
+                <style jsx>{`
+                    .login-container {
+                        width: 100%;
+                        height: 100%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        background: radial-gradient(circle at center, #eef2ff 0%, #e0e7ff 100%);
+                    }
+                    .login-box {
+                        background: white;
+                        padding: 40px;
+                        border-radius: 24px;
+                        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+                        width: 420px;
+                        text-align: center;
+                    }
+                    .login-logo {
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        gap: 12px;
+                        margin-bottom: 12px;
+                    }
+                    .logo-icon { font-size: 40px; }
+                    .logo-text { 
+                        font-size: 28px; 
+                        font-weight: 800; 
+                        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+                        -webkit-background-clip: text;
+                        -webkit-text-fill-color: transparent;
+                    }
+                    .login-desc { color: #6b7280; margin-bottom: 32px; font-size: 14px; }
+                    
+                    .form-group { text-align: left; margin-bottom: 20px; }
+                    .form-group label { display: block; font-size: 13px; font-weight: 700; color: #374151; margin-bottom: 8px; }
+                    .help-text { font-size: 11px; color: #9ca3af; margin-top: 6px; }
+                    
+                    .glass-input {
+                        width: 100%;
+                        padding: 12px 16px;
+                        border-radius: 12px;
+                        border: 2px solid #e5e7eb;
+                        font-size: 14px;
+                        transition: all 0.2s;
+                        background: #f9fafb;
+                        color: #1f2937;
+                    }
+                    .glass-input:focus {
+                        border-color: #6366f1;
+                        background: white;
+                        outline: none;
+                    }
+                    
+                    .login-btn {
+                        width: 100%;
+                        padding: 14px;
+                        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+                        color: white;
+                        border: none;
+                        border-radius: 12px;
+                        font-weight: 700;
+                        font-size: 16px;
+                        cursor: pointer;
+                        transition: transform 0.2s;
+                        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+                    }
+                    .login-btn:hover {
+                        transform: translateY(-2px);
+                        box-shadow: 0 10px 25px -5px rgba(79, 70, 229, 0.4);
+                    }
+                    .login-btn:disabled { opacity: 0.7; cursor: not-allowed; }
+                    .error-banner {
+                        background: #fee2e2;
+                        color: #991b1b;
+                        padding: 12px;
+                        border-radius: 8px;
+                        font-size: 13px;
+                        margin-bottom: 24px;
+                        border: 1px solid #fecaca;
+                    }
+                `}</style>
+            </div>
+        );
+    }
+
     render() {
-        const { activeView } = this.state;
+        const { activeView, isAuthenticated } = this.state;
+
+        if (!isAuthenticated) {
+            return this.renderLoginScreen();
+        }
 
         return (
             <div className="crm-container">
