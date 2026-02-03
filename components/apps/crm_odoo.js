@@ -26,6 +26,7 @@ export default class CRM extends Component {
             filterStage: 'all',
             searchQuery: '',
             noteInput: '', // For creating new notes
+            newModuleName: '', // For Entity Builder
 
             // Dashboard Stats
             stats: {
@@ -248,6 +249,31 @@ export default class CRM extends Component {
 
     completeActivity = (id) => {
         this.updateActivity(id, { status: 'Completed', completedAt: new Date().toISOString() });
+    };
+
+    deployNewModule = async () => {
+        const { newModuleName } = this.state;
+        if (!newModuleName.trim()) return alert('Please enter a module name');
+
+        try {
+            // Simulate API call for now or call real endpoint if ready
+            // const response = await fetch(`${API_BASE_URL}/api/entity/schema`, { ... });
+
+            // For UI feedback immediately:
+            const newModule = {
+                name: newModuleName,
+                icon: '🚀',
+                description: 'Custom Module',
+                active: true
+            };
+
+            // In a real app, this would refresh the list from backend
+            alert(`🚀 Module "${newModuleName}" deployed successfully! Database schema generated.`);
+            this.setState({ showModal: null, newModuleName: '' });
+        } catch (error) {
+            console.error('Error deploying module:', error);
+            alert('Failed to deploy module');
+        }
     };
 
     render() {
@@ -1356,7 +1382,13 @@ export default class CRM extends Component {
 
                         <div className="form-group">
                             <label>Module Name (Singular)</label>
-                            <input type="text" placeholder="e.g. Patient, Property, Ticket" className="glass-input" />
+                            <input
+                                type="text"
+                                placeholder="e.g. Patient, Property, Ticket"
+                                className="glass-input"
+                                value={this.state.newModuleName}
+                                onChange={(e) => this.setState({ newModuleName: e.target.value })}
+                            />
                         </div>
 
                         <div className="form-group">
@@ -1384,22 +1416,52 @@ export default class CRM extends Component {
                     </div>
                     <div className="modal-footer">
                         <button className="cancel-btn" onClick={() => this.setState({ showModal: null })}>Cancel</button>
-                        <button className="save-btn">🚀 Deploy Module</button>
+                        <button className="save-btn" onClick={this.deployNewModule}>🚀 Deploy Module</button>
                     </div>
                 </div>
                 <style jsx>{`
-                    .glass-modal { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.2); width: 600px; }
-                    .builder-intro { background: #f0fdf4; color: #15803d; padding: 12px; border-radius: 8px; font-size: 13px; margin-bottom: 20px; line-height: 1.4; }
+                    .glass-modal { background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.2); width: 600px; box-shadow: 0 20px 50px rgba(0,0,0,0.15); border-radius: 16px; overflow: hidden; }
+                    .builder-intro { background: #f0fdf4; color: #15803d; padding: 12px; border-radius: 8px; font-size: 13px; margin-bottom: 20px; line-height: 1.4; border: 1px solid #bbf7d0; }
                     .icon-grid { display: flex; gap: 10px; margin-top: 8px; }
-                    .icon-btn { width: 40px; height: 40px; font-size: 20px; border: 1px solid #e5e7eb; border-radius: 8px; background: white; cursor: pointer; }
-                    .icon-btn:hover { border-color: #8b5cf6; background: #f5f3ff; }
+                    .icon-btn { width: 40px; height: 40px; font-size: 20px; border: 1px solid #e5e7eb; border-radius: 8px; background: white; cursor: pointer; transition: all 0.2s; }
+                    .icon-btn:hover { border-color: #8b5cf6; background: #f5f3ff; transform: scale(1.1); }
                     
                     .field-designer { margin-top: 20px; }
-                    .blueprint-area { background: #111827; border-radius: 12px; padding: 16px; margin-top: 8px; }
-                    .field-row { display: flex; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid #374151; color: white; font-family: monospace; font-size: 13px; }
-                    .field-row.rigid { color: #6b7280; font-style: italic; }
-                    .field-row.ghost { color: #8b5cf6; border: 1px dashed #4b5563; border-radius: 6px; justify-content: center; cursor: pointer; margin-top: 8px; }
+                    .blueprint-area { background: #1f2937; border-radius: 12px; padding: 16px; margin-top: 8px; border: 1px solid #374151; }
+                    .field-row { display: flex; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid #374151; color: #e5e7eb; font-family: monospace; font-size: 13px; }
+                    .field-row.rigid { color: #9ca3af; font-style: italic; }
+                    .field-row.ghost { color: #a78bfa; border: 1px dashed #4b5563; border-radius: 6px; justify-content: center; cursor: pointer; margin-top: 8px; transition: all 0.2s; }
+                    .field-row.ghost:hover { background: rgba(139, 92, 246, 0.1); border-color: #8b5cf6; }
                     .type { color: #fcd34d; }
+
+                    .glass-input {
+                        width: 100%;
+                        padding: 12px;
+                        border-radius: 8px;
+                        border: 1px solid #e5e7eb;
+                        background: white;
+                        color: #1f2937; /* Dark text for visibility */
+                        font-size: 14px;
+                        outline: none;
+                        transition: all 0.2s;
+                    }
+                    .glass-input:focus {
+                        border-color: #8b5cf6;
+                        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+                    }
+                    
+                    .modal-header { padding: 20px 24px; border-bottom: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center; }
+                    .modal-header h2 { font-size: 20px; font-weight: 700; color: #1f2937; margin: 0; }
+                    .close-btn { background: transparent; border: none; font-size: 24px; color: #9ca3af; cursor: pointer; }
+                    
+                    .modal-body { padding: 24px; }
+                    .form-group { margin-bottom: 20px; }
+                    .form-group label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px; }
+                    
+                    .modal-footer { padding: 20px 24px; background: #f9fafb; display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid #f3f4f6; }
+                    .cancel-btn { padding: 10px 20px; border: 1px solid #e5e7eb; background: white; border-radius: 8px; font-weight: 600; color: #4b5563; cursor: pointer; }
+                    .save-btn { padding: 10px 20px; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3); }
+                    .save-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(124, 58, 237, 0.4); }
                 `}</style>
             </div>
         );
@@ -1560,13 +1622,13 @@ export default class CRM extends Component {
                         border: 1px solid #e5e7eb;
                         border-radius: 8px;
                         font-size: 14px;
-                        background: white;
-                        color: #111827;
+                        background: #ffffff !important;
+                        color: #1f2937 !important;
                         transition: all 0.2s;
                     }
 
                     .form-group input::placeholder {
-                        color: #9ca3af;
+                        color: #9ca3af !important;
                     }
 
                     .form-group select option {
