@@ -482,6 +482,12 @@ class Messenger extends Component {
         }
     }
 
+    sendQuickReaction = () => {
+        this.setState({ messageText: '👍' }, async () => {
+            await this.handleSend({ preventDefault: () => { } });
+        });
+    }
+
     handleSend = async (e) => {
         e.preventDefault();
         const { messageText, currentUser, selectedUser, replyingTo } = this.state;
@@ -923,7 +929,7 @@ class Messenger extends Component {
             // Load more messages
             // Check if we have more? For now just try to load more
             this.setState(prev => ({ messageLimit: prev.messageLimit + 20 }), () => {
-                this.subscribeToMessages();
+                this.loadMessagesForUser(this.state.selectedUser);
             });
         }
     }
@@ -1459,8 +1465,8 @@ class Messenger extends Component {
                         <img
                             src={msg.fileURL}
                             alt={msg.fileName}
-                            className="w-full h-auto cursor-pointer"
-                            onClick={() => window.open(msg.fileURL, '_blank')}
+                            className="w-full h-auto cursor-pointer hover:opacity-95 transition"
+                            onClick={() => this.setState({ lightboxImage: msg.fileURL })}
                         />
                         <div className={`px-3 py-1 text-xs ${isMe ? 'text-teal-200' : 'text-gray-400'}`}>
                             {msg.timestamp ? new Date(msg.timestamp.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Sending...'}
@@ -1796,8 +1802,11 @@ class Messenger extends Component {
                             </div>
                         </div>
 
-                        <div className="relative group">
-                            <button className="flex items-center gap-1 text-xs px-2 py-1 rounded border border-gray-300 bg-white hover:bg-gray-50 transition text-gray-700">
+                        <div className="relative">
+                            <button
+                                onClick={() => this.setState(prev => ({ showStatusMenu: !prev.showStatusMenu }))}
+                                className="flex items-center gap-1 text-xs px-2 py-1 rounded border border-gray-300 bg-white hover:bg-gray-50 transition text-gray-700"
+                            >
                                 <span className={`w-2 h-2 rounded-full ${this.state.userStatus === 'online' ? 'bg-green-500' :
                                     this.state.userStatus === 'away' ? 'bg-yellow-500' : 'bg-gray-400'
                                     }`}></span>
@@ -1806,17 +1815,19 @@ class Messenger extends Component {
                             </button>
 
                             {/* Status Dropdown */}
-                            <div className="absolute bottom-full right-0 mb-1 w-32 bg-white rounded-lg shadow-xl border border-gray-200 hidden group-hover:block overflow-hidden z-50">
-                                <button onClick={() => this.changeUserStatus('online')} className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center gap-2 text-gray-700">
-                                    <span className="w-2 h-2 rounded-full bg-green-500"></span> Online
-                                </button>
-                                <button onClick={() => this.changeUserStatus('away')} className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center gap-2 text-gray-700">
-                                    <span className="w-2 h-2 rounded-full bg-yellow-500"></span> Away
-                                </button>
-                                <button onClick={() => this.changeUserStatus('offline')} className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center gap-2 text-gray-700">
-                                    <span className="w-2 h-2 rounded-full bg-gray-400"></span> Offline
-                                </button>
-                            </div>
+                            {this.state.showStatusMenu && (
+                                <div className="absolute bottom-full right-0 mb-1 w-32 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden z-50">
+                                    <button onClick={() => { this.changeUserStatus('online'); this.setState({ showStatusMenu: false }); }} className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center gap-2 text-gray-700">
+                                        <span className="w-2 h-2 rounded-full bg-green-500"></span> Online
+                                    </button>
+                                    <button onClick={() => { this.changeUserStatus('away'); this.setState({ showStatusMenu: false }); }} className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center gap-2 text-gray-700">
+                                        <span className="w-2 h-2 rounded-full bg-yellow-500"></span> Away
+                                    </button>
+                                    <button onClick={() => { this.changeUserStatus('offline'); this.setState({ showStatusMenu: false }); }} className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center gap-2 text-gray-700">
+                                        <span className="w-2 h-2 rounded-full bg-gray-400"></span> Offline
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -2048,13 +2059,23 @@ class Messenger extends Component {
                                                 autoFocus
                                                 disabled={uploading}
                                             />
-                                            <button
-                                                type="submit"
-                                                className="w-10 h-10 bg-teal-600 hover:bg-teal-700 text-white rounded-full flex items-center justify-center transition shadow-md disabled:opacity-50"
-                                                disabled={!messageText.trim() || uploading}
-                                            >
-                                                <svg className="w-5 h-5 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
-                                            </button>
+                                            {messageText.trim() ? (
+                                                <button
+                                                    type="submit"
+                                                    className="w-10 h-10 bg-teal-600 hover:bg-teal-700 text-white rounded-full flex items-center justify-center transition shadow-md disabled:opacity-50"
+                                                    disabled={uploading}
+                                                >
+                                                    <svg className="w-5 h-5 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    onClick={this.sendQuickReaction}
+                                                    className="w-10 h-10 bg-blue-50 hover:bg-blue-100 text-blue-500 rounded-full flex items-center justify-center transition shadow-md transform hover:scale-110 text-xl pb-1"
+                                                >
+                                                    👍
+                                                </button>
+                                            )}
                                         </>
                                     )}
                                 </form>
@@ -2346,6 +2367,25 @@ class Messenger extends Component {
                         </div>
                     )
                 }
+                {/* Lightbox Modal */}
+                {this.state.lightboxImage && (
+                    <div className="fixed inset-0 z-[100] bg-black bg-opacity-90 flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => this.setState({ lightboxImage: null })}>
+                        <div className="relative max-w-4xl w-full h-full flex items-center justify-center">
+                            <button
+                                onClick={() => this.setState({ lightboxImage: null })}
+                                className="absolute top-4 right-4 text-white hover:text-gray-300 z-10 p-2 rounded-full bg-black/50 hover:bg-black/70 transition"
+                            >
+                                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                            </button>
+                            <img
+                                src={this.state.lightboxImage}
+                                alt="Full size"
+                                className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+                                onClick={(e) => e.stopPropagation()}
+                            />
+                        </div>
+                    </div>
+                )}
             </div >
         );
     }
