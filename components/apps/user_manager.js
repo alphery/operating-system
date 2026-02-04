@@ -85,11 +85,12 @@ class UserManager extends Component {
 
             // Set role: if super admin adds, default to Projects. If Tenant adds, forced to Projects.
             const role = 'user';
-            const parentUserId = isSuperAdmin ? null : user.email;
+            const userEmail = user.email || user.username;
+            const parentUserId = isSuperAdmin ? null : userEmail;
 
             await setDoc(doc(db, 'users', newEmail.toLowerCase()), {
                 email: newEmail.toLowerCase(),
-                displayName: newDisplayName || 'New User',
+                displayName: newDisplayName || 'User',
                 role: role,
                 parentUserId: parentUserId,
                 approvalStatus: 'approved', // Pre-approved because we are adding them manually
@@ -189,26 +190,34 @@ class UserManager extends Component {
     }
 
     getFilteredUsers = () => {
-        const { users, filter } = this.state;
+        const { users } = this.state;
         const { user, userData } = this.props;
 
-        const isSuperAdmin = user.email === 'alpherymail@gmail.com' || user.email === 'aksnetlink@gmail.com';
+        const userEmail = user.email || user.username;
+        const isSuperAdmin = userEmail === 'alpherymail@gmail.com' || userEmail === 'aksnetlink@gmail.com' || userData?.role === 'super_admin';
         const isTenantAdmin = userData?.role === 'TENANT';
 
         let visibleUsers = users;
 
         if (isSuperAdmin) {
-            // Super Admin sees everything
-            visibleUsers = users;
+            // Super Admin sees everything that HAS an email and is either approved or a valid tenant
+            visibleUsers = users.filter(u => u.email && u.email.includes('@'));
         } else if (isTenantAdmin) {
-            // Tenant sees only users tagged under them
-            visibleUsers = users.filter(u => u.parentUserId === user.uid || u.parentUserId === user.email);
+            // Tenant sees only users tagged under them that are approved
+            const myId = user.uid;
+            const myEmail = user.email || user.username;
+            visibleUsers = users.filter(u =>
+                (u.parentUserId === myId || u.parentUserId === myEmail) &&
+                u.email &&
+                u.email.includes('@')
+            );
         } else {
             return [];
         }
 
-        if (filter === 'all') return visibleUsers;
-        return visibleUsers.filter(u => u.approvalStatus === filter);
+        // STRICT FILTER: Only show explicitly approved/whitelisted users.
+        // This ensures no "New User" or "Pending" attempts are ever shown.
+        return visibleUsers.filter(u => u.approvalStatus === 'approved');
     }
 
     setParentAdmin = async (userId, parentId) => {
@@ -228,7 +237,8 @@ class UserManager extends Component {
         const { loading, filter } = this.state;
         const { user, userData } = this.props;
 
-        const isSuperAdmin = user.email === 'alpherymail@gmail.com' || user.email === 'aksnetlink@gmail.com';
+        const userEmail = user.email || user.username;
+        const isSuperAdmin = userEmail === 'alpherymail@gmail.com' || userEmail === 'aksnetlink@gmail.com' || userData?.role === 'super_admin';
         const isTenantAdmin = userData?.role === 'TENANT';
 
         // Check if authorized
@@ -323,60 +333,11 @@ class UserManager extends Component {
                             </div>
                         </div>
                     </div>
-                    <div className="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <p className="text-xs text-gray-500 font-semibold uppercase">Pending</p>
-                                <p className="text-2xl font-bold text-gray-800 mt-1">{pendingCount}</p>
-                            </div>
-                            <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
-                                <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                </svg>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <p className="text-xs text-gray-500 font-semibold uppercase">Active Whitelist</p>
-                                <p className="text-2xl font-bold text-gray-800 mt-1">{approvedCount}</p>
-                            </div>
-                            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                </svg>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <p className="text-xs text-gray-500 font-semibold uppercase">Rejected</p>
-                                <p className="text-2xl font-bold text-gray-800 mt-1">{rejectedCount}</p>
-                            </div>
-                            <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                                <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                </svg>
-                            </div>
-                        </div>
-                    </div>
                 </div>
 
-                {/* Filters */}
                 <div className="px-6 pb-4">
-                    <div className="bg-white rounded-lg shadow p-2 flex gap-2 overflow-x-auto no-scrollbar">
-                        {['all', 'pending', 'approved', 'rejected'].map(f => (
-                            <button
-                                key={f}
-                                onClick={() => this.setState({ filter: f })}
-                                className={`px-4 py-2 rounded-lg font-medium text-sm transition capitalize whitespace-nowrap
-                                    ${filter === f ? 'bg-pink-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'}`}
-                            >
-                                {f}
-                            </button>
-                        ))}
+                    <div className="bg-white rounded-lg shadow p-2 flex gap-2">
+                        <button className="px-4 py-2 rounded-lg font-bold text-xs bg-pink-100 text-pink-700 uppercase tracking-wider">Whitelisted Emails</button>
                     </div>
                 </div>
 
@@ -400,11 +361,8 @@ class UserManager extends Component {
                                             <p className="text-sm text-gray-500 break-all">{user.email}</p>
                                         </div>
                                     </div>
-                                    <span className={`px-2 py-1 rounded-full text-xs font-semibold
-                                        ${user.approvalStatus === 'approved' ? 'bg-green-100 text-green-700' :
-                                            user.approvalStatus === 'rejected' ? 'bg-red-100 text-red-700' :
-                                                'bg-yellow-100 text-yellow-700'}`}>
-                                        {user.approvalStatus || 'pending'}
+                                    <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                                        Approved
                                     </span>
                                 </div>
 
@@ -421,47 +379,55 @@ class UserManager extends Component {
                                 </div>
 
                                 {/* Permissions Button */}
-                                {user.role !== 'super_admin' && (
-                                    <div className="mb-4">
-                                        <button
-                                            onClick={() => this.openPermissionsModal(user)}
-                                            className="w-full py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-sm font-medium transition flex items-center justify-center gap-2"
-                                        >
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-                                            </svg>
-                                            Manage App Permissions ({user.allowedApps ? user.allowedApps.length : 'All'})
-                                        </button>
-                                    </div>
-                                )}
+                                {
+                                    user.role !== 'super_admin' && (
+                                        <div className="mb-4">
+                                            <button
+                                                onClick={() => this.openPermissionsModal(user)}
+                                                className="w-full py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-sm font-medium transition flex items-center justify-center gap-2"
+                                            >
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                                                </svg>
+                                                Manage App Permissions ({user.allowedApps ? user.allowedApps.length : 'All'})
+                                            </button>
+                                        </div>
+                                    )
+                                }
 
                                 {/* Action Buttons */}
-                                <div className="pt-3 border-t border-gray-100 flex flex-wrap gap-2 justify-end">
+                                < div className="pt-3 border-t border-gray-100 flex flex-wrap gap-2 justify-end" >
                                     {/* Role Selection */}
-                                    {user.approvalStatus === 'approved' && (isSuperAdmin || user.parentUserId === this.props.user.email) && (
-                                        <select
-                                            value={user.role === 'team' ? 'team' : 'user'}
-                                            onChange={(e) => this.changeUserRole(user.id, e.target.value)}
-                                            className="px-3 py-1.5 text-sm border border-gray-300 rounded bg-white flex-1"
-                                        >
-                                            <option value="user">Projects Role</option>
-                                            <option value="team">Team Role</option>
-                                        </select>
-                                    )}
+                                    {
+                                        user.approvalStatus === 'approved' && (isSuperAdmin || user.parentUserId === this.props.user.email) && (
+                                            <select
+                                                value={user.role === 'team' ? 'team' : 'user'}
+                                                onChange={(e) => this.changeUserRole(user.id, e.target.value)}
+                                                className="px-3 py-1.5 text-sm border border-gray-300 rounded bg-white flex-1"
+                                            >
+                                                <option value="user">Projects Role</option>
+                                                <option value="team">Team Role</option>
+                                            </select>
+                                        )
+                                    }
 
                                     {/* Revoke */}
-                                    {user.approvalStatus === 'approved' &&
+                                    {
+                                        user.approvalStatus === 'approved' &&
                                         (isSuperAdmin || user.parentUserId === this.props.user.email) &&
                                         user.role !== 'super_admin' &&
                                         user.email !== 'alpherymail@gmail.com' &&
                                         user.email !== 'aksnetlink@gmail.com' && (
                                             <button onClick={() => this.revokeUser(user.id, user.email)} className="px-4 py-1.5 bg-red-500 text-white rounded font-medium text-sm">Revoke Access</button>
-                                        )}
+                                        )
+                                    }
 
                                     {/* Delete */}
-                                    {user.approvalStatus === 'rejected' && user.role !== 'super_admin' && (
-                                        <button onClick={() => this.deleteUser(user.id)} className="flex-1 px-3 py-1.5 bg-gray-500 text-white rounded font-medium text-sm">Delete</button>
-                                    )}
+                                    {
+                                        user.approvalStatus === 'rejected' && user.role !== 'super_admin' && (
+                                            <button onClick={() => this.deleteUser(user.id)} className="flex-1 px-3 py-1.5 bg-gray-500 text-white rounded font-medium text-sm">Delete</button>
+                                        )
+                                    }
                                 </div>
                             </div>
                         ))}
@@ -600,72 +566,76 @@ class UserManager extends Component {
                             </div>
                         )}
                     </div>
-                </div>
+                </div >
 
                 {/* App Permissions Modal */}
-                {this.state.showPermissionsModal && this.state.selectedUser && (
-                    <AppPermissionsModal
-                        user={this.state.selectedUser}
-                        availableApps={this.state.availableApps}
-                        onClose={this.closePermissionsModal}
-                        onSave={this.updateUserPermissions}
-                    />
-                )}
+                {
+                    this.state.showPermissionsModal && this.state.selectedUser && (
+                        <AppPermissionsModal
+                            user={this.state.selectedUser}
+                            availableApps={this.state.availableApps}
+                            onClose={this.closePermissionsModal}
+                            onSave={this.updateUserPermissions}
+                        />
+                    )
+                }
 
                 {/* Add User Whitelist Modal */}
-                {this.state.showAddUserModal && (
-                    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] backdrop-blur-sm">
-                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in duration-200">
-                            <div className="bg-gradient-to-r from-green-600 to-teal-600 p-6 text-white">
-                                <h3 className="text-xl font-bold">Add Authorized User</h3>
-                                <p className="text-green-100 text-sm opacity-90">Only users added here will be able to log in.</p>
-                            </div>
-                            <div className="p-6 space-y-4">
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-1">Email Address</label>
-                                    <input
-                                        type="email"
-                                        placeholder="user@example.com"
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition"
-                                        value={this.state.newEmail}
-                                        onChange={(e) => this.setState({ newEmail: e.target.value })}
-                                    />
+                {
+                    this.state.showAddUserModal && (
+                        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] backdrop-blur-sm">
+                            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in duration-200">
+                                <div className="bg-gradient-to-r from-green-600 to-teal-600 p-6 text-white">
+                                    <h3 className="text-xl font-bold">Add Authorized User</h3>
+                                    <p className="text-green-100 text-sm opacity-90">Only users added here will be able to log in.</p>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-1">Display Name (Optional)</label>
-                                    <input
-                                        type="text"
-                                        placeholder="John Doe"
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition"
-                                        value={this.state.newDisplayName}
-                                        onChange={(e) => this.setState({ newDisplayName: e.target.value })}
-                                    />
+                                <div className="p-6 space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Email Address</label>
+                                        <input
+                                            type="email"
+                                            placeholder="user@example.com"
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition"
+                                            value={this.state.newEmail}
+                                            onChange={(e) => this.setState({ newEmail: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Display Name (Optional)</label>
+                                        <input
+                                            type="text"
+                                            placeholder="John Doe"
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition"
+                                            value={this.state.newDisplayName}
+                                            onChange={(e) => this.setState({ newDisplayName: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="p-3 bg-blue-50 text-blue-700 rounded-xl text-xs flex gap-2">
+                                        <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        <span>Added users can log in via Google or Email. Their role will be set to 'Projects' and they will be tagged under {(isSuperAdmin ? 'God' : user.email)}.</span>
+                                    </div>
                                 </div>
-                                <div className="p-3 bg-blue-50 text-blue-700 rounded-xl text-xs flex gap-2">
-                                    <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </svg>
-                                    <span>Added users can log in via Google or Email. Their role will be set to 'Projects' and they will be tagged under {(isSuperAdmin ? 'God' : user.email)}.</span>
+                                <div className="p-6 bg-gray-50 border-t border-gray-200 flex gap-3">
+                                    <button
+                                        onClick={() => this.setState({ showAddUserModal: false })}
+                                        className="flex-1 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-xl transition"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={this.addUser}
+                                        className="flex-1 py-2 bg-green-600 text-white font-bold rounded-xl shadow-lg hover:bg-green-700 transition"
+                                    >
+                                        Authorize Access
+                                    </button>
                                 </div>
-                            </div>
-                            <div className="p-6 bg-gray-50 border-t border-gray-200 flex gap-3">
-                                <button
-                                    onClick={() => this.setState({ showAddUserModal: false })}
-                                    className="flex-1 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-xl transition"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={this.addUser}
-                                    className="flex-1 py-2 bg-green-600 text-white font-bold rounded-xl shadow-lg hover:bg-green-700 transition"
-                                >
-                                    Authorize Access
-                                </button>
                             </div>
                         </div>
-                    </div>
-                )}
-            </div>
+                    )
+                }
+            </div >
         );
     }
 }
