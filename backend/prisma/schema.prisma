@@ -13,6 +13,7 @@ model Tenant {
   name      String
   subdomain String?  @unique
   plan      String   @default("free") // free, pro, enterprise
+  allowedApps String[] @default([]) // List of app IDs enabled for this tenant
   ownerId   String?  // User who created/owns this workspace
   users     User[]
   clients   Client[]

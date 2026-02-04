@@ -5,12 +5,24 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class TenantService {
     constructor(private prisma: PrismaService) { }
 
-    async createTenant(data: { name: string; plan?: string }) {
+    async createTenant(data: { name: string; plan?: string; allowedApps?: string[] }) {
         return this.prisma.tenant.create({
             data: {
                 name: data.name,
                 plan: data.plan || 'free',
+                allowedApps: data.allowedApps || []
             },
+        });
+    }
+
+    async findAllTenants() {
+        return this.prisma.tenant.findMany({
+            orderBy: { createdAt: 'desc' },
+            include: {
+                _count: {
+                    select: { users: true }
+                }
+            }
         });
     }
 
