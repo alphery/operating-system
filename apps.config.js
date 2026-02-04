@@ -184,15 +184,6 @@ const apps = [
         screen: displayAppStore,
     },
     {
-        id: "user-permissions",
-        title: "User Permissions",
-        icon: './themes/Yaru/apps/permissions.png',
-        disabled: false,
-        favourite: false,
-        desktop_shortcut: false,
-        screen: () => <UserPermissionsManager />,
-    },
-    {
         id: "about-alphery",
         title: "About Alphery",
         icon: '/images/logos/Dark_Logo_H.png',
@@ -236,15 +227,6 @@ const apps = [
         favourite: true,
         desktop_shortcut: false,
         screen: () => <RealtimeDemo />,
-    },
-    {
-        id: "tenant-manager",
-        title: "God Mode",
-        icon: './themes/Yaru/system/user-home.png', // Placeholder icon
-        disabled: false,
-        favourite: true,
-        desktop_shortcut: true,
-        screen: displayTenantManager,
     }
 ]
 

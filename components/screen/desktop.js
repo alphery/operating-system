@@ -255,13 +255,9 @@ export class Desktop extends Component {
             if (!user || !userData) {
                 // Guest or unauthenticated: All apps available (backward compatibility)
                 hasPermission = true;
-            } else if (user.email === 'alpherymail@gmail.com') { // GOD MODE CHECK
-                // Super Admin sees EVERYTHING
-                hasPermission = true;
-            } else if (app.id === 'tenant-manager') {
-                // Only God can see Tenant Manager
-                hasPermission = false;
             } else if (isSystemApp) {
+                // System apps: Always available
+                hasPermission = true;
                 // System apps: Always available
                 hasPermission = true;
             } else if (userData.allowedApps === undefined || userData.allowedApps === null) {
