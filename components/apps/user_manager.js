@@ -260,10 +260,10 @@ class UserManager extends Component {
 
         if (loading) {
             return (
-                <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                <div className="w-full h-full flex items-center justify-center bg-[#0f172a]">
                     <div className="text-center">
                         <div className="animate-spin w-12 h-12 border-4 border-pink-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-                        <p className="text-gray-600">Loading access data...</p>
+                        <p className="text-gray-400 font-medium tracking-wide">Initializing Secure Access...</p>
                     </div>
                 </div>
             );
@@ -275,59 +275,61 @@ class UserManager extends Component {
         const rejectedCount = filteredUsers.filter(u => u.approvalStatus === 'rejected').length;
 
         return (
-            <div className="w-full h-full flex flex-col bg-gray-50 text-gray-800 font-sans">
+            <div className="w-full h-full flex flex-col bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0f172a] text-white font-sans selection:bg-pink-500/30">
                 {/* Header */}
-                <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 shadow-sm">
-                    <div className="flex items-center gap-3">
-                        <div className="bg-pink-600 text-white p-2 rounded-lg shadow">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path>
+                <div className="h-20 bg-white/5 backdrop-blur-xl border-b border-white/10 flex items-center justify-between px-8 shadow-2xl z-20">
+                    <div className="flex items-center gap-4">
+                        <div className="bg-gradient-to-br from-pink-500 to-violet-600 text-white p-2.5 rounded-xl shadow-lg shadow-pink-500/20 ring-1 ring-white/20">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                             </svg>
                         </div>
                         <div>
-                            <h1 className="font-bold text-xl text-gray-800">Alphery Access Control</h1>
-                            <p className="text-xs text-gray-500">Master permission management</p>
+                            <h1 className="font-bold text-2xl tracking-tight text-white drop-shadow-sm">Alphery Access</h1>
+                            <p className="text-xs text-gray-400 font-medium tracking-wide">SECURE IDENTITY MANAGEMENT</p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <span className="bg-pink-100 text-pink-700 px-3 py-1 rounded-full font-semibold">
-                            {isSuperAdmin ? 'God Mode (Super Admin)' : 'Tenant Admin Access'}
-                        </span>
+                    <div className="flex items-center gap-4">
+                        <div className={`px-4 py-1.5 rounded-full text-xs font-bold tracking-wider uppercase border ${isSuperAdmin ? 'bg-pink-500/10 border-pink-500/50 text-pink-400' : 'bg-blue-500/10 border-blue-500/50 text-blue-400'}`}>
+                            {isSuperAdmin ? 'God Mode' : 'Tenant Admin'}
+                        </div>
                         <button
                             onClick={() => this.setState({ showAddUserModal: true })}
-                            className="bg-green-600 hover:bg-green-700 text-white px-4 py-1 rounded-lg shadow font-medium flex items-center gap-2"
+                            className="bg-white text-gray-900 hover:bg-gray-100 px-5 py-2 rounded-xl shadow-xl shadow-white/5 font-bold flex items-center gap-2 transform active:scale-95 transition-all duration-200"
                         >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
                             </svg>
-                            Add New Email
+                            Authorize User
                         </button>
                     </div>
                 </div>
 
                 {/* Stats */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 md:p-6">
-                    <div className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
-                        <div className="flex justify-between items-start">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 p-8">
+                    <div className="bg-white/5 backdrop-blur-md rounded-2xl p-5 border border-white/10 hover:border-white/20 transition-all group relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-fullblur-3xl -mr-10 -mt-10 transition-all group-hover:bg-blue-500/20"></div>
+                        <div className="flex justify-between items-start relative z-10">
                             <div>
-                                <p className="text-xs text-gray-500 font-semibold uppercase">Total Users</p>
-                                <p className="text-2xl font-bold text-gray-800 mt-1">{this.state.users.length}</p>
+                                <p className="text-xs text-blue-300 font-bold uppercase tracking-wider mb-2">Total Users</p>
+                                <p className="text-3xl font-black text-white">{this.state.users.length}</p>
                             </div>
-                            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center border border-blue-500/30 text-blue-400">
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
                                 </svg>
                             </div>
                         </div>
                     </div>
-                    <div className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-400">
-                        <div className="flex justify-between items-start">
+                    <div className="bg-white/5 backdrop-blur-md rounded-2xl p-5 border border-white/10 hover:border-white/20 transition-all group relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-violet-500/10 rounded-full blur-3xl -mr-10 -mt-10 transition-all group-hover:bg-violet-500/20"></div>
+                        <div className="flex justify-between items-start relative z-10">
                             <div>
-                                <p className="text-xs text-gray-500 font-semibold uppercase">My Team</p>
-                                <p className="text-2xl font-bold text-gray-800 mt-1">{filteredUsers.length}</p>
+                                <p className="text-xs text-violet-300 font-bold uppercase tracking-wider mb-2">My Team</p>
+                                <p className="text-3xl font-black text-white">{filteredUsers.length}</p>
                             </div>
-                            <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center">
-                                <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div className="w-12 h-12 bg-violet-500/20 rounded-xl flex items-center justify-center border border-violet-500/30 text-violet-400">
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
                                 </svg>
                             </div>
@@ -335,78 +337,72 @@ class UserManager extends Component {
                     </div>
                 </div>
 
-                <div className="px-6 pb-4">
-                    <div className="bg-white rounded-lg shadow p-2 flex gap-2">
-                        <button className="px-4 py-2 rounded-lg font-bold text-xs bg-pink-100 text-pink-700 uppercase tracking-wider">Whitelisted Emails</button>
+                <div className="px-8 pb-4">
+                    <div className="flex items-center gap-2">
+                        <div className="h-px bg-white/10 flex-1"></div>
+                        <span className="text-xs font-bold text-gray-500 uppercase tracking-widest px-2">Whitelisted Members</span>
+                        <div className="h-px bg-white/10 flex-1"></div>
                     </div>
                 </div>
 
                 {/* Users List */}
-                <div className="flex-1 overflow-y-auto px-4 md:px-6 pb-6">
+                <div className="flex-1 overflow-y-auto px-8 pb-8">
                     {/* Mobile Card View */}
                     <div className="md:hidden space-y-4">
                         {filteredUsers.map(user => (
-                            <div key={user.id} className="bg-white rounded-lg shadow p-4 border border-gray-100">
+                            <div key={user.id} className="bg-white/5 backdrop-blur-md rounded-2xl p-4 border border-white/10 shadow-lg">
                                 <div className="flex items-start justify-between mb-4">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-pink-400 to-purple-500 overflow-hidden flex items-center justify-center flex-shrink-0">
-                                            {user.photoURL ? (
-                                                <img src={user.photoURL} alt="" className="w-full h-full object-cover" />
-                                            ) : (
-                                                <span className="text-white font-bold text-lg">{(user.displayName || user.email || 'U')[0].toUpperCase()}</span>
-                                            )}
+                                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-pink-500 to-violet-600 p-[2px]">
+                                            <div className="w-full h-full rounded-full bg-black overflow-hidden flex items-center justify-center">
+                                                {user.photoURL ? (
+                                                    <img src={user.photoURL} alt="" className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <span className="text-white font-bold text-lg">{(user.displayName || user.email || 'U')[0].toUpperCase()}</span>
+                                                )}
+                                            </div>
                                         </div>
                                         <div>
-                                            <h3 className="font-bold text-gray-900">{user.displayName || (user.email ? user.email.split('@')[0] : 'New User')}</h3>
-                                            <p className="text-sm text-gray-500 break-all">{user.email}</p>
+                                            <h3 className="font-bold text-white">{user.displayName || (user.email ? user.email.split('@')[0] : 'New User')}</h3>
+                                            <p className="text-xs text-gray-400 break-all">{user.email}</p>
                                         </div>
                                     </div>
-                                    <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                                    <span className="px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-green-500/20 text-green-300 border border-green-500/30">
                                         Approved
                                     </span>
                                 </div>
 
-                                <div className="flex flex-wrap gap-2 mb-4 text-xs text-gray-600">
-                                    <span className={`px-2 py-1 rounded border ${(user.role === 'super_admin' || user.email === 'alpherymail@gmail.com' || user.email === 'aksnetlink@gmail.com') ? 'bg-purple-50 border-purple-200 text-purple-700' : 'bg-gray-50 border-gray-200'}`}>
-                                        Role: {(user.role === 'super_admin' || user.email === 'alpherymail@gmail.com' || user.email === 'aksnetlink@gmail.com') ? 'Super Admin' :
-                                            user.role === 'TENANT' ? 'Tenant Admin' : (user.role === 'team' ? 'Team' : 'Projects')}
+                                <div className="flex flex-wrap gap-2 mb-4">
+                                    <span className={`px-2 py-1 rounded-lg text-xs border ${(user.role === 'super_admin' || user.email === 'alpherymail@gmail.com') ? 'bg-purple-500/20 border-purple-500/30 text-purple-300' : 'bg-white/5 border-white/10 text-gray-300'}`}>
+                                        {(user.role === 'super_admin' || user.email === 'alpherymail@gmail.com') ? 'Super Admin' :
+                                            user.role === 'TENANT' ? 'Tenant Admin' : (user.role === 'team' ? 'Team Member' : 'Project User')}
                                     </span>
-                                    {user.parentUserId && (
-                                        <span className="px-2 py-1 rounded bg-blue-50 border border-blue-200 text-blue-700">
-                                            Tenant: {this.state.users.find(u => u.id === user.parentUserId || u.email === user.parentUserId)?.email || user.parentUserId}
-                                        </span>
-                                    )}
                                 </div>
 
                                 {/* Permissions Button */}
-                                {
-                                    user.role !== 'super_admin' && (
-                                        <div className="mb-4">
-                                            <button
-                                                onClick={() => this.openPermissionsModal(user)}
-                                                className="w-full py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-sm font-medium transition flex items-center justify-center gap-2"
-                                            >
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-                                                </svg>
-                                                Manage App Permissions ({user.allowedApps ? user.allowedApps.length : 'All'})
-                                            </button>
-                                        </div>
-                                    )
-                                }
+                                {user.role !== 'super_admin' && (
+                                    <div className="mb-4">
+                                        <button
+                                            onClick={() => this.openPermissionsModal(user)}
+                                            className="w-full py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-blue-300 rounded-xl text-xs font-bold uppercase tracking-wide transition flex items-center justify-center gap-2"
+                                        >
+                                            Manage Permissions ({user.allowedApps ? user.allowedApps.length : 'All'})
+                                        </button>
+                                    </div>
+                                )}
 
                                 {/* Action Buttons */}
-                                < div className="pt-3 border-t border-gray-100 flex flex-wrap gap-2 justify-end" >
+                                < div className="pt-3 border-t border-white/10 flex flex-wrap gap-2 justify-end" >
                                     {/* Role Selection */}
                                     {
                                         user.approvalStatus === 'approved' && (isSuperAdmin || user.parentUserId === this.props.user.email) && (
                                             <select
                                                 value={user.role === 'team' ? 'team' : 'user'}
                                                 onChange={(e) => this.changeUserRole(user.id, e.target.value)}
-                                                className="px-3 py-1.5 text-sm border border-gray-300 rounded bg-white flex-1"
+                                                className="px-3 py-1.5 text-xs bg-white/5 border border-white/10 rounded-lg text-gray-300 outline-none focus:border-blue-500/50 flex-1"
                                             >
-                                                <option value="user">Projects Role</option>
-                                                <option value="team">Team Role</option>
+                                                <option value="user" className="bg-slate-800">Projects Role</option>
+                                                <option value="team" className="bg-slate-800">Team Role</option>
                                             </select>
                                         )
                                     }
@@ -418,142 +414,120 @@ class UserManager extends Component {
                                         user.role !== 'super_admin' &&
                                         user.email !== 'alpherymail@gmail.com' &&
                                         user.email !== 'aksnetlink@gmail.com' && (
-                                            <button onClick={() => this.revokeUser(user.id, user.email)} className="px-4 py-1.5 bg-red-500 text-white rounded font-medium text-sm">Revoke Access</button>
-                                        )
-                                    }
-
-                                    {/* Delete */}
-                                    {
-                                        user.approvalStatus === 'rejected' && user.role !== 'super_admin' && (
-                                            <button onClick={() => this.deleteUser(user.id)} className="flex-1 px-3 py-1.5 bg-gray-500 text-white rounded font-medium text-sm">Delete</button>
+                                            <button onClick={() => this.revokeUser(user.id, user.email)} className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 rounded-lg font-bold text-xs uppercase tracking-wide">Revoke</button>
                                         )
                                     }
                                 </div>
                             </div>
                         ))}
-                        {filteredUsers.length === 0 && (
-                            <div className="py-12 text-center">
-                                <p className="text-gray-400">No users found</p>
-                            </div>
-                        )}
                     </div>
 
                     {/* Desktop Table View */}
-                    <div className="hidden md:block bg-white rounded-lg shadow overflow-hidden">
+                    <div className="hidden md:block bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
                         <table className="w-full">
-                            <thead className="bg-gray-50 border-b border-gray-200">
+                            <thead className="bg-black/20 text-gray-400 border-b border-white/10">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">User</th>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Email</th>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Role</th>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">App Access</th>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Tagged Under (Tenant)</th>
-                                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                                    <th className="px-6 py-4 text-left text-[10px] font-bold uppercase tracking-widest">User Identity</th>
+                                    <th className="px-6 py-4 text-left text-[10px] font-bold uppercase tracking-widest">Email Address</th>
+                                    <th className="px-6 py-4 text-left text-[10px] font-bold uppercase tracking-widest">Role</th>
+                                    <th className="px-6 py-4 text-left text-[10px] font-bold uppercase tracking-widest">Status</th>
+                                    <th className="px-6 py-4 text-left text-[10px] font-bold uppercase tracking-widest">App Access</th>
+                                    <th className="px-6 py-4 text-left text-[10px] font-bold uppercase tracking-widest">Tenant Owner</th>
+                                    <th className="px-6 py-4 text-right text-[10px] font-bold uppercase tracking-widest">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-100">
+                            <tbody className="divide-y divide-white/5">
                                 {filteredUsers.map(user => (
-                                    <tr key={user.id} className="hover:bg-gray-50">
+                                    <tr key={user.id} className="hover:bg-white/5 transition-colors group">
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-400 to-purple-500 overflow-hidden flex items-center justify-center">
-                                                    {user.photoURL ? (
-                                                        <img src={user.photoURL} alt="" className="w-full h-full object-cover" />
-                                                    ) : (
-                                                        <span className="text-white font-bold text-lg">{(user.displayName || user.email || 'U')[0].toUpperCase()}</span>
-                                                    )}
+                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-500 to-violet-600 p-[2px]">
+                                                    <div className="w-full h-full rounded-full bg-black overflow-hidden flex items-center justify-center">
+                                                        {user.photoURL ? (
+                                                            <img src={user.photoURL} alt="" className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <span className="text-white font-bold text-sm">{(user.displayName || user.email || 'U')[0].toUpperCase()}</span>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                                <span className="font-medium text-gray-900">{user.displayName || (user.email ? user.email.split('@')[0] : 'New User')}</span>
+                                                <span className="font-bold text-white tracking-tight">{user.displayName || (user.email ? user.email.split('@')[0] : 'New User')}</span>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 text-sm text-gray-600">{user.email}</td>
+                                        <td className="px-6 py-4 text-sm text-gray-400 font-medium">{user.email}</td>
                                         <td className="px-6 py-4">
-                                            <span className={`px-2 py-1 rounded-full text-xs font-semibold
-                                                ${(user.role === 'super_admin' || user.email === 'alpherymail@gmail.com' || user.email === 'aksnetlink@gmail.com') ? 'bg-purple-100 text-purple-700' :
-                                                    user.role === 'TENANT' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
-                                                {(user.role === 'super_admin' || user.email === 'alpherymail@gmail.com' || user.email === 'aksnetlink@gmail.com') ? 'Super Admin' :
-                                                    user.role === 'TENANT' ? 'Tenant Admin' : (user.role === 'team' ? 'Team' : 'Projects')}
+                                            <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border
+                                                ${(user.role === 'super_admin' || user.email === 'alpherymail@gmail.com') ? 'bg-purple-500/10 border-purple-500/30 text-purple-300 shadow-[0_0_10px_rgba(168,85,247,0.2)]' :
+                                                    user.role === 'TENANT' ? 'bg-blue-500/10 border-blue-500/30 text-blue-300' : 'bg-white/5 border-white/10 text-gray-400'}`}>
+                                                {(user.role === 'super_admin' || user.email === 'alpherymail@gmail.com') ? 'Super Admin' :
+                                                    user.role === 'TENANT' ? 'Tenant Admin' : (user.role === 'team' ? 'Team' : 'User')}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className={`px-2 py-1 rounded-full text-xs font-semibold
-                                                ${user.approvalStatus === 'approved' ? 'bg-green-100 text-green-700' :
-                                                    user.approvalStatus === 'rejected' ? 'bg-red-100 text-red-700' :
-                                                        'bg-yellow-100 text-yellow-700'}`}>
-                                                {user.approvalStatus || 'pending'}
-                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse"></div>
+                                                <span className="text-xs font-bold text-green-400 uppercase tracking-wide">Approved</span>
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4">
                                             {user.role === 'super_admin' ? (
-                                                <span className="text-xs text-gray-500">All Apps</span>
+                                                <span className="text-xs text-gray-500 font-medium italic">Full System Access</span>
                                             ) : (
                                                 <button
                                                     onClick={() => this.openPermissionsModal(user)}
-                                                    className="px-3 py-1 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-xs font-medium transition flex items-center gap-1"
+                                                    className="px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-blue-300 rounded-lg text-xs font-medium transition flex items-center gap-1.5 group-hover:border-blue-500/30"
                                                 >
-                                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                                                     </svg>
-                                                    {user.allowedApps ? `${user.allowedApps.length} Apps` : 'All Apps'}
+                                                    {user.allowedApps ? `Custom (${user.allowedApps.length})` : 'All Apps'}
                                                 </button>
                                             )}
                                         </td>
                                         <td className="px-6 py-4">
                                             {isSuperAdmin ? (
                                                 <select
-                                                    className="text-xs bg-white border border-gray-300 rounded px-2 py-1 w-full"
+                                                    className="text-xs bg-black/30 border border-white/10 rounded-lg px-2 py-1.5 w-full text-gray-300 outline-none focus:border-blue-500/50"
                                                     value={user.parentUserId || ''}
                                                     onChange={(e) => this.setParentAdmin(user.id, e.target.value)}
                                                 >
-                                                    <option value="">No Tenant Assigned</option>
+                                                    <option value="" className="bg-slate-800">Unassigned</option>
                                                     {this.state.users.filter(u => u.role === 'TENANT').map(tenant => (
-                                                        <option key={tenant.id} value={tenant.email}>{tenant.email}</option>
+                                                        <option key={tenant.id} value={tenant.email} className="bg-slate-800">{tenant.email}</option>
                                                     ))}
                                                 </select>
                                             ) : (
-                                                <span className="text-xs text-gray-500">
-                                                    {this.state.users.find(u => u.id === user.parentUserId || u.email === user.parentUserId)?.email || user.parentUserId || 'None'}
+                                                <span className="text-xs text-gray-500 font-mono">
+                                                    {this.state.users.find(u => u.id === user.parentUserId || u.email === user.parentUserId)?.email || user.parentUserId || '—'}
                                                 </span>
                                             )}
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            <div className="flex items-center justify-end gap-2">
-                                                {/* Role Selection for Approved Users */}
+                                            <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                {/* Role Selection */}
                                                 {user.approvalStatus === 'approved' && (isSuperAdmin || user.parentUserId === this.props.user.email) && (
                                                     <select
                                                         value={user.role || 'user'}
                                                         onChange={(e) => this.changeUserRole(user.id, e.target.value)}
-                                                        className="px-2 py-1 text-xs border border-gray-300 rounded bg-white mr-2"
+                                                        className="px-2 py-1 text-xs bg-black/30 border border-white/10 rounded-md text-gray-300 outline-none"
                                                     >
-                                                        <option value="user">Projects</option>
-                                                        <option value="team">Team</option>
-                                                        {isSuperAdmin && <option value="TENANT">Tenant Admin</option>}
+                                                        <option value="user" className="bg-slate-800">Prj</option>
+                                                        <option value="team" className="bg-slate-800">Team</option>
+                                                        {isSuperAdmin && <option value="TENANT" className="bg-slate-800">Admin</option>}
                                                     </select>
                                                 )}
 
-                                                {/* Show revoke for approved users */}
-                                                {user.approvalStatus === 'approved' &&
-                                                    (isSuperAdmin || user.parentUserId === this.props.user.email) &&
+                                                {/* Revoke */}
+                                                {(isSuperAdmin || user.parentUserId === this.props.user.email) &&
                                                     user.role !== 'super_admin' &&
-                                                    user.email !== 'alpherymail@gmail.com' &&
-                                                    user.email !== 'aksnetlink@gmail.com' && (
+                                                    !['alpherymail@gmail.com', 'aksnetlink@gmail.com'].includes(user.email) && (
                                                         <button
                                                             onClick={() => this.revokeUser(user.id, user.email)}
-                                                            className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition"
+                                                            className="p-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-md transition"
+                                                            title="Revoke Access"
                                                         >
-                                                            Revoke
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                                                         </button>
                                                     )}
-                                                {/* Show delete for rejected users */}
-                                                {user.approvalStatus === 'rejected' && user.role !== 'super_admin' && (
-                                                    <button
-                                                        onClick={() => this.deleteUser(user.id)}
-                                                        className="px-3 py-1 bg-gray-500 hover:bg-gray-600 text-white rounded-lg text-sm font-medium transition"
-                                                    >
-                                                        Delete
-                                                    </button>
-                                                )}
                                             </div>
                                         </td>
                                     </tr>
@@ -561,8 +535,11 @@ class UserManager extends Component {
                             </tbody>
                         </table>
                         {filteredUsers.length === 0 && (
-                            <div className="py-12 text-center">
-                                <p className="text-gray-400">No users found</p>
+                            <div className="py-20 text-center flex flex-col items-center justify-center opacity-50">
+                                <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-4">
+                                    <svg className="w-10 h-10 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                                </div>
+                                <p className="text-gray-400 font-medium">No users found in whitelist</p>
                             </div>
                         )}
                     </div>
@@ -580,55 +557,57 @@ class UserManager extends Component {
                     )
                 }
 
+
                 {/* Add User Whitelist Modal */}
                 {
                     this.state.showAddUserModal && (
-                        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] backdrop-blur-sm">
-                            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in duration-200">
-                                <div className="bg-gradient-to-r from-green-600 to-teal-600 p-6 text-white">
-                                    <h3 className="text-xl font-bold">Add Authorized User</h3>
-                                    <p className="text-green-100 text-sm opacity-90">Only users added here will be able to log in.</p>
+                        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[100] backdrop-blur-md">
+                            <div className="bg-[#1e293b] border border-white/10 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in duration-200 ring-1 ring-white/10">
+                                <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-6 text-white relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-xl"></div>
+                                    <h3 className="text-2xl font-bold relative z-10">Authorize New User</h3>
+                                    <p className="text-emerald-100 text-sm opacity-90 relative z-10 mt-1">Grant secure access to your organization.</p>
                                 </div>
-                                <div className="p-6 space-y-4">
+                                <div className="p-8 space-y-6">
                                     <div>
-                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Email Address</label>
+                                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wide">Email Address</label>
                                         <input
                                             type="email"
                                             placeholder="user@example.com"
-                                            className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition"
+                                            className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 outline-none transition"
                                             value={this.state.newEmail}
                                             onChange={(e) => this.setState({ newEmail: e.target.value })}
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-semibold text-gray-700 mb-1">Display Name (Optional)</label>
+                                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wide">Display Name (Optional)</label>
                                         <input
                                             type="text"
-                                            placeholder="John Doe"
-                                            className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition"
+                                            placeholder="e.g. Alex Smith"
+                                            className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 outline-none transition"
                                             value={this.state.newDisplayName}
                                             onChange={(e) => this.setState({ newDisplayName: e.target.value })}
                                         />
                                     </div>
-                                    <div className="p-3 bg-blue-50 text-blue-700 rounded-xl text-xs flex gap-2">
-                                        <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 rounded-xl text-xs flex gap-3 leading-relaxed">
+                                        <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                         </svg>
-                                        <span>Added users can log in via Google or Email. Their role will be set to 'Projects' and they will be tagged under {(isSuperAdmin ? 'God' : user.email)}.</span>
+                                        <span>User will be whitelisted immediately. They can log in using Google or Email. Default role: <strong>Project User</strong>.</span>
                                     </div>
                                 </div>
-                                <div className="p-6 bg-gray-50 border-t border-gray-200 flex gap-3">
+                                <div className="p-6 bg-black/20 border-t border-white/5 flex gap-3">
                                     <button
                                         onClick={() => this.setState({ showAddUserModal: false })}
-                                        className="flex-1 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-xl transition"
+                                        className="flex-1 py-3 text-gray-400 font-bold hover:text-white hover:bg-white/5 rounded-xl transition"
                                     >
                                         Cancel
                                     </button>
                                     <button
                                         onClick={this.addUser}
-                                        className="flex-1 py-2 bg-green-600 text-white font-bold rounded-xl shadow-lg hover:bg-green-700 transition"
+                                        className="flex-1 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:scale-105 transition-all duration-200"
                                     >
-                                        Authorize Access
+                                        Confirm Access
                                     </button>
                                 </div>
                             </div>
@@ -683,23 +662,27 @@ function AppPermissionsModal({ user, availableApps, onClose, onSave }) {
 
     return (
         <div
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-black/80 flex items-center justify-center z-[100] backdrop-blur-md p-4"
             onClick={onClose}
         >
             <div
-                className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+                className="bg-[#0f172a] rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col border border-white/10 ring-1 ring-white/5 animate-in zoom-in duration-200"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}
-                <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6">
-                    <div className="flex items-center justify-between">
+                <div className="bg-gradient-to-r from-blue-900/40 to-purple-900/40 border-b border-white/10 text-white p-8 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -mr-20 -mt-20"></div>
+                    <div className="flex items-center justify-between relative z-10">
                         <div>
-                            <h2 className="text-2xl font-bold mb-1">App Permissions</h2>
-                            <p className="text-blue-100 text-sm">{user.displayName || user.email}</p>
+                            <h2 className="text-3xl font-bold mb-2 tracking-tight">App Permissions</h2>
+                            <div className="flex items-center gap-2">
+                                <span className="text-blue-200/60 text-sm font-medium uppercase tracking-wider">Managing access for:</span>
+                                <span className="bg-white/10 px-2 py-0.5 rounded text-sm text-blue-100 font-mono">{user.displayName || user.email}</span>
+                            </div>
                         </div>
                         <button
                             onClick={onClose}
-                            className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition"
+                            className="w-10 h-10 bg-white/5 hover:bg-white/10 rounded-full flex items-center justify-center transition border border-white/10 text-gray-400 hover:text-white"
                         >
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
@@ -709,48 +692,54 @@ function AppPermissionsModal({ user, availableApps, onClose, onSave }) {
                 </div>
 
                 {/* All Access Toggle */}
-                <div className="p-6 border-b border-gray-200 bg-gray-50">
-                    <label className="flex items-center gap-3 cursor-pointer">
+                <div className="p-6 border-b border-white/10 bg-white/5">
+                    <label className="flex items-center gap-4 cursor-pointer group">
+                        <div className={`w-12 h-7 rounded-full px-1 flex items-center transition-colors duration-300 ${grantAllAccess ? 'bg-blue-500' : 'bg-gray-700'}`}>
+                            <div className={`w-5 h-5 rounded-full bg-white shadow-sm transform transition-transform duration-300 ${grantAllAccess ? 'translate-x-5' : 'translate-x-0'}`}></div>
+                        </div>
                         <input
                             type="checkbox"
                             checked={grantAllAccess}
                             onChange={(e) => setGrantAllAccess(e.target.checked)}
-                            className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                            className="hidden"
                         />
                         <div>
-                            <div className="font-semibold text-gray-800">Grant Access to All Apps</div>
-                            <div className="text-xs text-gray-500">User can install any app from the App Store</div>
+                            <div className="font-bold text-white text-lg group-hover:text-blue-300 transition-colors">Grant Full System Access</div>
+                            <div className="text-xs text-gray-400 font-medium uppercase tracking-wide">User can install & access any application</div>
                         </div>
                     </label>
                 </div>
 
                 {/* App Selection */}
-                <div className="flex-1 overflow-y-auto p-6">
+                <div className="flex-1 overflow-y-auto p-8 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
                     {grantAllAccess ? (
-                        <div className="text-center py-12">
-                            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="text-center py-20">
+                            <div className="w-24 h-24 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-6 shadow-[0_0_30px_rgba(34,197,94,0.2)]">
+                                <svg className="w-10 h-10 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
                             </div>
-                            <p className="text-gray-600 font-medium">Full App Access Granted</p>
-                            <p className="text-sm text-gray-400 mt-1">User can access all {availableApps.length} apps</p>
+                            <p className="text-2xl font-bold text-white mb-2">Unrestricted Access</p>
+                            <p className="text-sm text-gray-400">This user has full authority to access all {availableApps.length} system applications.</p>
                         </div>
                     ) : (
-                        <div className="space-y-6">
+                        <div className="space-y-8">
                             {/* System Apps (Always included) */}
                             <div>
-                                <h3 className="text-sm font-semibold text-gray-500 uppercase mb-3 flex items-center gap-2">
+                                <h3 className="text-xs font-bold text-gray-500 uppercase mb-4 flex items-center gap-2 tracking-widest pl-1">
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                                     </svg>
-                                    System Apps (Always Available)
+                                    Core System Utilities
                                 </h3>
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                                     {availableApps.filter(app => systemApps.includes(app.id)).map(app => (
-                                        <div key={app.id} className="flex items-center gap-3 p-3 bg-gray-100 border border-gray-200 rounded-lg opacity-60">
-                                            <img src={app.icon} alt={app.title} className="w-8 h-8 object-contain" />
-                                            <span className="text-sm font-medium text-gray-600">{app.title}</span>
+                                        <div key={app.id} className="flex items-center gap-3 p-4 bg-white/5 border border-white/5 rounded-xl opacity-50 cursor-not-allowed">
+                                            <img src={app.icon} alt={app.title} className="w-10 h-10 object-contain grayscale opacity-70" />
+                                            <div>
+                                                <span className="text-sm font-bold text-gray-400 block">{app.title}</span>
+                                                <span className="text-[10px] text-gray-600 uppercase tracking-wider font-bold">Required</span>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -764,27 +753,29 @@ function AppPermissionsModal({ user, availableApps, onClose, onSave }) {
 
                                 return (
                                     <div key={category}>
-                                        <h3 className="text-sm font-semibold text-gray-500 uppercase mb-3 capitalize">{category}</h3>
-                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                        <h3 className="text-xs font-bold text-blue-400 uppercase mb-4 capitalize tracking-widest pl-1 border-l-2 border-blue-500/50 pl-3">{category} Suite</h3>
+                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                                             {nonSystemApps.map(app => {
                                                 const isSelected = selectedApps.includes(app.id);
                                                 return (
                                                     <div
                                                         key={app.id}
                                                         onClick={() => toggleApp(app.id)}
-                                                        className={`flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition ${isSelected ? 'bg-blue-50 border-blue-500' : 'bg-white border-gray-200 hover:border-gray-300'
+                                                        className={`flex items-center gap-4 p-4 border rounded-xl cursor-pointer transition-all duration-200 group relative overflow-hidden ${isSelected
+                                                            ? 'bg-blue-500/10 border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.1)]'
+                                                            : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
                                                             }`}
                                                     >
-                                                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${isSelected ? 'bg-blue-600 border-blue-600' : 'border-gray-300'
+                                                        <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center flex-shrink-0 transition-colors ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-gray-600 group-hover:border-gray-500'
                                                             }`}>
                                                             {isSelected && (
-                                                                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
                                                                 </svg>
                                                             )}
                                                         </div>
-                                                        <img src={app.icon} alt={app.title} className="w-8 h-8 object-contain" />
-                                                        <span className="text-sm font-medium text-gray-700 truncate flex-1">{app.title}</span>
+                                                        <img src={app.icon} alt={app.title} className={`w-10 h-10 object-contain transition-transform group-hover:scale-110 ${isSelected ? '' : 'grayscale-[0.3]'}`} />
+                                                        <span className={`text-sm font-bold truncate flex-1 ${isSelected ? 'text-white' : 'text-gray-400 group-hover:text-gray-200'}`}>{app.title}</span>
                                                     </div>
                                                 );
                                             })}
@@ -797,26 +788,26 @@ function AppPermissionsModal({ user, availableApps, onClose, onSave }) {
                 </div>
 
                 {/* Footer */}
-                <div className="p-6 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
-                    <div className="text-sm text-gray-600">
+                <div className="p-6 bg-black/20 border-t border-white/10 flex items-center justify-between">
+                    <div className="text-xs text-gray-500 font-medium">
                         {grantAllAccess ? (
-                            <span>All {availableApps.length} apps available</span>
+                            <span>All <strong className="text-white">{availableApps.length}</strong> apps available</span>
                         ) : (
-                            <span>{selectedApps.length + systemApps.length} apps selected ({systemApps.length} system + {selectedApps.length} custom)</span>
+                            <span>Selected <strong className="text-white">{selectedApps.length + systemApps.length}</strong> apps</span>
                         )}
                     </div>
-                    <div className="flex gap-3">
+                    <div className="flex gap-4">
                         <button
                             onClick={onClose}
-                            className="px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 font-medium transition"
+                            className="px-6 py-2.5 text-gray-400 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10 rounded-xl font-bold transition text-sm"
                         >
                             Cancel
                         </button>
                         <button
                             onClick={handleSave}
-                            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition shadow-md"
+                            className="px-8 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl font-bold transition shadow-lg shadow-blue-500/20 text-sm tracking-wide"
                         >
-                            Save Permissions
+                            Save Changes
                         </button>
                     </div>
                 </div>
