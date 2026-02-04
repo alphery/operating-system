@@ -396,7 +396,7 @@ class UserManager extends Component {
                                             )}
                                         </div>
                                         <div>
-                                            <h3 className="font-bold text-gray-900">{user.displayName || 'Anonymous'}</h3>
+                                            <h3 className="font-bold text-gray-900">{user.displayName || (user.email ? user.email.split('@')[0] : 'New User')}</h3>
                                             <p className="text-sm text-gray-500 break-all">{user.email}</p>
                                         </div>
                                     </div>
@@ -415,7 +415,7 @@ class UserManager extends Component {
                                     </span>
                                     {user.parentUserId && (
                                         <span className="px-2 py-1 rounded bg-blue-50 border border-blue-200 text-blue-700">
-                                            Tenant: {user.parentUserId}
+                                            Tenant: {this.state.users.find(u => u.id === user.parentUserId || u.email === user.parentUserId)?.email || user.parentUserId}
                                         </span>
                                     )}
                                 </div>
@@ -498,7 +498,7 @@ class UserManager extends Component {
                                                         <span className="text-white font-bold text-lg">{(user.displayName || user.email || 'U')[0].toUpperCase()}</span>
                                                     )}
                                                 </div>
-                                                <span className="font-medium text-gray-900">{user.displayName || 'Anonymous'}</span>
+                                                <span className="font-medium text-gray-900">{user.displayName || (user.email ? user.email.split('@')[0] : 'New User')}</span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 text-sm text-gray-600">{user.email}</td>
@@ -546,7 +546,9 @@ class UserManager extends Component {
                                                     ))}
                                                 </select>
                                             ) : (
-                                                <span className="text-xs text-gray-500">{user.parentUserId || 'None'}</span>
+                                                <span className="text-xs text-gray-500">
+                                                    {this.state.users.find(u => u.id === user.parentUserId || u.email === user.parentUserId)?.email || user.parentUserId || 'None'}
+                                                </span>
                                             )}
                                         </td>
                                         <td className="px-6 py-4 text-right">
