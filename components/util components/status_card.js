@@ -1,6 +1,5 @@
 import React, { Component } from 'react';
 import SmallArrow from './small_arrow';
-import onClickOutside from 'react-onclickoutside';
 
 class Slider extends Component {
 	render() {
@@ -33,11 +32,9 @@ export class StatusCard extends Component {
 		};
 	}
 
-	handleClickOutside = (e) => {
-		this.props.toggleVisible(e);
-	};
-
 	componentDidMount() {
+		document.addEventListener('mousedown', this.handleClickOutside);
+
 		this.setState({
 			sound_level: localStorage.getItem('sound-level') || 75,
 			brightness_level: localStorage.getItem('brightness-level') || 100
@@ -63,7 +60,9 @@ export class StatusCard extends Component {
 		window.addEventListener('offline', this.updateNetworkStatus);
 
 		// Bluetooth Availability
+		// @ts-ignore
 		if (navigator.bluetooth && navigator.bluetooth.getAvailability) {
+			// @ts-ignore
 			navigator.bluetooth.getAvailability().then(available => {
 				this.setState({ bluetooth_status: available ? 'On' : 'Off' });
 			});
@@ -71,9 +70,20 @@ export class StatusCard extends Component {
 	}
 
 	componentWillUnmount() {
+		document.removeEventListener('mousedown', this.handleClickOutside);
 		window.removeEventListener('online', this.updateNetworkStatus);
 		window.removeEventListener('offline', this.updateNetworkStatus);
 	}
+
+	handleClickOutside = (event) => {
+		if (this.wrapperRef && this.wrapperRef.current && !this.wrapperRef.current.contains(event.target)) {
+			// Call the parent toggleVisible function to close the menu
+			// We need to check if the click was not on the status bar icon itself to avoid double-toggling
+			if (this.props.visible && !event.target.closest('#status-bar')) {
+				this.props.toggleVisible();
+			}
+		}
+	};
 
 	updateBatteryStatus = (battery) => {
 		this.setState({
@@ -261,4 +271,4 @@ export class StatusCard extends Component {
 	}
 }
 
-export default onClickOutside(StatusCard);
+export default StatusCard;

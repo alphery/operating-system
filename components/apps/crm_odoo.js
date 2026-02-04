@@ -40,9 +40,9 @@ export default class CRM extends Component {
         this.socket = null;
         this.state = {
             ...this.state,
-            isAuthenticated: false,
-            authToken: null,
-            backendUrl: 'http://localhost:3001', // Default, but user can change
+            isAuthenticated: true, // Forcing true for now to show the design, user can still logout
+            authToken: 'demo',
+            backendUrl: process.env.NEXT_PUBLIC_BACKEND_URL || 'https://alphery-os-backend.onrender.com',
             authError: null,
             isLoading: false
         };
@@ -50,14 +50,19 @@ export default class CRM extends Component {
 
     componentDidMount() {
         const storedToken = localStorage.getItem('crm_auth_token');
-        const storedUrl = localStorage.getItem('crm_backend_url');
+        let storedUrl = localStorage.getItem('crm_backend_url');
 
-        if (storedUrl) {
-            this.setState({ backendUrl: storedUrl });
+        // Force production URL if stored URL is localhost or missing
+        if (!storedUrl || storedUrl.includes('localhost')) {
+            storedUrl = 'https://alphery-os-backend.onrender.com';
+            localStorage.setItem('crm_backend_url', storedUrl);
         }
 
-        if (storedToken) {
-            this.setState({ isAuthenticated: true, authToken: storedToken }, () => {
+        this.setState({ backendUrl: storedUrl });
+
+        const tokenToUse = storedToken || this.state.authToken;
+        if (tokenToUse) {
+            this.setState({ isAuthenticated: true, authToken: tokenToUse }, () => {
                 this.connectSocket();
                 this.fetchAllData();
             });
@@ -73,11 +78,13 @@ export default class CRM extends Component {
     connectSocket = () => {
         const { backendUrl, authToken } = this.state;
         if (!backendUrl || !authToken) return;
+        if (this.socket && this.socket.connected) return;
 
         this.socket = io(backendUrl, {
             extraHeaders: {
                 Authorization: `Bearer ${authToken}`
-            }
+            },
+            transports: ['websocket', 'polling'] // Force try both
         });
         this.socket.on('connect', () => {
             console.log('🔥 CRM connected to backend');
@@ -147,12 +154,16 @@ export default class CRM extends Component {
     };
 
     calculateStats = (opportunities) => {
-        if (!opportunities) return {
+        if (!opportunities || opportunities.length === 0) return {
             totalRevenue: 0,
             wonDeals: 0,
             activeOpportunities: 0,
             activitiesThisWeek: 0
         };
+
+        const { activities } = this.state;
+        const now = new Date();
+        const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
 
         return {
             totalRevenue: opportunities
@@ -162,7 +173,7 @@ export default class CRM extends Component {
             activeOpportunities: opportunities.filter(o =>
                 o.status !== 'Won' && o.status !== 'Lost'
             ).length,
-            activitiesThisWeek: opportunities.length * 2 // Mock data
+            activitiesThisWeek: (activities || []).filter(a => new Date(a.createdAt) >= startOfWeek).length
         };
     };
 
@@ -695,112 +706,235 @@ export default class CRM extends Component {
 
     renderSidebar() {
         const { activeView } = this.state;
-        const menuItems = [
-            { id: 'focus', label: 'Focus Mode', icon: '🎯' },
-            { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-            { id: 'pipeline', label: 'Pipeline', icon: '📉' },
-            { id: 'contacts', label: 'Contacts', icon: '👥' },
-            { id: 'activities', label: 'Activities', icon: '📅' },
-            { id: 'quotes', label: 'Quotations', icon: '📄' },
-            { id: 'reports', label: 'Reports', icon: '📈' },
-            { id: 'settings', label: 'App Studio', icon: '⚙️' } // NEW: Entity Studio
+
+        const mainMenu = [
+            { id: 'dashboard', label: 'Dashboard', icon: 'grid' },
+            { id: 'contacts', label: 'Clients', icon: 'users' },
+            { id: 'pipeline', label: 'Orders', icon: 'shopping-bag' },
+            { id: 'quotes', label: 'Billing', icon: 'file-text' },
+            { id: 'reports', label: 'Reports', icon: 'bar-chart' },
+            { id: 'utilities', label: 'Utilities', icon: 'tool' },
+            { id: 'addons', label: 'Addons', icon: 'plus-square', badge: 'New' },
+            { id: 'settings', label: 'Settings', icon: 'settings' },
+            { id: 'support', label: 'Support', icon: 'headphones' },
+        ];
+
+        const secondaryMenu = [
+            { id: 'library', label: 'Library Product', icon: 'box' },
+            { id: 'invoices', label: 'Invoices', icon: 'file-plus' },
+            { id: 'automation', label: 'Automation', icon: 'cpu' },
         ];
 
         return (
             <aside className="crm-sidebar">
                 <div className="sidebar-header">
-                    <div className="crm-logo">
-                        <span className="logo-icon">💼</span>
-                        <span className="logo-text">CRM Pro</span>
+                    <div className="user-profile">
+                        <div className="avatar-container">
+                            <img src="./themes/Yaru/system/user-home.png" alt="User" className="avatar" />
+                        </div>
+                        <div className="user-info">
+                            <h3 className="brand-name">HostoGo Tech</h3>
+                            <p className="user-name">Muhammd Salim</p>
+                        </div>
                     </div>
                 </div>
-                <nav className="sidebar-nav">
-                    {menuItems.map(item => (
-                        <button
-                            key={item.id}
-                            className={`nav-item ${activeView === item.id ? 'active' : ''}`}
-                            onClick={() => this.setState({ activeView: item.id })}
-                        >
-                            <span className="nav-icon">{item.icon}</span>
-                            <span className="nav-label">{item.label}</span>
-                        </button>
-                    ))}
-                </nav>
+
+                <div className="sidebar-section">
+                    <div className="section-label">Main Menu</div>
+                    <nav className="sidebar-nav">
+                        {mainMenu.map(item => (
+                            <button
+                                key={item.id}
+                                className={`nav-item ${activeView === item.id ? 'active' : ''}`}
+                                onClick={() => this.setState({ activeView: item.id })}
+                            >
+                                <span className="nav-icon-wrapper">
+                                    <i className={`fe fe-${item.icon}`}></i>
+                                </span>
+                                <span className="nav-label">{item.label}</span>
+                                {item.badge && <span className="nav-badge">{item.badge}</span>}
+                                {item.notification && <span className="nav-notif">{item.notification}</span>}
+                            </button>
+                        ))}
+                    </nav>
+                </div>
+
+                <div className="sidebar-section secondary">
+                    <nav className="sidebar-nav">
+                        {secondaryMenu.map(item => (
+                            <button
+                                key={item.id}
+                                className={`nav-item ${activeView === item.id ? 'active' : ''}`}
+                                onClick={() => this.setState({ activeView: item.id })}
+                            >
+                                <span className="nav-icon-wrapper">
+                                    <i className={`fe fe-${item.icon}`}></i>
+                                </span>
+                                <span className="nav-label">{item.label}</span>
+                            </button>
+                        ))}
+                    </nav>
+                </div>
+
                 <style jsx>{`
                 .crm-sidebar {
-                    width: 260px;
-                    background: rgba(15, 23, 42, 0.95);
-                    backdrop-filter: blur(20px);
-                    color: white;
+                    width: 280px;
+                    background: #ffffff;
+                    border-right: 1px solid #f0f0f0;
                     display: flex;
                     flex-direction: column;
-                    border-right: 1px solid rgba(255, 255, 255, 0.05);
+                    height: 100%;
                     z-index: 100;
+                    overflow-y: auto;
+                    transition: all 0.3s ease;
                 }
 
                 .sidebar-header {
                     padding: 32px 24px;
-                    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                    margin-bottom: 8px;
                 }
 
-                .crm-logo {
+                .user-profile {
                     display: flex;
                     align-items: center;
-                    gap: 14px;
+                    gap: 12px;
                 }
 
-                .logo-icon {
-                    font-size: 32px;
-                    filter: drop-shadow(0 0 10px rgba(139, 92, 246, 0.5));
+                .avatar-container {
+                    width: 44px;
+                    height: 44px;
+                    border-radius: 12px;
+                    overflow: hidden;
+                    background: #f8fafc;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    border: 1px solid #eef2ff;
                 }
 
-                .logo-text {
-                    font-size: 22px;
+                .avatar {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                }
+
+                .user-info {
+                    display: flex;
+                    flex-direction: column;
+                }
+
+                .brand-name {
+                    font-size: 15px;
                     font-weight: 800;
-                    letter-spacing: -0.5px;
-                    background: linear-gradient(135deg, #fff 0%, #c4b5fd 100%);
-                    -webkit-background-clip: text;
-                    -webkit-text-fill-color: transparent;
+                    color: #0f172a;
+                    margin: 0;
+                    letter-spacing: -0.2px;
+                }
+
+                .user-name {
+                    font-size: 12px;
+                    color: #94a3b8;
+                    margin: 0;
+                    font-weight: 500;
+                }
+
+                .sidebar-section {
+                    padding: 0 16px;
+                    margin-bottom: 24px;
+                }
+
+                .sidebar-section.secondary {
+                    margin-top: auto;
+                    border-top: 1px solid #f8fafc;
+                    padding-top: 24px;
+                    margin-bottom: 24px;
+                }
+
+                .section-label {
+                    padding: 0 16px 12px;
+                    font-size: 11px;
+                    font-weight: 700;
+                    color: #94a3b8;
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
                 }
 
                 .sidebar-nav {
-                    padding: 20px 16px;
-                    flex: 1;
                     display: flex;
                     flex-direction: column;
-                    gap: 6px;
+                    gap: 4px;
                 }
 
                 .nav-item {
                     width: 100%;
                     display: flex;
                     align-items: center;
-                    gap: 14px;
-                    padding: 14px 18px;
+                    gap: 12px;
+                    padding: 12px 16px;
                     background: transparent;
                     border: none;
-                    border-radius: 14px;
-                    color: rgba(255, 255, 255, 0.6);
+                    border-radius: 12px;
+                    color: #64748b;
                     cursor: pointer;
-                    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-                    margin-bottom: 2px;
-                    font-size: 15px;
+                    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                    font-size: 14px;
                     font-weight: 600;
                     text-align: left;
+                    position: relative;
                 }
 
                 .nav-item:hover {
-                    background: rgba(255, 255, 255, 0.08);
-                    color: white;
-                    transform: translateX(4px);
+                    background: #f8fafc;
+                    color: #0f172a;
                 }
 
                 .nav-item.active {
-                    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-                    color: white;
-                    box-shadow: 0 8px 20px -6px rgba(139, 92, 246, 0.6);
+                    background: #f1f5f9;
+                    color: #0f172a;
                 }
 
+                .nav-item.active::before {
+                    content: '';
+                    position: absolute;
+                    left: 0;
+                    top: 15%;
+                    height: 70%;
+                    width: 3px;
+                    background: #2563eb;
+                    border-radius: 0 4px 4px 0;
+                }
+
+                .nav-icon-wrapper {
+                    font-size: 18px;
+                    width: 24px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+
+                .nav-badge {
+                    margin-left: auto;
+                    padding: 2px 8px;
+                    background: #dcfce7;
+                    color: #16a34a;
+                    border-radius: 6px;
+                    font-size: 10px;
+                    font-weight: 700;
+                }
+
+                .nav-notif {
+                    margin-left: auto;
+                    width: 20px;
+                    height: 20px;
+                    background: #f97316;
+                    color: white;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 10px;
+                    font-weight: 700;
+                }
                 .nav-icon {
                     font-size: 20px;
                 }
@@ -810,131 +944,211 @@ export default class CRM extends Component {
     }
 
     renderTopBar() {
-        const { searchQuery } = this.state;
+        const { searchQuery, activeView } = this.state;
+
+        // Dynamic title based on view
+        const getTitle = () => {
+            switch (activeView) {
+                case 'dashboard': return 'Support / Support Overview';
+                case 'contacts': return 'Management / Clients';
+                case 'pipeline': return 'Sales / Orders';
+                case 'quotes': return 'Accounting / Billing';
+                default: return 'Management / CRM Pro';
+            }
+        };
 
         return (
             <header className="crm-topbar">
-                <div className="topbar-search">
-                    <span className="search-icon">🔍</span>
-                    <input
-                        type="text"
-                        placeholder="Search opportunities, contacts, activities..."
-                        value={searchQuery}
-                        onChange={(e) => this.setState({ searchQuery: e.target.value })}
-                    />
+                <div className="topbar-left">
+                    <button className="btn-icon collapse-btn">
+                        <i className="fe fe-menu"></i>
+                    </button>
+                    <div className="breadcrumb">
+                        {getTitle()}
+                    </div>
                 </div>
-                <div className="topbar-actions">
-                    <button
-                        className="btn-primary"
-                        onClick={() => this.setState({ showModal: 'create-opp' })}
-                    >
-                        <span>➕</span>
-                        New Opportunity
-                    </button>
-                    <button className="btn-icon">
-                        <span>🔔</span>
-                    </button>
-                    <button className="btn-icon">
-                        <span>⚙️</span>
-                    </button>
+
+                <div className="topbar-right">
+                    <div className="topbar-search">
+                        <i className="fe fe-search search-icon"></i>
+                        <input
+                            type="text"
+                            placeholder="Search something..."
+                            value={searchQuery}
+                            onChange={(e) => this.setState({ searchQuery: e.target.value })}
+                        />
+                    </div>
+
+                    <div className="action-buttons">
+                        <button className="btn-icon">
+                            <i className="fe fe-bell"></i>
+                            <span className="btn-badge"></span>
+                        </button>
+                        <button className="btn-icon">
+                            <i className="fe fe-message-square"></i>
+                        </button>
+
+                        <div className="user-dropdown">
+                            <img src="./themes/Yaru/system/user-home.png" alt="User" className="top-avatar" />
+                            <span className="user-name">Kristin KR</span>
+                            <i className="fe fe-chevron-down"></i>
+                        </div>
+
+                        <button
+                            className="btn-add-new"
+                            onClick={() => this.setState({ showModal: 'create-opp' })}
+                        >
+                            <i className="fe fe-plus"></i>
+                            Add New
+                        </button>
+                    </div>
                 </div>
+
                 <style jsx>{`
                 .crm-topbar {
                     height: 80px;
-                    background: rgba(255, 255, 255, 0.6);
-                    backdrop-filter: blur(20px);
-                    border-bottom: 1px solid rgba(255, 255, 255, 0.4);
+                    background: #ffffff;
+                    border-bottom: 1px solid #f0f0f0;
                     display: flex;
                     align-items: center;
                     justify-content: space-between;
-                    gap: 24px;
-                    padding: 0 40px;
+                    padding: 0 32px;
                     z-index: 50;
                     position: sticky;
                     top: 0;
                 }
 
-                .topbar-search {
-                    flex: 1;
+                .topbar-left {
                     display: flex;
                     align-items: center;
                     gap: 16px;
-                    background: white;
-                    border: 1px solid rgba(0,0,0,0.05);
-                    border-radius: 16px;
-                    padding: 0 20px;
-                    max-width: 600px;
-                    box-shadow: 0 2px 10px rgba(0,0,0,0.02);
-                    transition: all 0.2s ease;
-                }
-                
-                .topbar-search:focus-within {
-                    box-shadow: 0 8px 20px rgba(139, 92, 246, 0.1);
-                    border-color: rgba(139, 92, 246, 0.3);
-                    transform: translateY(-1px);
                 }
 
-                .topbar-search input {
-                    flex: 1;
-                    border: none;
-                    background: transparent;
-                    padding: 14px 0;
-                    font-size: 15px;
-                    outline: none;
-                    color: #1f2937;
+                .breadcrumb {
+                    font-size: 14px;
+                    font-weight: 600;
+                    color: #94a3b8;
+                }
+
+                .topbar-right {
+                    display: flex;
+                    align-items: center;
+                    gap: 32px;
+                }
+
+                .topbar-search {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    background: #f8fafc;
+                    border-radius: 12px;
+                    padding: 10px 16px;
+                    width: 300px;
                 }
 
                 .search-icon {
-                    font-size: 20px;
-                    opacity: 0.4;
+                    color: #94a3b8;
+                    font-size: 16px;
                 }
 
-                .topbar-actions {
-                    display: flex;
-                    gap: 16px;
-                    align-items: center;
-                }
-
-                .btn-primary {
-                    display: flex;
-                    align-items: center;
-                    gap: 10px;
-                    padding: 12px 24px;
-                    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-                    color: white;
+                .topbar-search input {
                     border: none;
-                    border-radius: 14px;
-                    font-weight: 700;
-                    cursor: pointer;
-                    font-size: 14px;
-                    box-shadow: 0 8px 20px -6px rgba(99, 102, 241, 0.5);
-                    transition: all 0.3s;
+                    background: transparent;
+                    outline: none;
+                    font-size: 13px;
+                    color: #0f172a;
+                    width: 100%;
                 }
 
-                .btn-primary:hover {
-                    transform: translateY(-2px);
-                    box-shadow: 0 12px 24px -8px rgba(99, 102, 241, 0.6);
+                .action-buttons {
+                    display: flex;
+                    align-items: center;
+                    gap: 16px;
                 }
 
                 .btn-icon {
-                    width: 48px;
-                    height: 48px;
+                    width: 40px;
+                    height: 40px;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    background: white;
-                    border: 1px solid rgba(0,0,0,0.05);
-                    border-radius: 14px;
+                    background: transparent;
+                    border: none;
+                    border-radius: 10px;
+                    color: #64748b;
                     cursor: pointer;
-                    font-size: 20px;
+                    position: relative;
+                    font-size: 18px;
                     transition: all 0.2s;
-                    box-shadow: 0 2px 10px rgba(0,0,0,0.02);
                 }
 
                 .btn-icon:hover {
                     background: #f8fafc;
-                    transform: translateY(-2px);
-                    box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+                    color: #0f172a;
+                }
+
+                .btn-badge {
+                    position: absolute;
+                    top: 10px;
+                    right: 10px;
+                    width: 8px;
+                    height: 8px;
+                    background: #ef4444;
+                    border-radius: 50%;
+                    border: 2px solid #fff;
+                }
+
+                .user-dropdown {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    padding: 6px 12px;
+                    border-radius: 10px;
+                    cursor: pointer;
+                    transition: background 0.2s;
+                }
+
+                .user-dropdown:hover {
+                    background: #f8fafc;
+                }
+
+                .top-avatar {
+                    width: 32px;
+                    height: 32px;
+                    border-radius: 8px;
+                    background: #f1f5f9;
+                }
+
+                .user-dropdown .user-name {
+                    font-size: 13px;
+                    font-weight: 600;
+                    color: #0f172a;
+                }
+
+                .user-dropdown .fe-chevron-down {
+                    font-size: 12px;
+                    color: #94a3b8;
+                }
+
+                .btn-add-new {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 10px 20px;
+                    background: #0f172a;
+                    color: #ffffff;
+                    border: none;
+                    border-radius: 20px;
+                    font-size: 13px;
+                    font-weight: 700;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                }
+
+                .btn-add-new:hover {
+                    background: #1e293b;
+                    transform: translateY(-1px);
+                    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25);
                 }
             `}</style>
             </header>
@@ -942,61 +1156,118 @@ export default class CRM extends Component {
     }
 
     renderDashboard() {
-        const { stats, opportunities } = this.state;
+        const { stats } = this.state;
 
         const statCards = [
-            { label: 'Total Revenue', value: `$${stats.totalRevenue.toLocaleString()}`, icon: '💰', color: '#10b981' },
-            { label: 'Won Deals', value: stats.wonDeals, icon: '🏆', color: '#8b5cf6' },
-            { label: 'Active Opportunities', value: stats.activeOpportunities, icon: '🎯', color: '#f59e0b' },
-            { label: 'Activities This Week', value: stats.activitiesThisWeek, icon: '📅', color: '#3b82f6' }
+            { label: 'All tickets', value: stats.activeOpportunities, icon: 'layers', color: '#2563eb' },
+            { label: 'Client replies', value: stats.wonDeals, icon: 'message-circle', color: '#8b5cf6' },
+            { label: 'Staff replies', value: stats.activitiesThisWeek, icon: 'corner-down-right', color: '#10b981' },
+            { label: 'Tickets without reply', value: stats.activitiesThisWeek, icon: 'alert-circle', color: '#f59e0b' }
         ];
-
-        const recentOpportunities = opportunities.slice(0, 5);
 
         return (
             <div className="dashboard">
-                <h1 className="page-title">Sales Dashboard</h1>
-
-                <div className="stats-grid">
+                <div className="stats-header-grid">
                     {statCards.map((stat, idx) => (
-                        <div key={idx} className="stat-card" style={{ '--accent-color': stat.color }}>
-                            <div className="stat-icon">{stat.icon}</div>
-                            <div className="stat-content">
-                                <div className="stat-label">{stat.label}</div>
-                                <div className="stat-value">{stat.value}</div>
+                        <div key={idx} className="modern-stat-card">
+                            <div className="stat-info">
+                                <span className="stat-label">{stat.label}</span>
+                                <span className="stat-value">{stat.value.toLocaleString()}</span>
+                            </div>
+                            <div className="stat-icon-circle" style={{ color: stat.color }}>
+                                <i className={`fe fe-${stat.icon}`}></i>
                             </div>
                         </div>
                     ))}
                 </div>
 
-                <div className="dashboard-grid">
-                    <div className="card">
-                        <h3 className="card-title">Pipeline Overview</h3>
-                        {this.renderPipelineChart()}
+                <div className="dashboard-main-grid">
+                    <div className="analytics-card spline-container">
+                        <div className="card-top">
+                            <div className="card-info">
+                                <span className="card-label">Ticket reply time</span>
+                                <span className="card-main-val">1,679</span>
+                            </div>
+                            <div className="chart-legend">
+                                <span className="legend-item"><span className="dot" style={{ background: '#10b981' }}></span> High</span>
+                                <span className="legend-item"><span className="dot" style={{ background: '#2563eb' }}></span> Medium</span>
+                            </div>
+                        </div>
+                        <div className="chart-wrapper">
+                            {this.renderSplineChart()}
+                        </div>
                     </div>
 
-                    <div className="card">
-                        <h3 className="card-title">Recent Opportunities</h3>
-                        <div className="opportunities-list">
-                            {recentOpportunities.map(opp => (
-                                <div key={opp.id} className="opportunity-item">
-                                    <div className="opp-info">
-                                        <div className="opp-name">{opp.name}</div>
-                                        <div className="opp-company">{opp.company || 'No company'}</div>
-                                    </div>
-                                    <div className="opp-value">${opp.value?.toLocaleString() || 0}</div>
-                                    <div className={`opp-status status-${(opp.status || 'New').toLowerCase()}`}>
-                                        {opp.status || 'New'}
-                                    </div>
+                    <div className="analytics-card status-container">
+                        <div className="card-top">
+                            <div className="card-info">
+                                <span className="card-label">Ticket priority</span>
+                            </div>
+                        </div>
+                        <div className="donut-wrapper">
+                            {this.renderDonutChart()}
+                            <div className="donut-stats">
+                                <span className="total-val">{(this.state.opportunities || []).length}</span>
+                                <span className="total-label">Total active tickets</span>
+                            </div>
+                        </div>
+                        <div className="donut-legend">
+                            <div className="legend-col">
+                                <span className="legend-item"><span className="dot" style={{ background: '#ef4444' }}></span> High ({(this.state.opportunities || []).filter(o => o.priority === 'High').length})</span>
+                                <span className="legend-item"><span className="dot" style={{ background: '#f59e0b' }}></span> Medium ({(this.state.opportunities || []).filter(o => o.priority === 'Medium').length})</span>
+                            </div>
+                            <div className="legend-col">
+                                <span className="legend-item"><span className="dot" style={{ background: '#10b981' }}></span> Low ({(this.state.opportunities || []).filter(o => o.priority === 'Low').length})</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="dashboard-bottom-grid">
+                    <div className="analytics-card bar-container">
+                        <div className="card-header-flex">
+                            <span className="card-label">Average tickets created</span>
+                            <button className="btn-full-view">Full View <i className="fe fe-arrow-up-right"></i></button>
+                        </div>
+                        <div className="bar-chart-stats">
+                            <div className="bar-stat-item">
+                                <span className="dot green"></span>
+                                <div className="bar-stat-info">
+                                    <span className="bs-label">Avg. Ticket Solved</span>
+                                    <span className="bs-val">1,654</span>
                                 </div>
-                            ))}
+                            </div>
+                            <div className="bar-stat-item">
+                                <span className="dot light-blue"></span>
+                                <div className="bar-stat-info">
+                                    <span className="bs-label">Avg. Ticket Created</span>
+                                    <span className="bs-val">4,567</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="bar-chart-wrapper">
+                            {this.renderBarChart()}
+                        </div>
+                    </div>
+
+                    <div className="analytics-card list-container">
+                        <div className="card-header-flex">
+                            <span className="card-label">Recent tickets</span>
+                            <button className="btn-full-view">View all <i className="fe fe-arrow-up-right"></i></button>
+                        </div>
+                        <div className="tickets-mini-list">
+                            {this.renderRecentTickets()}
                         </div>
                     </div>
                 </div>
 
                 <style jsx>{`
                     .dashboard {
-                        animation: fadeIn 0.3s;
+                        display: flex;
+                        flex-direction: column;
+                        gap: 24px;
+                        padding-bottom: 40px;
+                        animation: fadeIn 0.4s ease;
                     }
 
                     @keyframes fadeIn {
@@ -1004,139 +1275,290 @@ export default class CRM extends Component {
                         to { opacity: 1; transform: translateY(0); }
                     }
 
-                    .page-title {
-                        font-size: 32px;
-                        font-weight: 700;
-                        color: #1f2937;
-                        margin-bottom: 24px;
-                    }
-
-                    .stats-grid {
+                    .stats-header-grid {
                         display: grid;
-                        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                        grid-template-columns: repeat(4, 1fr);
                         gap: 20px;
-                        margin-bottom: 32px;
                     }
 
-                    .stat-card {
-                        background: white;
-                        border-radius: 16px;
+                    .modern-stat-card {
+                        background: #ffffff;
+                        border-radius: 20px;
                         padding: 24px;
                         display: flex;
-                        gap: 16px;
-                        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+                        justify-content: space-between;
+                        align-items: center;
+                        border: 1px solid #f0f0f0;
                         transition: all 0.3s;
-                        border: 1px solid transparent;
                     }
 
-                    .stat-card:hover {
-                        transform: translateY(-4px);
-                        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
-                        border-color: var(--accent-color);
+                    .modern-stat-card:hover {
+                        transform: translateY(-2px);
+                        box-shadow: 0 10px 20px rgba(0,0,0,0.03);
+                        border-color: #e2e8f0;
                     }
 
-                    .stat-icon {
-                        width: 56px;
-                        height: 56px;
+                    .stat-info { display: flex; flex-direction: column; gap: 8px; }
+                    .stat-label { font-size: 13px; font-weight: 600; color: #64748b; }
+                    .stat-value { font-size: 24px; font-weight: 800; color: #0f172a; }
+
+                    .stat-icon-circle {
+                        width: 44px; height: 44px;
+                        background: #f8fafc;
+                        border-radius: 50%;
                         display: flex;
                         align-items: center;
                         justify-content: center;
-                        font-size: 28px;
-                        background: linear-gradient(135deg, var(--accent-color)20, var(--accent-color)10);
-                        border-radius: 12px;
+                        font-size: 20px;
                     }
 
-                    .stat-content {
-                        flex: 1;
+                    .dashboard-main-grid {
+                        display: grid;
+                        grid-template-columns: 2fr 1fr;
+                        gap: 24px;
                     }
 
-                    .stat-label {
-                        font-size: 13px;
-                        color: #6b7280;
-                        font-weight: 500;
-                        margin-bottom: 4px;
-                    }
-
-                    .stat-value {
-                        font-size: 28px;
-                        font-weight: 700;
-                        color: #1f2937;
-                    }
-
-                    .dashboard-grid {
+                    .dashboard-bottom-grid {
                         display: grid;
                         grid-template-columns: 1fr 1fr;
                         gap: 24px;
                     }
 
-                    .card {
-                        background: white;
-                        border-radius: 16px;
-                        padding: 24px;
-                        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+                    .analytics-card {
+                        background: #ffffff;
+                        border-radius: 24px;
+                        padding: 28px;
+                        border: 1px solid #f0f0f0;
                     }
 
-                    .card-title {
-                        font-size: 18px;
-                        font-weight: 600;
-                        color: #1f2937;
-                        margin-bottom: 20px;
-                    }
+                    .card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
+                    .card-info { display: flex; flex-direction: column; gap: 4px; }
+                    .card-label { font-size: 14px; font-weight: 700; color: #0f172a; }
+                    .card-main-val { font-size: 28px; font-weight: 800; color: #0f172a; }
 
-                    .opportunities-list {
-                        display: flex;
-                        flex-direction: column;
-                        gap: 12px;
-                    }
+                    .chart-legend { display: flex; gap: 16px; }
+                    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #64748b; }
+                    .dot { width: 8px; height: 8px; border-radius: 50%; }
+                    .dot.blue { background: #2563eb; }
+                    .dot.orange { background: #f97316; }
+                    .dot.purple { background: #8b5cf6; }
+                    .dot.pink { background: #ec4899; }
+                    .dot.green { background: #10b981; }
+                    .dot.light-blue { background: #bae6fd; }
 
-                    .opportunity-item {
+                    .chart-wrapper { width: 100%; height: 200px; }
+
+                    .donut-wrapper {
+                        position: relative;
+                        width: 200px; height: 200px;
+                        margin: 0 auto;
                         display: flex;
                         align-items: center;
-                        gap: 16px;
-                        padding: 12px;
-                        background: #f9fafb;
-                        border-radius: 8px;
-                        transition: all 0.2s;
+                        justify-content: center;
                     }
 
-                    .opportunity-item:hover {
-                        background: #f3f4f6;
+                    .donut-stats {
+                        position: absolute;
+                        top: 50%; left: 50%;
+                        transform: translate(-50%, -50%);
+                        text-align: center;
+                        display: flex;
+                        flex-direction: column;
                     }
 
-                    .opp-info {
-                        flex: 1;
-                    }
+                    .total-val { font-size: 22px; font-weight: 800; color: #0f172a; }
+                    .total-label { font-size: 10px; font-weight: 600; color: #94a3b8; text-transform: uppercase; width: 80px; }
 
-                    .opp-name {
-                        font-weight: 600;
-                        color: #1f2937;
-                        font-size: 14px;
+                    .donut-legend {
+                        display: grid;
+                        grid-template-columns: 1fr 1fr;
+                        gap: 12px;
+                        margin-top: 24px;
                     }
+                    .legend-col { display: flex; flex-direction: column; gap: 8px; }
 
-                    .opp-company {
+                    .card-header-flex { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+                    .btn-full-view {
+                        background: #f8fafc;
+                        border: 1px solid #e2e8f0;
+                        padding: 6px 14px;
+                        border-radius: 10px;
                         font-size: 12px;
-                        color: #6b7280;
-                        margin-top: 2px;
-                    }
-
-                    .opp-value {
                         font-weight: 700;
-                        color: #10b981;
-                        font-size: 14px;
+                        color: #0f172a;
+                        cursor: pointer;
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
                     }
 
-                    .opp-status {
-                        padding: 4px 12px;
+                    .bar-chart-stats { display: flex; gap: 32px; margin-bottom: 24px; }
+                    .bar-stat-item { display: flex; align-items: flex-start; gap: 10px; }
+                    .bar-stat-info { display: flex; flex-direction: column; }
+                    .bs-label { font-size: 11px; font-weight: 600; color: #94a3b8; }
+                    .bs-val { font-size: 18px; font-weight: 800; color: #0f172a; }
+
+                    .bar-chart-wrapper { height: 180px; width: 100%; }
+
+                    .tickets-mini-list { display: flex; flex-direction: column; gap: 16px; }
+                `}</style>
+            </div>
+        );
+    }
+
+    renderSplineChart() {
+        const { opportunities } = this.state;
+        const total = opportunities.length || 1;
+        const won = opportunities.filter(o => o.status === 'Won').length;
+        const lost = opportunities.filter(o => o.status === 'Lost').length;
+
+        // Simple dynamic spline based on ratios
+        const wonRatio = (won / total) * 150;
+        const lostRatio = (lost / total) * 150;
+
+        return (
+            <svg viewBox="0 0 800 200" className="spline-svg">
+                <defs>
+                    <linearGradient id="gradBlue" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" style={{ stopColor: '#2563eb', stopOpacity: 0.2 }} />
+                        <stop offset="100%" style={{ stopColor: '#2563eb', stopOpacity: 0 }} />
+                    </linearGradient>
+                    <linearGradient id="gradGreen" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" style={{ stopColor: '#10b981', stopOpacity: 0.2 }} />
+                        <stop offset="100%" style={{ stopColor: '#10b981', stopOpacity: 0 }} />
+                    </linearGradient>
+                </defs>
+                <line x1="0" y1="50" x2="800" y2="50" stroke="#f1f5f9" strokeWidth="1" />
+                <line x1="0" y1="100" x2="800" y2="100" stroke="#f1f5f9" strokeWidth="1" />
+                <line x1="0" y1="150" x2="800" y2="150" stroke="#f1f5f9" strokeWidth="1" />
+
+                <path d={`M0,180 Q200,${180 - wonRatio} 400,${150 - wonRatio} T800,${100 - wonRatio} L800,200 L0,200 Z`} fill="url(#gradBlue)" />
+                <path d={`M0,160 Q200,${160 - lostRatio} 400,${130 - lostRatio} T800,${80 - lostRatio} L800,200 L0,200 Z`} fill="url(#gradGreen)" />
+
+                <path d={`M0,180 Q200,${180 - wonRatio} 400,${150 - wonRatio} T800,${100 - wonRatio}`} fill="none" stroke="#2563eb" strokeWidth="3" strokeLinecap="round" />
+                <path d={`M0,160 Q200,${160 - lostRatio} 400,${130 - lostRatio} T800,${80 - lostRatio}`} fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" />
+
+                <style jsx>{`
+                    .spline-svg { width: 100%; height: 100%; overflow: visible; transition: all 1.5s ease; }
+                `}</style>
+            </svg>
+        );
+    }
+
+    renderDonutChart() {
+        const { opportunities } = this.state;
+        const total = opportunities.length || 1;
+        const high = opportunities.filter(o => o.priority === 'High').length;
+        const medium = opportunities.filter(o => o.priority === 'Medium').length;
+        const low = opportunities.filter(o => o.priority === 'Low').length;
+
+        // Circumference is ~251
+        const highPerc = (high / total) * 251;
+        const medPerc = (medium / total) * 251;
+        const lowPerc = (low / total) * 251;
+
+        return (
+            <svg viewBox="0 0 100 100" className="donut-svg">
+                <circle cx="50" cy="50" r="40" fill="transparent" stroke="#f1f5f9" strokeWidth="10" />
+                {high > 0 && <circle cx="50" cy="50" r="40" fill="transparent" stroke="#ef4444" strokeWidth="10" strokeDasharray={`${highPerc} 251`} strokeDashoffset="0" strokeLinecap="round" />}
+                {medium > 0 && <circle cx="50" cy="50" r="40" fill="transparent" stroke="#f59e0b" strokeWidth="10" strokeDasharray={`${medPerc} 251`} strokeDashoffset={`-${highPerc}`} strokeLinecap="round" />}
+                {low > 0 && <circle cx="50" cy="50" r="40" fill="transparent" stroke="#10b981" strokeWidth="10" strokeDasharray={`${lowPerc} 251`} strokeDashoffset={`-${highPerc + medPerc}`} strokeLinecap="round" />}
+                <style jsx>{`
+                    .donut-svg { width: 100%; height: 100%; transform: rotate(-90deg); transition: all 1s ease; }
+                `}</style>
+            </svg>
+        );
+    }
+
+    renderBarChart() {
+        const { opportunities } = this.state;
+        const stages = ['New', 'Qualified', 'Proposition', 'Negotiation', 'Won', 'Lost'];
+        const total = opportunities.length || 1;
+        const data = stages.map(s => (opportunities.filter(o => o.status === s).length / total) * 100 + 10);
+
+        return (
+            <div className="bar-chart">
+                {data.map((h, i) => (
+                    <div key={i} className="bar-group">
+                        <div className="bar-bg">
+                            <div className="bar-val" style={{ height: `${h}%`, background: i % 2 === 0 ? '#10b981' : '#bae6fd' }}></div>
+                        </div>
+                        <span className="bar-label">{stages[i].charAt(0)}</span>
+                    </div>
+                ))}
+                <style jsx>{`
+                    .bar-chart { display: flex; align-items: flex-end; justify-content: space-between; height: 100%; width: 100%; gap: 8px; }
+                    .bar-group { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; height: 100%; }
+                    .bar-bg { width: 10px; flex: 1; background: #f8fafc; border-radius: 6px; position: relative; overflow: hidden; display: flex; align-items: flex-end; }
+                    .bar-val { width: 100%; transition: height 0.6s ease; }
+                    .bar-label { font-size: 10px; font-weight: 600; color: #94a3b8; }
+                `}</style>
+            </div>
+        );
+    }
+
+    renderRecentTickets() {
+        const { opportunities } = this.state;
+        const recentOnes = (opportunities || []).slice(0, 5);
+
+        const priorityColors = { High: '#fee2e2', Medium: '#fef3c7', Low: '#f1f5f9' };
+        const priorityText = { High: '#ef4444', Medium: '#f59e0b', Low: '#64748b' };
+
+        return (
+            <div className="tickets-list">
+                {recentOnes.length === 0 ? (
+                    <div className="empty-state-mini">No recent tickets</div>
+                ) : recentOnes.map(ticket => (
+                    <div key={ticket.id} className="ticket-item" onClick={() => this.setState({ selectedOpportunity: ticket, showModal: 'details-opp' })}>
+                        <div className="ticket-user-info">
+                            <div className="ticket-avatar">{ticket.name.charAt(0)}</div>
+                            <div className="ticket-main">
+                                <span className="ticket-user-name">{ticket.name}</span>
+                                <span className="ticket-subject">{ticket.company || 'New Inquiry'}</span>
+                            </div>
+                        </div>
+                        <div className="ticket-meta">
+                            <span className="ticket-date">{new Date(ticket.updatedAt).toLocaleDateString()}</span>
+                            <span className="priority-badge" style={{ background: priorityColors[ticket.priority] || '#f1f5f9', color: priorityText[ticket.priority] || '#64748b' }}>
+                                {ticket.priority}
+                            </span>
+                        </div>
+                    </div>
+                ))}
+                <style jsx>{`
+                    .tickets-list { display: flex; flex-direction: column; gap: 12px; }
+                    .ticket-item {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        padding: 12px;
                         border-radius: 12px;
-                        font-size: 12px;
-                        font-weight: 600;
+                        transition: background 0.2s;
                     }
-
-                    .status-new { background: #dbeafe; color: #1e40af; }
-                    .status-qualified { background: #e0e7ff; color: #4338ca; }
-                    .status-proposition { background: #fef3c7; color: #92400e; }
-                    .status-won { background: #d1fae5; color: #065f46; }
-                    .status-lost { background: #fee2e2; color: #991b1b; }
+                    .ticket-item:hover { background: #f8fafc; }
+                    .ticket-user-info { display: flex; align-items: center; gap: 12px; }
+                    .ticket-avatar {
+                        width: 32px; height: 32px;
+                        background: #f1f5f9;
+                        border-radius: 8px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 14px;
+                        font-weight: 700;
+                        color: #64748b;
+                    }
+                    .ticket-main { display: flex; flex-direction: column; gap: 2px; }
+                    .ticket-user-name { font-size: 13px; font-weight: 700; color: #0f172a; }
+                    .ticket-subject { font-size: 12px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
+                    .ticket-meta { display: flex; align-items: center; gap: 12px; }
+                    .ticket-date { font-size: 11px; color: #94a3b8; font-weight: 600; }
+                    .priority-badge {
+                        padding: 4px 10px;
+                        border-radius: 6px;
+                        font-size: 10px;
+                        font-weight: 700;
+                    }
                 `}</style>
             </div>
         );
@@ -1259,168 +1681,487 @@ export default class CRM extends Component {
     };
 
     renderPipeline() {
-        const { opportunities, filterStage } = this.state;
+        const { opportunities } = this.state;
         const stages = ['New', 'Qualified', 'Proposition', 'Negotiation', 'Won', 'Lost'];
 
-        const filteredOpps = filterStage === 'all'
-            ? opportunities
-            : opportunities.filter(o => o.status === filterStage);
-
         return (
-            <div className="pipeline-view">
-                <div className="pipeline-header">
-                    <h1 className="page-title">Sales Pipeline</h1>
-                    <div className="pipeline-filters">
-                        <button
-                            className={`filter-btn ${filterStage === 'all' ? 'active' : ''}`}
-                            onClick={() => this.setState({ filterStage: 'all' })}
-                        >
-                            All Stages
-                        </button>
-                        {stages.map(stage => (
-                            <button
-                                key={stage}
-                                className={`filter-btn ${filterStage === stage ? 'active' : ''}`}
-                                onClick={() => this.setState({ filterStage: stage })}
-                            >
-                                {stage}
-                            </button>
-                        ))}
+            <div className="pipeline-modern">
+                <div className="pipeline-header-modern">
+                    <div className="pipeline-title">
+                        <h1>Sales Pipeline</h1>
+                        <p>Track your deals through different stages</p>
                     </div>
                 </div>
 
-                <div className="kanban-board">
-                    {stages.map(stage => {
-                        const stageOpps = opportunities.filter(o => o.status === stage);
-                        const stageValue = stageOpps.reduce((sum, o) => sum + (o.value || 0), 0);
+                <div className="kanban-scroll-modern">
+                    <div className="kanban-container-modern">
+                        {stages.map(stage => {
+                            const stageOpps = opportunities.filter(o => o.status === stage);
+                            const stageColor = {
+                                New: '#2563eb', Qualified: '#8b5cf6', Proposition: '#f97316',
+                                Negotiation: '#f59e0b', Won: '#10b981', Lost: '#ef4444'
+                            }[stage];
 
-                        return (
-                            <div
-                                key={stage}
-                                className="kanban-column"
-                                onDragOver={this.onDragOver}
-                                onDrop={(e) => this.onDrop(e, stage)}
-                            >
-                                <div className="column-header">
-                                    <div className="column-title">
-                                        <span>{stage}</span>
-                                        <span className="column-count">{stageOpps.length}</span>
+                            return (
+                                <div
+                                    key={stage}
+                                    className="kanban-col-modern"
+                                    onDragOver={this.onDragOver}
+                                    onDrop={(e) => this.onDrop(e, stage)}
+                                >
+                                    <div className="col-header-modern">
+                                        <div className="col-title-top">
+                                            <span className="dot" style={{ background: stageColor }}></span>
+                                            <span className="col-label">{stage}</span>
+                                            <span className="col-count">{stageOpps.length}</span>
+                                        </div>
+                                        <div className="col-total-val">
+                                            ${stageOpps.reduce((sum, o) => sum + (o.value || 0), 0).toLocaleString()}
+                                        </div>
                                     </div>
-                                    <div className="column-value">${stageValue.toLocaleString()}</div>
+                                    <div className="col-cards-modern">
+                                        {stageOpps.map(opp => this.renderOpportunityCard(opp))}
+                                        <button className="btn-add-card" onClick={() => this.setState({ showModal: 'create-opp' })}>
+                                            <i className="fe fe-plus"></i> Add card
+                                        </button>
+                                    </div>
                                 </div>
-                                <div className="column-content">
-                                    {stageOpps.map(opp => this.renderOpportunityCard(opp, stage))}
-                                </div>
-                            </div>
-                        );
-                    })}
+                            );
+                        })}
+                    </div>
                 </div>
 
                 <style jsx>{`
-                    .pipeline-view { animation: fadeIn 0.3s; height: 100%; display: flex; flex-direction: column; }
-                    .pipeline-header { margin-bottom: 24px; flex-shrink: 0; }
-                    .pipeline-filters { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
-                    .filter-btn { padding: 8px 16px; background: white; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s; color: #374151; }
-                    .filter-btn:hover { border-color: #8b5cf6; color: #8b5cf6; }
-                    .filter-btn.active { background: #8b5cf6; color: white; border-color: #8b5cf6; }
-                    .kanban-board { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; overflow-x: auto; padding-bottom: 20px; flex: 1; min-height: 0; }
-                    .kanban-column { background: #f9fafb; border-radius: 12px; padding: 16px; min-width: 300px; display: flex; flex-direction: column; height: 100%; }
-                    .column-header { margin-bottom: 16px; flex-shrink: 0; }
-                    .column-title { display: flex; align-items: center; justify-content: space-between; font-weight: 600; color: #1f2937; margin-bottom: 4px; }
-                    .column-count { background: #e5e7eb; color: #4b5563; padding: 2px 8px; border-radius: 12px; font-size: 12px; }
-                    .column-value { font-size: 14px; color: #10b981; font-weight: 700; }
-                    .column-content { display: flex; flex-direction: column; gap: 12px; overflow-y: auto; flex: 1; min-height: 100px; }
+                    .pipeline-modern {
+                        display: flex;
+                        flex-direction: column;
+                        height: 100%;
+                        animation: fadeIn 0.4s ease;
+                    }
+
+                    .pipeline-header-modern { margin-bottom: 24px; }
+                    .pipeline-title h1 { font-size: 24px; font-weight: 800; color: #0f172a; margin: 0; }
+                    .pipeline-title p { font-size: 14px; color: #64748b; margin-top: 4px; }
+
+                    .kanban-scroll-modern {
+                        flex: 1;
+                        overflow-x: auto;
+                        padding-bottom: 20px;
+                        margin: 0 -10px;
+                    }
+
+                    .kanban-container-modern {
+                        display: flex;
+                        gap: 20px;
+                        padding: 0 10px;
+                        height: 100%;
+                    }
+
+                    .kanban-col-modern {
+                        min-width: 320px;
+                        width: 320px;
+                        background: #f8fafc;
+                        border-radius: 20px;
+                        display: flex;
+                        flex-direction: column;
+                        height: 100%;
+                        padding: 16px;
+                    }
+
+                    .col-header-modern { margin-bottom: 20px; }
+                    .col-title-top { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+                    .col-title-top .dot { width: 8px; height: 8px; border-radius: 50%; }
+                    .col-label { font-size: 14px; font-weight: 700; color: #0f172a; flex: 1; }
+                    .col-count { font-size: 12px; font-weight: 700; color: #64748b; background: #ffffff; padding: 2px 8px; border-radius: 8px; }
+                    .col-total-val { font-size: 15px; font-weight: 800; color: #0f172a; margin-left: 18px; }
+
+                    .col-cards-modern {
+                        display: flex;
+                        flex-direction: column;
+                        gap: 12px;
+                        overflow-y: auto;
+                        flex: 1;
+                        padding-right: 4px;
+                    }
+
+                    .col-cards-modern::-webkit-scrollbar { width: 4px; }
+                    .col-cards-modern::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 2px; }
+
+                    .btn-add-card {
+                        background: #ffffff;
+                        border: 1px dashed #e2e8f0;
+                        padding: 12px;
+                        border-radius: 12px;
+                        color: #64748b;
+                        font-weight: 600;
+                        font-size: 13px;
+                        cursor: pointer;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        gap: 8px;
+                        transition: all 0.2s;
+                    }
+
+                    .btn-add-card:hover { border-color: #2563eb; color: #2563eb; background: #f8faff; }
                 `}</style>
             </div>
         );
     }
 
-    renderOpportunityCard(opp, stage) {
-        const priorityColors = { High: '#ef4444', Medium: '#f59e0b', Low: '#10b981' };
-
+    renderOpportunityCard(opp) {
         return (
             <div
                 key={opp.id}
-                className="opp-card"
+                className="opp-card-modern"
                 draggable
                 onDragStart={(e) => this.onDragStart(e, opp.id)}
                 onClick={() => this.setState({ selectedOpportunity: opp, showModal: 'details-opp' })}
             >
-                <div className="opp-card-header">
-                    <div className="opp-card-title">{opp.name}</div>
-                    <div className="opp-priority-dot" style={{ background: priorityColors[opp.priority] || '#6b7280' }} />
+                <div className="opp-tags-modern">
+                    <span className={`opp-tag-priority ${opp.priority?.toLowerCase() || 'medium'}`}>{opp.priority || 'Medium'}</span>
                 </div>
-                {opp.company && <div className="opp-card-company"><span>🏢</span> {opp.company}</div>}
-                <div className="opp-card-value">${opp.value?.toLocaleString() || 0}</div>
-                {opp.email && <div className="opp-card-contact"><span>✉️</span> {opp.email}</div>}
-                <div className="opp-card-actions">
-                    <button className="card-action-btn" onClick={(e) => { e.stopPropagation(); this.setState({ selectedOpportunity: opp, showModal: 'edit-opp' }); }}>
-                        <span>✏️</span>
-                    </button>
+                <h3 className="opp-name-modern">{opp.name}</h3>
+                <div className="opp-company-modern">{opp.company || 'Private Customer'}</div>
+
+                <div className="opp-footer-modern">
+                    <div className="opp-val-box-modern">
+                        <span className="opp-val-label">Value</span>
+                        <span className="opp-val-amount">${(opp.value || 0).toLocaleString()}</span>
+                    </div>
+                    <div className="opp-meta-modern">
+                        <img src="./themes/Yaru/system/user-home.png" alt="Owner" className="owner-avatar" />
+                    </div>
                 </div>
+
                 <style jsx>{`
-                    .opp-card { background: white; border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); cursor: grab; transition: all 0.2s; border: 2px solid transparent; }
-                    .opp-card:active { cursor: grabbing; }
-                    .opp-card:hover { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); border-color: #8b5cf6; transform: translateY(-2px); }
-                    .opp-card-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px; }
-                    .opp-card-title { font-weight: 600; color: #1f2937; font-size: 14px; flex: 1; }
-                    .opp-priority-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-                    .opp-card-company { font-size: 12px; color: #6b7280; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
-                    .opp-card-value { font-size: 18px; font-weight: 700; color: #10b981; margin-bottom: 8px; }
-                    .opp-card-contact { font-size: 11px; color: #9ca3af; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
-                    .opp-card-actions { display: flex; gap: 8px; padding-top: 12px; border-top: 1px solid #f3f4f6; }
-                    .card-action-btn { flex: 1; padding: 6px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; cursor: pointer; font-size: 14px; transition: all 0.2s; }
-                    .card-action-btn:hover { background: #f3f4f6; border-color: #d1d5db; }
+                    .opp-card-modern {
+                        background: #ffffff;
+                        border-radius: 16px;
+                        padding: 16px;
+                        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+                        cursor: grab;
+                        transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+                        border: 1px solid #f1f5f9;
+                        flex-shrink: 0;
+                    }
+
+                    .opp-card-modern:hover {
+                        transform: translateY(-3px);
+                        box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05);
+                        border-color: #e2e8f0;
+                    }
+
+                    .opp-tags-modern { display: flex; gap: 6px; margin-bottom: 10px; }
+                    .opp-tag-priority {
+                        font-size: 10px;
+                        font-weight: 800;
+                        text-transform: uppercase;
+                        padding: 2px 8px;
+                        border-radius: 6px;
+                    }
+                    .opp-tag-priority.high { background: #fee2e2; color: #ef4444; }
+                    .opp-tag-priority.medium { background: #fef3c7; color: #d97706; }
+                    .opp-tag-priority.low { background: #dcfce7; color: #16a34a; }
+
+                    .opp-name-modern {
+                        font-size: 14px;
+                        font-weight: 700;
+                        color: #0f172a;
+                        margin: 0 0 4px 0;
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                    }
+
+                    .opp-company-modern {
+                        font-size: 12px;
+                        color: #64748b;
+                        margin-bottom: 16px;
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                    }
+
+                    .opp-footer-modern {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: flex-end;
+                        padding-top: 12px;
+                        border-top: 1px solid #f8fafc;
+                    }
+
+                    .opp-val-box-modern { display: flex; flex-direction: column; }
+                    .opp-val-label { font-size: 10px; color: #94a3b8; font-weight: 700; text-transform: uppercase; }
+                    .opp-val-amount { font-size: 14px; font-weight: 800; color: #10b981; }
+
+                    .owner-avatar {
+                        width: 24px; height: 24px;
+                        border-radius: 6px;
+                        border: 1.5px solid #ffffff;
+                        box-shadow: 0 0 0 1px #e2e8f0;
+                    }
                 `}</style>
             </div>
         );
     }
 
     renderContacts() {
-        // Use opportunities as contacts for now since they contain contact info
-        const contacts = this.state.opportunities;
+        // Using real database data from this.state.opportunities
 
         return (
-            <div className="contacts-view">
-                <div className="view-header">
-                    <h1 className="page-title">Contacts</h1>
-                    <button className="btn-primary" onClick={() => this.setState({ showModal: 'create-opp' })}>
-                        Add Contact
-                    </button>
+            <div className="contacts-view-modern">
+                <div className="view-header-modern">
+                    <div className="view-title-area">
+                        <h1>Clients Management</h1>
+                        <p>Manage your clients and their tickets efficiently</p>
+                    </div>
+                    <div className="view-actions-modern">
+                        <div className="search-box-modern">
+                            <i className="fe fe-search"></i>
+                            <input type="text" placeholder="Search client..." />
+                        </div>
+                        <button className="btn-secondary-modern"><i className="fe fe-download"></i></button>
+                        <button className="btn-secondary-modern"><i className="fe fe-filter"></i> Filter</button>
+                        <button className="btn-secondary-modern"><i className="fe fe-columns"></i> Columns</button>
+                        <button className="btn-primary-modern"><i className="fe fe-plus"></i> Add Team</button>
+                    </div>
                 </div>
 
-                <div className="contacts-grid">
-                    {contacts.map(contact => (
-                        <div key={contact.id} className="contact-card">
-                            <div className="contact-avatar">
-                                {contact.name.charAt(0)}
-                            </div>
-                            <div className="contact-info">
-                                <h3>{contact.name}</h3>
-                                <p className="contact-company">{contact.company || 'No Company'}</p>
-                                <div className="contact-details">
-                                    {contact.email && <p>✉️ {contact.email}</p>}
-                                    {contact.phone && <p>📞 {contact.phone}</p>}
-                                </div>
-                            </div>
-                            <div className="contact-tags">
-                                <span className={`status-tag ${(contact.status || 'New').toLowerCase()}`}>{contact.status || 'New'}</span>
-                            </div>
+                <div className="table-container-modern">
+                    <table className="modern-table">
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" /></th>
+                                <th>Client Name <i className="fe fe-chevron-down"></i></th>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                                <th>Priority</th>
+                                <th>Type</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {this.state.opportunities.length === 0 ? (
+                                <tr><td colSpan="9" style={{ textAlign: 'center', padding: '40px' }}>No clients found in the database.</td></tr>
+                            ) : this.state.opportunities.map(contact => (
+                                <tr key={contact.id}>
+                                    <td><input type="checkbox" /></td>
+                                    <td>
+                                        <div className="cell-user">
+                                            <div className="cell-avatar">{contact.name.charAt(0)}</div>
+                                            <span className="cell-name">{contact.name}</span>
+                                        </div>
+                                    </td>
+                                    <td>{contact.email}</td>
+                                    <td>{contact.company || 'Private'}</td>
+                                    <td>
+                                        <span className={`status-pill pill-${contact.status.toLowerCase().replace(' ', '-')}`}>
+                                            {contact.status}
+                                        </span>
+                                    </td>
+                                    <td>{new Date(contact.updatedAt || contact.createdAt).toLocaleDateString()}</td>
+                                    <td>
+                                        <span className={`priority-tag text-${contact.priority.toLowerCase()}`}>
+                                            <span className={`dot bg-${contact.priority.toLowerCase()}`}></span>
+                                            {contact.priority}
+                                        </span>
+                                    </td>
+                                    <td>{contact.value > 0 ? 'Enterprise' : 'Lead'}</td>
+                                    <td>
+                                        <div className="cell-actions">
+                                            <button className="action-btn" onClick={() => this.setState({ selectedOpportunity: contact, showModal: 'edit-opp' })}><i className="fe fe-edit-2"></i></button>
+                                            <button className="action-btn delete"><i className="fe fe-trash-2"></i></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    <div className="table-footer-modern">
+                        <span className="rows-count">Showing 1 to 6 of 50 entries</span>
+                        <div className="pagination-modern">
+                            <button className="p-btn"><i className="fe fe-chevron-left"></i></button>
+                            <button className="p-btn active">1</button>
+                            <button className="p-btn">2</button>
+                            <button className="p-btn">3</button>
+                            <button className="p-btn"><i className="fe fe-chevron-right"></i></button>
                         </div>
-                    ))}
+                    </div>
                 </div>
+
                 <style jsx>{`
-                    .contacts-view { animation: fadeIn 0.3s; }
-                    .view-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-                    .contacts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
-                    .contact-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; gap: 16px; align-items: start; transition: transform 0.2s; }
-                    .contact-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-                    .contact-avatar { width: 48px; height: 48px; background: linear-gradient(135deg, #8b5cf6, #6366f1); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; flex-shrink: 0; }
-                    .contact-info { flex: 1; }
-                    .contact-info h3 { font-size: 16px; font-weight: 600; margin-bottom: 4px; color: #1f2937; }
-                    .contact-company { font-size: 13px; color: #6b7280; margin-bottom: 12px; }
-                    .contact-details p { font-size: 12px; color: #4b5563; margin-bottom: 4px; }
-                    .status-tag { padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; background: #f3f4f6; color: #374151; }
+                    .contacts-view-modern {
+                        display: flex;
+                        flex-direction: column;
+                        gap: 24px;
+                        animation: fadeIn 0.4s ease;
+                    }
+
+                    .view-header-modern {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                    }
+
+                    .view-title-area h1 { font-size: 24px; font-weight: 800; color: #0f172a; margin: 0; }
+                    .view-title-area p { font-size: 14px; color: #64748b; margin: 4px 0 0; }
+
+                    .view-actions-modern {
+                        display: flex;
+                        align-items: center;
+                        gap: 12px;
+                    }
+
+                    .search-box-modern {
+                        display: flex;
+                        align-items: center;
+                        gap: 10px;
+                        background: #ffffff;
+                        border: 1px solid #e2e8f0;
+                        padding: 8px 14px;
+                        border-radius: 12px;
+                        width: 240px;
+                    }
+
+                    .search-box-modern i { color: #94a3b8; }
+                    .search-box-modern input { border: none; outline: none; font-size: 13px; color: #0f172a; width: 100%; }
+
+                    .btn-secondary-modern {
+                        background: #ffffff;
+                        border: 1px solid #e2e8f0;
+                        padding: 10px 16px;
+                        border-radius: 12px;
+                        font-size: 13px;
+                        font-weight: 700;
+                        color: #475569;
+                        cursor: pointer;
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                        transition: all 0.2s;
+                    }
+
+                    .btn-secondary-modern:hover { background: #f8fafc; border-color: #cbd5e1; }
+
+                    .btn-primary-modern {
+                        background: #0f172a;
+                        color: #ffffff;
+                        border: none;
+                        padding: 10px 20px;
+                        border-radius: 12px;
+                        font-size: 13px;
+                        font-weight: 700;
+                        cursor: pointer;
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                        transition: all 0.2s;
+                    }
+
+                    .btn-primary-modern:hover { background: #1e293b; transform: translateY(-1px); }
+
+                    .table-container-modern {
+                        background: #ffffff;
+                        border-radius: 20px;
+                        border: 1px solid #f0f0f0;
+                        overflow: hidden;
+                    }
+
+                    .modern-table { width: 100%; border-collapse: collapse; text-align: left; }
+                    .modern-table th {
+                        padding: 16px 20px;
+                        background: #f8fafc;
+                        font-size: 12px;
+                        font-weight: 700;
+                        color: #64748b;
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                        border-bottom: 1px solid #f1f5f9;
+                    }
+
+                    .modern-table td {
+                        padding: 16px 20px;
+                        border-bottom: 1px solid #f1f5f9;
+                        font-size: 14px;
+                        color: #475569;
+                    }
+
+                    .cell-user { display: flex; align-items: center; gap: 12px; }
+                    .cell-avatar {
+                        width: 32px; height: 32px;
+                        background: #f1f5f9;
+                        border-radius: 8px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-weight: 700;
+                        color: #2563eb;
+                    }
+                    .cell-name { font-weight: 700; color: #0f172a; }
+
+                    .status-pill {
+                        padding: 4px 12px;
+                        border-radius: 20px;
+                        font-size: 12px;
+                        font-weight: 700;
+                    }
+
+                    .pill-in-progress { background: #dcfce7; color: #16a34a; }
+                    .pill-pending { background: #fef3c7; color: #d97706; }
+                    .pill-solved { background: #e0f2fe; color: #0369a1; }
+                    .pill-open { background: #fee2e2; color: #dc2626; }
+
+                    .priority-tag { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 13px; }
+                    .priority-tag .dot { width: 6px; height: 6px; border-radius: 50%; }
+                    .dot.bg-high { background: #ef4444; }
+                    .dot.bg-medium { background: #f59e0b; }
+                    .dot.bg-low { background: #64748b; }
+                    .text-high { color: #ef4444; }
+                    .text-medium { color: #f59e0b; }
+                    .text-low { color: #64748b; }
+
+                    .cell-actions { display: flex; gap: 8px; }
+                    .action-btn {
+                        width: 32px; height: 32px;
+                        display: flex; align-items: center; justify-content: center;
+                        background: #f8fafc;
+                        border: 1px solid #e2e8f0;
+                        border-radius: 8px;
+                        color: #64748b;
+                        cursor: pointer;
+                        transition: all 0.2s;
+                    }
+                    .action-btn:hover { background: #ffffff; color: #2563eb; border-color: #2563eb; }
+                    .action-btn.delete:hover { border-color: #ef4444; color: #ef4444; }
+
+                    .table-footer-modern {
+                        padding: 20px;
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        background: #ffffff;
+                    }
+
+                    .rows-count { font-size: 13px; color: #94a3b8; font-weight: 600; }
+
+                    .pagination-modern { display: flex; gap: 8px; }
+                    .p-btn {
+                        width: 36px; height: 36px;
+                        display: flex; align-items: center; justify-content: center;
+                        background: #ffffff;
+                        border: 1px solid #e2e8f0;
+                        border-radius: 10px;
+                        font-size: 13px;
+                        font-weight: 700;
+                        color: #475569;
+                        cursor: pointer;
+                        transition: all 0.2s;
+                    }
+                    .p-btn.active { background: #0f172a; color: #ffffff; border-color: #0f172a; }
+                    .p-btn:hover:not(.active) { background: #f8fafc; }
                 `}</style>
             </div>
         );
@@ -1571,142 +2312,200 @@ export default class CRM extends Component {
     }
 
     renderSettings() {
+        const modules = [
+            { id: 'crm', name: 'CRM Core', desc: 'Leads, Deals, Contacts', icon: '💼', status: 'Active', color: '#6366f1' },
+            { id: 'hospital', name: 'Hospital Management', desc: 'Patients, Doctors, Wards', icon: '🏥', status: 'Available', color: '#10b981' },
+            { id: 'inventory', name: 'Inventory & Stock', desc: 'Warhouses, SKU, Shipments', icon: '📦', status: 'Active', color: '#f59e0b' },
+            { id: 'pos', name: 'Point of Sale', desc: 'Retail, Orders, Payments', icon: '🛒', status: 'Install', color: '#ec4899' },
+            { id: 'hr', name: 'HR Management', desc: 'Employees, Payroll, Leave', icon: '👥', status: 'Active', color: '#8b5cf6' },
+            { id: 'marketing', name: 'Marketing Hub', desc: 'Email, Campaigns, Social', icon: '📣', status: 'Available', color: '#06b6d4' },
+        ];
+
         return (
-            <div className="settings-studio">
-                <div className="studio-header">
-                    <div className="header-text">
-                        <h2>System Configuration</h2>
-                        <p>Manage your business entities and modules</p>
+            <div className="studio-container-modern">
+                <div className="studio-header-modern">
+                    <div className="header-info-modern">
+                        <h1>Entity Studio</h1>
+                        <p>Deploy and manage business modules for your enterprise</p>
                     </div>
-                    <button className="primary-btn" onClick={() => this.setState({ showModal: 'app-builder' })}>+ Create New Module</button>
+                    <button className="btn-create-module" onClick={() => this.setState({ showModal: 'app-builder' })}>
+                        <i className="fe fe-cpu"></i> Advanced Designer
+                    </button>
                 </div>
 
-                <div className="studio-grid">
-                    <div className="studio-card active">
-                        <div className="studio-icon">💼</div>
-                        <div className="studio-info">
-                            <h3>CRM Core</h3>
-                            <p> Leads, Deals, Contacts</p>
-                        </div>
-                        <span className="status-badge">Active</span>
-                    </div>
-
-                    <div className="studio-card">
-                        <div className="studio-icon">🏥</div>
-                        <div className="studio-info">
-                            <h3>Hospital Management</h3>
-                            <p>Patients, Doctors, Wards</p>
-                        </div>
-                        <button className="secondary-btn">Install</button>
-                    </div>
-
-                    <div className="studio-card">
-                        <div className="studio-icon">🏭</div>
-                        <div className="studio-info">
-                            <h3>Manufacturing</h3>
-                            <p>Orders, BoM, Inventory</p>
-                        </div>
-                        <button className="secondary-btn">Install</button>
-                    </div>
-
-                    <div className="studio-card new-entity">
-                        <div className="dashed-border">
-                            <span className="plus">+</span>
-                            <span>Build Custom Entity</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="db-schema-preview">
-                    <h3>Current Data Schema (Live)</h3>
-                    <div className="schema-visualizer">
-                        <div className="schema-node">
-                            <div className="node-head">Tenant</div>
-                            <div className="node-body">
-                                <div>id: uuid</div>
-                                <div>name: string</div>
+                <div className="module-grid-modern">
+                    {modules.map(mod => (
+                        <div key={mod.id} className="module-card-modern">
+                            <div className="module-card-top">
+                                <div className="module-icon-box" style={{ background: `${mod.color}15`, color: mod.color }}>
+                                    {mod.icon}
+                                </div>
+                                <div className={`status-tag-modern ${mod.status.toLowerCase()}`}>
+                                    {mod.status}
+                                </div>
+                            </div>
+                            <div className="module-card-content">
+                                <h3>{mod.name}</h3>
+                                <p>{mod.desc}</p>
+                            </div>
+                            <div className="module-card-footer">
+                                <button className="btn-manage">Manage</button>
+                                <button className="btn-config"><i className="fe fe-settings"></i></button>
                             </div>
                         </div>
-                        <div className="connection">───</div>
-                        <div className="schema-node highlight">
-                            <div className="node-head">Entity: Deal</div>
-                            <div className="node-body">
-                                <div>value: money</div>
-                                <div>stage: enum</div>
-                                <div>probability: calc</div>
-                            </div>
-                        </div>
+                    ))}
+                    <div className="module-card-modern add-new" onClick={() => this.setState({ showModal: 'app-builder' })}>
+                        <div className="add-icon">+</div>
+                        <h3>Create New Module</h3>
+                        <p>Build a custom entity from scratch</p>
                     </div>
                 </div>
 
                 <style jsx>{`
-                    .settings-studio { padding: 0 10px; animation: slideUp 0.4s ease; }
-                    .studio-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
-                    .studio-header h2 { font-size: 24px; font-weight: 800; color: #1f2937; margin: 0; }
-                    .studio-header p { color: #6b7280; margin-top: 4px; }
-                    
-                    .studio-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 24px; margin-bottom: 48px; }
-                    
-                    .studio-card {
-                        background: white;
-                        border-radius: 16px;
-                        padding: 24px;
-                        border: 1px solid rgba(0,0,0,0.05);
-                        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
-                        display: flex;
-                        flex-direction: column;
-                        gap: 16px;
-                        transition: all 0.2s;
+                    .studio-container-modern {
+                        padding: 20px 0;
+                        animation: fadeIn 0.4s ease;
                     }
-                    .studio-card:hover { transform: translateY(-4px); box-shadow: 0 12px 20px -3px rgba(0,0,0,0.1); }
-                    
-                    .studio-icon { font-size: 32px; background: #f3f4f6; width: 64px; height: 64px; border-radius: 16px; display: flex; align-items: center; justify-content: center; }
-                    .studio-info h3 { font-size: 16px; font-weight: 700; color: #1f2937; margin: 0 0 4px 0; }
-                    .studio-info p { font-size: 13px; color: #6b7280; margin: 0; }
-                    
-                    .status-badge { align-self: flex-start; background: #d1fae5; color: #059669; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
-                    .secondary-btn { padding: 8px; border: 1px solid #e5e7eb; background: white; border-radius: 8px; font-weight: 600; cursor: pointer; color: #4b5563; }
-                    
-                    .new-entity { background: transparent; border: none; box-shadow: none; cursor: pointer; }
-                    .dashed-border {
-                        border: 2px dashed #e5e7eb;
-                        border-radius: 16px;
-                        height: 100%;
-                        display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                        justify-content: center;
-                        color: #9ca3af;
-                        gap: 12px;
-                        min-height: 200px;
-                        transition: all 0.2s;
-                    }
-                    .dashed-border:hover { border-color: #8b5cf6; color: #8b5cf6; background: rgba(139, 92, 246, 0.02); }
-                    .plus { font-size: 32px; font-weight: 300; }
 
-                    .primary-btn {
-                        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+                    .studio-header-modern {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        margin-bottom: 32px;
+                    }
+
+                    .header-info-modern h1 { font-size: 28px; font-weight: 800; color: #0f172a; margin: 0; }
+                    .header-info-modern p { font-size: 15px; color: #64748b; margin-top: 6px; }
+
+                    .btn-create-module {
+                        background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
                         color: white;
                         border: none;
                         padding: 12px 24px;
-                        border-radius: 12px;
-                        font-weight: 600;
+                        border-radius: 14px;
+                        font-weight: 700;
+                        font-size: 14px;
+                        display: flex;
+                        align-items: center;
+                        gap: 10px;
                         cursor: pointer;
-                        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+                        box-shadow: 0 10px 20px -5px rgba(15, 23, 42, 0.3);
                     }
 
-                    .db-schema-preview { background: #111827; border-radius: 16px; padding: 32px; color: white; }
-                    .db-schema-preview h3 { color: #9ca3af; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 24px; }
-                    
-                    .schema-visualizer { display: flex; align-items: center; gap: 20px; font-family: monospace; }
-                    .schema-node { background: #1f2937; border-radius: 8px; border: 1px solid #374151; min-width: 150px; }
-                    .node-head { padding: 8px 12px; background: #374151; font-weight: 700; border-radius: 7px 7px 0 0; font-size: 12px; }
-                    .node-body { padding: 12px; font-size: 11px; color: #d1d5db; display: flex; flex-direction: column; gap: 4px; }
-                    .connection { color: #4b5563; }
-                    .highlight { border-color: #8b5cf6; box-shadow: 0 0 20px rgba(139, 92, 246, 0.2); }
-                    .highlight .node-head { background: #8b5cf6; color: white; }
+                    .module-grid-modern {
+                        display: grid;
+                        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+                        gap: 24px;
+                    }
 
-                    @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+                    .module-card-modern {
+                        background: #ffffff;
+                        border-radius: 24px;
+                        padding: 24px;
+                        border: 1px solid #f0f0f0;
+                        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                        display: flex;
+                        flex-direction: column;
+                        gap: 16px;
+                    }
+
+                    .module-card-modern:hover {
+                        transform: translateY(-5px);
+                        box-shadow: 0 20px 40px -10px rgba(0,0,0,0.08);
+                        border-color: #e2e8f0;
+                    }
+
+                    .module-card-top {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: flex-start;
+                    }
+
+                    .module-icon-box {
+                        width: 54px; height: 54px;
+                        border-radius: 16px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 26px;
+                    }
+
+                    .status-tag-modern {
+                        padding: 4px 12px;
+                        border-radius: 20px;
+                        font-size: 11px;
+                        font-weight: 800;
+                        text-transform: uppercase;
+                        letter-spacing: 0.5px;
+                    }
+
+                    .status-tag-modern.active { background: #dcfce7; color: #16a34a; }
+                    .status-tag-modern.available { background: #f1f5f9; color: #64748b; }
+                    .status-tag-modern.install { background: #e0e7ff; color: #4338ca; }
+
+                    .module-card-content h3 { font-size: 18px; font-weight: 700; color: #0f172a; margin: 0; }
+                    .module-card-content p { font-size: 13px; color: #94a3b8; margin-top: 4px; line-height: 1.5; }
+
+                    .module-card-footer {
+                        display: flex;
+                        gap: 10px;
+                        margin-top: auto;
+                    }
+
+                    .btn-manage {
+                        flex: 1;
+                        background: #f8fafc;
+                        border: 1px solid #e2e8f0;
+                        padding: 10px;
+                        border-radius: 10px;
+                        font-size: 13px;
+                        font-weight: 700;
+                        color: #0f172a;
+                        cursor: pointer;
+                        transition: background 0.2s;
+                    }
+
+                    .btn-manage:hover { background: #f1f5f9; }
+
+                    .btn-config {
+                        width: 40px;
+                        background: #f8fafc;
+                        border: 1px solid #e2e8f0;
+                        border-radius: 10px;
+                        cursor: pointer;
+                        color: #64748b;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                    }
+
+                    .module-card-modern.add-new {
+                        border: 2px dashed #e2e8f0;
+                        background: transparent;
+                        align-items: center;
+                        justify-content: center;
+                        cursor: pointer;
+                        text-align: center;
+                    }
+
+                    .module-card-modern.add-new:hover {
+                        border-color: #2563eb;
+                        background: #f8faff;
+                    }
+
+                    .add-icon {
+                        width: 48px; height: 48px;
+                        background: #f1f5f9;
+                        border-radius: 50%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 24px;
+                        color: #94a3b8;
+                        margin-bottom: 8px;
+                    }
+
+                    .module-card-modern.add-new h3 { color: #64748b; }
                 `}</style>
             </div>
         );
@@ -1835,10 +2634,10 @@ export default class CRM extends Component {
     renderCreateOpportunityModal() {
         return (
             <div className="modal-overlay" onClick={() => this.setState({ showModal: null })}>
-                <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                <div className="modal-content glass-effect" onClick={(e) => e.stopPropagation()}>
                     <div className="modal-header">
                         <h2>Create New Opportunity</h2>
-                        <button onClick={() => this.setState({ showModal: null })}>✕</button>
+                        <button className="close-btn" onClick={() => this.setState({ showModal: null })}>✕</button>
                     </div>
                     <form onSubmit={(e) => {
                         e.preventDefault();
@@ -1852,31 +2651,32 @@ export default class CRM extends Component {
                             status: formData.get('status'),
                             priority: formData.get('priority')
                         });
+                        this.setState({ showModal: null });
                     }}>
                         <div className="form-grid">
                             <div className="form-group">
                                 <label>Opportunity Name *</label>
-                                <input type="text" name="name" required placeholder="e.g., Enterprise Software Deal" />
+                                <input className="input-field" type="text" name="name" required placeholder="e.g., Enterprise Software Deal" />
                             </div>
                             <div className="form-group">
                                 <label>Company</label>
-                                <input type="text" name="company" placeholder="e.g., Acme Corp" />
+                                <input className="input-field" type="text" name="company" placeholder="e.g., Acme Corp" />
                             </div>
                             <div className="form-group">
                                 <label>Email</label>
-                                <input type="email" name="email" placeholder="contact@company.com" />
+                                <input className="input-field" type="email" name="email" placeholder="contact@company.com" />
                             </div>
                             <div className="form-group">
                                 <label>Phone</label>
-                                <input type="tel" name="phone" placeholder="+1 234 567 8900" />
+                                <input className="input-field" type="tel" name="phone" placeholder="+1 234 567 8900" />
                             </div>
                             <div className="form-group">
                                 <label>Expected Revenue *</label>
-                                <input type="number" name="value" required placeholder="50000" step="0.01" />
+                                <input className="input-field" type="number" name="value" required placeholder="50000" step="0.01" />
                             </div>
                             <div className="form-group">
                                 <label>Stage</label>
-                                <select name="status">
+                                <select className="input-field" name="status">
                                     <option value="New">New</option>
                                     <option value="Qualified">Qualified</option>
                                     <option value="Proposition">Proposition</option>
@@ -1885,7 +2685,7 @@ export default class CRM extends Component {
                             </div>
                             <div className="form-group">
                                 <label>Priority</label>
-                                <select name="priority">
+                                <select className="input-field" name="priority">
                                     <option value="Low">Low</option>
                                     <option value="Medium">Medium</option>
                                     <option value="High">High</option>
@@ -1901,6 +2701,110 @@ export default class CRM extends Component {
                             </button>
                         </div>
                     </form>
+                    <style jsx>{`
+                        .glass-effect {
+                            background: rgba(30, 30, 30, 0.95);
+                            backdrop-filter: blur(20px);
+                            border: 1px solid rgba(255, 255, 255, 0.1);
+                            border-radius: 16px;
+                            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+                            color: white;
+                            padding: 24px;
+                            width: 100%;
+                            max-width: 600px;
+                        }
+                        .modal-header {
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                            margin-bottom: 24px;
+                            border-bottom: 1px solid rgba(255,255,255,0.1);
+                            padding-bottom: 16px;
+                        }
+                        .modal-header h2 {
+                            font-size: 1.25rem;
+                            font-weight: 600;
+                            margin: 0;
+                        }
+                        .close-btn {
+                            background: none;
+                            border: none;
+                            color: #9ca3af;
+                            font-size: 1.5rem;
+                            cursor: pointer;
+                            padding: 4px;
+                            border-radius: 4px;
+                            transition: all 0.2s;
+                        }
+                        .close-btn:hover {
+                            color: white;
+                            background: rgba(255,255,255,0.1);
+                        }
+                        .form-grid {
+                            display: grid;
+                            grid-template-columns: repeat(2, 1fr);
+                            gap: 16px;
+                            margin-bottom: 24px;
+                        }
+                        .form-group {
+                            display: flex;
+                            flex-direction: column;
+                            gap: 8px;
+                        }
+                        .form-group label {
+                            font-size: 0.875rem;
+                            color: #9ca3af;
+                            font-weight: 500;
+                        }
+                        .input-field {
+                            background: rgba(0, 0, 0, 0.3);
+                            border: 1px solid rgba(255, 255, 255, 0.1);
+                            border-radius: 8px;
+                            padding: 10px 12px;
+                            color: white;
+                            font-size: 0.95rem;
+                            width: 100%;
+                            transition: all 0.2s;
+                        }
+                        .input-field:focus {
+                            outline: none;
+                            border-color: #2563eb;
+                            background: rgba(0, 0, 0, 0.5);
+                        }
+                        .modal-actions {
+                            display: flex;
+                            justify-content: flex-end;
+                            gap: 12px;
+                            padding-top: 16px;
+                            border-top: 1px solid rgba(255,255,255,0.1);
+                        }
+                        .btn-secondary {
+                            background: rgba(255, 255, 255, 0.05);
+                            color: white;
+                            border: none;
+                            padding: 10px 20px;
+                            border-radius: 8px;
+                            font-weight: 500;
+                            cursor: pointer;
+                            transition: all 0.2s;
+                        }
+                        .btn-secondary:hover {
+                            background: rgba(255, 255, 255, 0.1);
+                        }
+                        .btn-primary {
+                            background: #2563eb;
+                            color: white;
+                            border: none;
+                            padding: 10px 20px;
+                            border-radius: 8px;
+                            font-weight: 500;
+                            cursor: pointer;
+                            transition: all 0.2s;
+                        }
+                        .btn-primary:hover {
+                            background: #1d4ed8;
+                        }
+                    `}</style>
                 </div>
             </div>
         );

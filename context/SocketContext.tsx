@@ -17,8 +17,9 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
     useEffect(() => {
         console.log('[SocketContext] Initializing Socket.IO connection...');
 
-        const socketInstance = io(process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001', {
+        const socketInstance = io(process.env.NEXT_PUBLIC_BACKEND_URL || 'https://alphery-os-backend.onrender.com', {
             transports: ['websocket', 'polling'],
+            autoConnect: true,
         });
 
         socketInstance.on('connect', () => {
