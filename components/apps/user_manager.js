@@ -373,14 +373,14 @@ class UserManager extends Component {
                                 </div>
 
                                 <div className="flex flex-wrap gap-2 mb-4">
-                                    <span className={`px-2 py-1 rounded-lg text-xs border ${(user.role === 'super_admin' || user.email === 'alpherymail@gmail.com') ? 'bg-purple-500/20 border-purple-500/30 text-purple-300' : 'bg-white/5 border-white/10 text-gray-300'}`}>
-                                        {(user.role === 'super_admin' || user.email === 'alpherymail@gmail.com') ? 'Super Admin' :
+                                    <span className={`px-2 py-1 rounded-lg text-xs border ${(user.role === 'super_admin' || user.email === 'alpherymail@gmail.com' || user.email === 'aksnetlink@gmail.com') ? 'bg-purple-500/20 border-purple-500/30 text-purple-300' : 'bg-white/5 border-white/10 text-gray-300'}`}>
+                                        {(user.role === 'super_admin' || user.email === 'alpherymail@gmail.com' || user.email === 'aksnetlink@gmail.com') ? 'Super Admin' :
                                             user.role === 'TENANT' ? 'Tenant Admin' : (user.role === 'team' ? 'Team Member' : 'Project User')}
                                     </span>
                                 </div>
 
                                 {/* Permissions Button */}
-                                {user.role !== 'super_admin' && (
+                                {user.role !== 'super_admin' && user.email !== 'alpherymail@gmail.com' && user.email !== 'aksnetlink@gmail.com' && (
                                     <div className="mb-4">
                                         <button
                                             onClick={() => this.openPermissionsModal(user)}
@@ -456,9 +456,9 @@ class UserManager extends Component {
                                         <td className="px-6 py-4 text-sm text-gray-400 font-medium">{user.email}</td>
                                         <td className="px-6 py-4">
                                             <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border
-                                                ${(user.role === 'super_admin' || user.email === 'alpherymail@gmail.com') ? 'bg-purple-500/10 border-purple-500/30 text-purple-300 shadow-[0_0_10px_rgba(168,85,247,0.2)]' :
+                                                ${(user.role === 'super_admin' || user.email === 'alpherymail@gmail.com' || user.email === 'aksnetlink@gmail.com') ? 'bg-purple-500/10 border-purple-500/30 text-purple-300 shadow-[0_0_10px_rgba(168,85,247,0.2)]' :
                                                     user.role === 'TENANT' ? 'bg-blue-500/10 border-blue-500/30 text-blue-300' : 'bg-white/5 border-white/10 text-gray-400'}`}>
-                                                {(user.role === 'super_admin' || user.email === 'alpherymail@gmail.com') ? 'Super Admin' :
+                                                {(user.role === 'super_admin' || user.email === 'alpherymail@gmail.com' || user.email === 'aksnetlink@gmail.com') ? 'Super Admin' :
                                                     user.role === 'TENANT' ? 'Tenant Admin' : (user.role === 'team' ? 'Team' : 'User')}
                                             </span>
                                         </td>
@@ -469,7 +469,7 @@ class UserManager extends Component {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            {user.role === 'super_admin' ? (
+                                            {(user.role === 'super_admin' || user.email === 'alpherymail@gmail.com' || user.email === 'aksnetlink@gmail.com') ? (
                                                 <span className="text-xs text-gray-500 font-medium italic">Full System Access</span>
                                             ) : (
                                                 <button
