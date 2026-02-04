@@ -308,6 +308,19 @@ class UserManager extends Component {
                             </div>
                         </div>
                     </div>
+                    <div className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-400">
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <p className="text-xs text-gray-500 font-semibold uppercase">My Team</p>
+                                <p className="text-2xl font-bold text-gray-800 mt-1">{filteredUsers.length}</p>
+                            </div>
+                            <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center">
+                                <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
                     <div className="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
                         <div className="flex justify-between items-start">
                             <div>
@@ -423,7 +436,7 @@ class UserManager extends Component {
                                 {/* Action Buttons */}
                                 <div className="pt-3 border-t border-gray-100 flex flex-wrap gap-2 justify-end">
                                     {/* Role Selection */}
-                                    {user.approvalStatus === 'approved' && user.role !== 'super_admin' && (
+                                    {user.approvalStatus === 'approved' && (isSuperAdmin || user.parentUserId === this.props.user.email) && (
                                         <select
                                             value={user.role === 'team' ? 'team' : 'user'}
                                             onChange={(e) => this.changeUserRole(user.id, e.target.value)}
@@ -434,17 +447,9 @@ class UserManager extends Component {
                                         </select>
                                     )}
 
-                                    {/* Approve/Reject */}
-                                    {(!user.approvalStatus || user.approvalStatus === 'pending') && user.role !== 'super_admin' && (
-                                        <>
-                                            <button onClick={() => this.approveUser(user.id)} className="flex-1 px-3 py-1.5 bg-green-500 text-white rounded font-medium text-sm">Approve</button>
-                                            <button onClick={() => this.rejectUser(user.id)} className="flex-1 px-3 py-1.5 bg-red-500 text-white rounded font-medium text-sm">Reject</button>
-                                        </>
-                                    )}
-
                                     {/* Revoke */}
-                                    {user.approvalStatus === 'approved' && user.role !== 'super_admin' && (
-                                        <button onClick={() => this.revokeUser(user.id)} className="px-4 py-1.5 bg-orange-500 text-white rounded font-medium text-sm">Revoke Access</button>
+                                    {user.approvalStatus === 'approved' && (isSuperAdmin || user.parentUserId === this.props.user.email) && (
+                                        <button onClick={() => this.revokeUser(user.email)} className="px-4 py-1.5 bg-red-500 text-white rounded font-medium text-sm">Revoke Access</button>
                                     )}
 
                                     {/* Delete */}
@@ -541,7 +546,7 @@ class UserManager extends Component {
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end gap-2">
                                                 {/* Role Selection for Approved Users */}
-                                                {user.approvalStatus === 'approved' && isSuperAdmin && (
+                                                {user.approvalStatus === 'approved' && (isSuperAdmin || user.parentUserId === this.props.user.email) && (
                                                     <select
                                                         value={user.role || 'user'}
                                                         onChange={(e) => this.changeUserRole(user.id, e.target.value)}
@@ -549,32 +554,15 @@ class UserManager extends Component {
                                                     >
                                                         <option value="user">Projects</option>
                                                         <option value="team">Team</option>
-                                                        <option value="TENANT">Tenant Admin</option>
+                                                        {isSuperAdmin && <option value="TENANT">Tenant Admin</option>}
                                                     </select>
                                                 )}
 
-                                                {/* Show approve/reject for pending users OR users without status (old accounts) */}
-                                                {(!user.approvalStatus || user.approvalStatus === 'pending') && user.role !== 'super_admin' && (
-                                                    <>
-                                                        <button
-                                                            onClick={() => this.approveUser(user.id)}
-                                                            className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition"
-                                                        >
-                                                            Approve
-                                                        </button>
-                                                        <button
-                                                            onClick={() => this.rejectUser(user.id)}
-                                                            className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition"
-                                                        >
-                                                            Reject
-                                                        </button>
-                                                    </>
-                                                )}
                                                 {/* Show revoke for approved users */}
-                                                {user.approvalStatus === 'approved' && user.role !== 'super_admin' && (
+                                                {user.approvalStatus === 'approved' && (isSuperAdmin || user.parentUserId === this.props.user.email) && (
                                                     <button
-                                                        onClick={() => this.revokeUser(user.id)}
-                                                        className="px-3 py-1 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-medium transition"
+                                                        onClick={() => this.revokeUser(user.email)}
+                                                        className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition"
                                                     >
                                                         Revoke
                                                     </button>
