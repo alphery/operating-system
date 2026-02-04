@@ -4,8 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 
 // Helper to get user context
 function AppStoreWithAuth(props) {
-    const { user, updateUserData } = useAuth();
-    return <AppStore user={user} updateUserData={updateUserData} {...props} />;
+    const { user, userData, updateUserData } = useAuth();
+    return <AppStore user={user} userData={userData} updateUserData={updateUserData} {...props} />;
 }
 
 // --- CONSTANTS & MOCK DATA ---
@@ -218,7 +218,22 @@ class AppStore extends Component {
         }
 
         const { apps, disabled_apps, activeCategory, searchQuery, view, selectedApp, installing } = this.state;
-        const enrichedApps = apps.map(app => ({ ...app, ...this.getMetadata(app.id) }));
+        const { user, userData } = this.props;
+
+        // Permissions Filter: System admins see all, others based on allowedApps
+        const isSuperAdmin = user && (user.email === 'alpherymail@gmail.com' || user.email === 'aksnetlink@gmail.com');
+        const allowedAppsList = userData?.allowedApps || null;
+        const systemApps = ['app-store', 'settings', 'messenger', 'trash'];
+
+        const enrichedApps = apps
+            .filter(app => {
+                if (isSuperAdmin || !user) return true; // Super admin and guest see all
+                if (systemApps.includes(app.id)) return true; // System apps always visible
+                if (allowedAppsList === null) return true; // Default fallback (all visible)
+                return allowedAppsList.includes(app.id); // Restricted list
+            })
+            .map(app => ({ ...app, ...this.getMetadata(app.id) }));
+
         let displayApps = enrichedApps;
         if (searchQuery) {
             displayApps = displayApps.filter(app => app.title.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -226,7 +241,6 @@ class AppStore extends Component {
             displayApps = displayApps.filter(app => app.category === activeCategory);
         }
 
-        const systemApps = ['app-store', 'settings', 'messenger', 'trash'];
         let featuredApps = enrichedApps.filter(a => ['vscode', 'chrome', 'messenger', 'files'].includes(a.id));
         if (featuredApps.length === 0 && enrichedApps.length > 0) featuredApps = enrichedApps.slice(0, 3);
         const isMobile = this.state.containerWidth < 768;

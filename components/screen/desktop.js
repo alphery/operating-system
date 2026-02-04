@@ -196,21 +196,33 @@ export class Desktop extends Component {
 
             // For new users, initialize with only default installed apps
             if (!hasExistingData) {
+                // Determine what can be installed
+                const allowedApps = (this.props.userData && this.props.userData.allowedApps) ? this.props.userData.allowedApps : null;
+
                 const DEFAULT_INSTALLED = window.DEFAULT_INSTALLED_APPS || [
                     'chrome', 'messenger', 'calendar', 'weather',
                     'settings', 'files', 'trash', 'gedit', 'app-store'
                 ];
 
-                // All apps NOT in default installed list should be disabled for new users
+                // Logic: Disable everything that is NOT in DEFAULT_INSTALLED
+                // OR disable everything NOT in allowedApps
                 apps.forEach(app => {
-                    if (!DEFAULT_INSTALLED.includes(app.id)) {
-                        disabledFromStorage.push(app.id);
+                    const isSystem = ['app-store', 'settings', 'messenger', 'trash'].includes(app.id);
+                    const isAllowed = allowedApps === null || allowedApps.includes(app.id) || isSystem;
+                    const isDefault = DEFAULT_INSTALLED.includes(app.id);
+
+                    // If it's not allowed, it MUST be disabled
+                    // If it's allowed but not default, it starts as disabled (must be installed from store)
+                    if (!isAllowed || !isDefault) {
+                        if (!disabledFromStorage.includes(app.id)) {
+                            disabledFromStorage.push(app.id);
+                        }
                     }
                 });
 
                 // Save the initial state for new users
                 localStorage.setItem(storageKey, JSON.stringify(disabledFromStorage));
-                console.log(`[Desktop] New user detected. Initialized with default apps:`, DEFAULT_INSTALLED);
+                console.log(`[Desktop] New user detected. Initialized disabled apps:`, disabledFromStorage);
 
                 // Sync to Firestore if authenticated
                 if (isAuthenticated && this.props.updateUserData) {
@@ -218,7 +230,6 @@ export class Desktop extends Component {
                         .catch(err => console.warn("Failed to sync initial disabled apps to Firestore:", err));
                 }
             }
-            console.log(`[Desktop] Loading disabled apps from localStorage:`, disabledFromStorage);
         }
 
         // SYSTEM APPS SAFEGUARD: Ensure these are never disabled
@@ -252,12 +263,10 @@ export class Desktop extends Component {
             // Regular Users: Access based on userData.allowedApps array
             let hasPermission = false;
 
-            if (!user || !userData) {
-                // Guest or unauthenticated: All apps available (backward compatibility)
+            if (!user || user.email === 'alpherymail@gmail.com' || user.email === 'aksnetlink@gmail.com') {
+                // God Mode or Guest: All apps available
                 hasPermission = true;
             } else if (isSystemApp) {
-                // System apps: Always available
-                hasPermission = true;
                 // System apps: Always available
                 hasPermission = true;
             } else if (userData.allowedApps === undefined || userData.allowedApps === null) {
@@ -268,8 +277,8 @@ export class Desktop extends Component {
                 hasPermission = userData.allowedApps.includes(app.id);
             }
 
-            // INSTALLATION CHECK: Determines desktop/dock visibility
-            const isInstalled = !disabledFromStorage.includes(app.id);
+            // CRITICAL: If no permission, force-disable it regardless of local state
+            const isInstalled = hasPermission && !disabledFromStorage.includes(app.id);
 
             // IMPORTANT: All apps are processed (for App Store), but only installed apps show on desktop
             // This separates permissions (what CAN be installed) from installation (what IS installed)
@@ -529,7 +538,7 @@ export class Desktop extends Component {
         disabled_apps[appId] = true;
         this.setState({ disabled_apps });
 
-        const storageKey = `disabled_apps_${userUid}`;
+        const storageKey = `disabled_apps_${userUid}_v3`;
         let currentDisabled = JSON.parse(localStorage.getItem(storageKey) || '[]');
         if (!currentDisabled.includes(appId)) {
             currentDisabled.push(appId);
