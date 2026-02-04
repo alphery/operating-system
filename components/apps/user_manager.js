@@ -178,7 +178,7 @@ class UserManager extends Component {
         const { userData } = this.props;
 
         // Check if super admin
-        if (!userData || userData.role !== 'super_admin') {
+        if (!userData || (userData.role !== 'super_admin' && user.email !== 'alpherymail@gmail.com' && user.email !== 'aksnetlink@gmail.com')) {
             return (
                 <div className="w-full h-full flex items-center justify-center bg-gray-50">
                     <div className="text-center">
@@ -188,7 +188,7 @@ class UserManager extends Component {
                             </svg>
                         </div>
                         <h3 className="text-lg font-semibold text-gray-700 mb-2">Access Denied</h3>
-                        <p className="text-sm text-gray-500">This panel is only accessible to administrators</p>
+                        <p className="text-sm text-gray-500">This panel is only accessible to Alphery Administrators.</p>
                     </div>
                 </div>
             );
@@ -199,7 +199,7 @@ class UserManager extends Component {
                 <div className="w-full h-full flex items-center justify-center bg-gray-50">
                     <div className="text-center">
                         <div className="animate-spin w-12 h-12 border-4 border-pink-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-                        <p className="text-gray-600">Loading users...</p>
+                        <p className="text-gray-600">Loading access data...</p>
                     </div>
                 </div>
             );
@@ -217,12 +217,12 @@ class UserManager extends Component {
                     <div className="flex items-center gap-3">
                         <div className="bg-pink-600 text-white p-2 rounded-lg shadow">
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path>
                             </svg>
                         </div>
                         <div>
-                            <h1 className="font-bold text-xl text-gray-800">User Management</h1>
-                            <p className="text-xs text-gray-500">Admin Panel</p>
+                            <h1 className="font-bold text-xl text-gray-800">Alphery Access Control</h1>
+                            <p className="text-xs text-gray-500">Master permission management</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-2 text-sm">

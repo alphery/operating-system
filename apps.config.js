@@ -47,7 +47,7 @@ const apps = [
     },
     {
         id: "users",
-        title: "Alphery Users",
+        title: "Alphery Access",
         icon: './themes/Yaru/apps/users.png',
         disabled: false,
         favourite: false,
