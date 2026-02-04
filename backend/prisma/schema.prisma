@@ -49,6 +49,11 @@ model User {
   tasks          Task[]
   timesheets     Timesheet[]
   
+  // Hierarchical tagging
+  parentUserId   String?
+  parentUser     User?         @relation("TenantHierarchy", fields: [parentUserId], references: [id])
+  managedUsers   User[]        @relation("TenantHierarchy")
+
   // Relations for Entity Engine
   createdRecords EntityRecord[] @relation("CreatedRecords")
   ownedRecords   EntityRecord[] @relation("OwnedRecords")
@@ -239,6 +244,7 @@ model Expense {
 
 enum Role {
   ADMIN
+  TENANT
   BUSINESS
   USER
   TEAM

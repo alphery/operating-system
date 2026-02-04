@@ -169,16 +169,49 @@ class UserManager extends Component {
 
     getFilteredUsers = () => {
         const { users, filter } = this.state;
-        if (filter === 'all') return users;
-        return users.filter(u => u.approvalStatus === filter);
+        const { user, userData } = this.props;
+
+        const isSuperAdmin = user.email === 'alpherymail@gmail.com' || user.email === 'aksnetlink@gmail.com';
+        const isTenantAdmin = userData?.role === 'TENANT';
+
+        let visibleUsers = users;
+
+        if (isSuperAdmin) {
+            // Super Admin sees everything
+            visibleUsers = users;
+        } else if (isTenantAdmin) {
+            // Tenant sees only users tagged under them
+            visibleUsers = users.filter(u => u.parentUserId === user.uid || u.parentUserId === user.email);
+        } else {
+            return [];
+        }
+
+        if (filter === 'all') return visibleUsers;
+        return visibleUsers.filter(u => u.approvalStatus === filter);
+    }
+
+    setParentAdmin = async (userId, parentId) => {
+        if (!db) return;
+        try {
+            await updateDoc(doc(db, 'users', userId), {
+                parentUserId: parentId
+            });
+            alert('Parent Admin assigned successfully');
+        } catch (error) {
+            console.error('Error setting parent:', error);
+            alert('Failed to set parent admin');
+        }
     }
 
     render() {
         const { loading, filter } = this.state;
-        const { userData } = this.props;
+        const { user, userData } = this.props;
 
-        // Check if super admin
-        if (!userData || (userData.role !== 'super_admin' && user.email !== 'alpherymail@gmail.com' && user.email !== 'aksnetlink@gmail.com')) {
+        const isSuperAdmin = user.email === 'alpherymail@gmail.com' || user.email === 'aksnetlink@gmail.com';
+        const isTenantAdmin = userData?.role === 'TENANT';
+
+        // Check if authorized
+        if (!isSuperAdmin && !isTenantAdmin) {
             return (
                 <div className="w-full h-full flex items-center justify-center bg-gray-50">
                     <div className="text-center">
@@ -206,9 +239,9 @@ class UserManager extends Component {
         }
 
         const filteredUsers = this.getFilteredUsers();
-        const pendingCount = this.state.users.filter(u => u.approvalStatus === 'pending').length;
-        const approvedCount = this.state.users.filter(u => u.approvalStatus === 'approved').length;
-        const rejectedCount = this.state.users.filter(u => u.approvalStatus === 'rejected').length;
+        const pendingCount = filteredUsers.filter(u => u.approvalStatus === 'pending').length;
+        const approvedCount = filteredUsers.filter(u => u.approvalStatus === 'approved').length;
+        const rejectedCount = filteredUsers.filter(u => u.approvalStatus === 'rejected').length;
 
         return (
             <div className="w-full h-full flex flex-col bg-gray-50 text-gray-800 font-sans">
@@ -227,7 +260,7 @@ class UserManager extends Component {
                     </div>
                     <div className="flex items-center gap-2 text-sm">
                         <span className="bg-pink-100 text-pink-700 px-3 py-1 rounded-full font-semibold">
-                            Super Admin
+                            {isSuperAdmin ? 'God Mode (Super Admin)' : 'Tenant Admin Access'}
                         </span>
                     </div>
                 </div>
@@ -333,12 +366,15 @@ class UserManager extends Component {
                                 </div>
 
                                 <div className="flex flex-wrap gap-2 mb-4 text-xs text-gray-600">
-                                    <span className={`px-2 py-1 rounded border ${user.role === 'super_admin' ? 'bg-purple-50 border-purple-200 text-purple-700' : 'bg-gray-50 border-gray-200'}`}>
-                                        Role: {(user.role === 'super_admin' || user.email === 'alpherymail@gmail.com' || user.email === 'aksnetlink@gmail.com') ? 'Super Admin' : (user.role === 'team' ? 'Team' : 'Projects')}
+                                    <span className={`px-2 py-1 rounded border ${(user.role === 'super_admin' || user.email === 'alpherymail@gmail.com' || user.email === 'aksnetlink@gmail.com') ? 'bg-purple-50 border-purple-200 text-purple-700' : 'bg-gray-50 border-gray-200'}`}>
+                                        Role: {(user.role === 'super_admin' || user.email === 'alpherymail@gmail.com' || user.email === 'aksnetlink@gmail.com') ? 'Super Admin' :
+                                            user.role === 'TENANT' ? 'Tenant Admin' : (user.role === 'team' ? 'Team' : 'Projects')}
                                     </span>
-                                    <span className="px-2 py-1 rounded bg-gray-50 border border-gray-200">
-                                        {new Date(user.createdAt).toLocaleDateString()}
-                                    </span>
+                                    {user.parentUserId && (
+                                        <span className="px-2 py-1 rounded bg-blue-50 border border-blue-200 text-blue-700">
+                                            Tenant: {user.parentUserId}
+                                        </span>
+                                    )}
                                 </div>
 
                                 {/* Permissions Button */}
@@ -407,7 +443,7 @@ class UserManager extends Component {
                                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Role</th>
                                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
                                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">App Access</th>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Created</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Tagged Under (Tenant)</th>
                                     <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Actions</th>
                                 </tr>
                             </thead>
@@ -429,8 +465,10 @@ class UserManager extends Component {
                                         <td className="px-6 py-4 text-sm text-gray-600">{user.email}</td>
                                         <td className="px-6 py-4">
                                             <span className={`px-2 py-1 rounded-full text-xs font-semibold
-                                                ${user.role === 'super_admin' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>
-                                                {(user.role === 'super_admin' || user.email === 'alpherymail@gmail.com' || user.email === 'aksnetlink@gmail.com') ? 'Super Admin' : (user.role === 'team' ? 'Team' : 'Projects')}
+                                                ${(user.role === 'super_admin' || user.email === 'alpherymail@gmail.com' || user.email === 'aksnetlink@gmail.com') ? 'bg-purple-100 text-purple-700' :
+                                                    user.role === 'TENANT' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
+                                                {(user.role === 'super_admin' || user.email === 'alpherymail@gmail.com' || user.email === 'aksnetlink@gmail.com') ? 'Super Admin' :
+                                                    user.role === 'TENANT' ? 'Tenant Admin' : (user.role === 'team' ? 'Team' : 'Projects')}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4">
@@ -456,20 +494,34 @@ class UserManager extends Component {
                                                 </button>
                                             )}
                                         </td>
-                                        <td className="px-6 py-4 text-xs text-gray-500">
-                                            {new Date(user.createdAt).toLocaleDateString()}
+                                        <td className="px-6 py-4">
+                                            {isSuperAdmin ? (
+                                                <select
+                                                    className="text-xs bg-white border border-gray-300 rounded px-2 py-1 w-full"
+                                                    value={user.parentUserId || ''}
+                                                    onChange={(e) => this.setParentAdmin(user.id, e.target.value)}
+                                                >
+                                                    <option value="">No Tenant Assigned</option>
+                                                    {this.state.users.filter(u => u.role === 'TENANT').map(tenant => (
+                                                        <option key={tenant.id} value={tenant.email}>{tenant.email}</option>
+                                                    ))}
+                                                </select>
+                                            ) : (
+                                                <span className="text-xs text-gray-500">{user.parentUserId || 'None'}</span>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end gap-2">
                                                 {/* Role Selection for Approved Users */}
-                                                {user.approvalStatus === 'approved' && user.role !== 'super_admin' && (
+                                                {user.approvalStatus === 'approved' && isSuperAdmin && (
                                                     <select
-                                                        value={user.role === 'team' ? 'team' : 'user'}
+                                                        value={user.role || 'user'}
                                                         onChange={(e) => this.changeUserRole(user.id, e.target.value)}
                                                         className="px-2 py-1 text-xs border border-gray-300 rounded bg-white mr-2"
                                                     >
                                                         <option value="user">Projects</option>
                                                         <option value="team">Team</option>
+                                                        <option value="TENANT">Tenant Admin</option>
                                                     </select>
                                                 )}
 
