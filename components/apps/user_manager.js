@@ -392,7 +392,7 @@ class UserManager extends Component {
                                             {user.photoURL ? (
                                                 <img src={user.photoURL} alt="" className="w-full h-full object-cover" />
                                             ) : (
-                                                <span className="text-white font-bold text-lg">{(user.displayName || user.email)[0].toUpperCase()}</span>
+                                                <span className="text-white font-bold text-lg">{(user.displayName || user.email || 'U')[0].toUpperCase()}</span>
                                             )}
                                         </div>
                                         <div>
@@ -495,7 +495,7 @@ class UserManager extends Component {
                                                     {user.photoURL ? (
                                                         <img src={user.photoURL} alt="" className="w-full h-full object-cover" />
                                                     ) : (
-                                                        <span className="text-white font-bold">{(user.displayName || user.email)[0].toUpperCase()}</span>
+                                                        <span className="text-white font-bold text-lg">{(user.displayName || user.email || 'U')[0].toUpperCase()}</span>
                                                     )}
                                                 </div>
                                                 <span className="font-medium text-gray-900">{user.displayName || 'Anonymous'}</span>
