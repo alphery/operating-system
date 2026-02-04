@@ -17,6 +17,9 @@ class UserManager extends Component {
             filter: 'all', // all, pending, approved, rejected
             loading: true,
             showPermissionsModal: false,
+            showAddUserModal: false,
+            newEmail: '',
+            newDisplayName: '',
             selectedUser: null,
             availableApps: [] // Will be populated from window.ALL_APPS
         };
@@ -66,19 +69,39 @@ class UserManager extends Component {
         });
     }
 
-    approveUser = async (userId) => {
-        if (!db) {
-            alert('Firebase not configured. Cannot approve users in demo mode.');
+    addUser = async () => {
+        const { newEmail, newDisplayName } = this.state;
+        const { user, userData } = this.props;
+
+        if (!newEmail || !newEmail.includes('@')) {
+            alert('Please enter a valid email address');
             return;
         }
 
+        if (!db) return;
+
         try {
-            await updateDoc(doc(db, 'users', userId), {
-                approvalStatus: 'approved'
+            const isSuperAdmin = user.email === 'alpherymail@gmail.com' || user.email === 'aksnetlink@gmail.com';
+
+            // Set role: if super admin adds, default to Projects. If Tenant adds, forced to Projects.
+            const role = 'user';
+            const parentUserId = isSuperAdmin ? null : user.email;
+
+            await setDoc(doc(db, 'users', newEmail.toLowerCase()), {
+                email: newEmail.toLowerCase(),
+                displayName: newDisplayName || 'New User',
+                role: role,
+                parentUserId: parentUserId,
+                approvalStatus: 'approved', // Pre-approved because we are adding them manually
+                createdAt: new Date().toISOString(),
+                allowedApps: null, // Default to all or customize later
             });
+
+            alert(`User ${newEmail} added to whitelist successfully.`);
+            this.setState({ showAddUserModal: false, newEmail: '', newDisplayName: '' });
         } catch (error) {
-            console.error('Error approving user:', error);
-            alert('Failed to approve user');
+            console.error('Error adding user:', error);
+            alert('Failed to add user to whitelist');
         }
     }
 
@@ -100,21 +123,17 @@ class UserManager extends Component {
         }
     }
 
-    revokeUser = async (userId) => {
-        if (!window.confirm('Are you sure you want to revoke access? User will lose access to the OS immediately.')) return;
-
-        if (!db) {
-            alert('Firebase not configured. Cannot revoke users in demo mode.');
-            return;
-        }
+    // Simplified Revoke - just delete from whitelist or set status
+    revokeUser = async (userEmail) => {
+        if (!window.confirm(`Are you sure you want to revoke access for ${userEmail}? They will be kicked out immediately.`)) return;
+        if (!db) return;
 
         try {
-            await updateDoc(doc(db, 'users', userId), {
-                approvalStatus: 'pending'
-            });
+            // We use email as ID for whitelist management now
+            await deleteDoc(doc(db, 'users', userEmail.toLowerCase()));
         } catch (error) {
             console.error('Error revoking user:', error);
-            alert('Failed to revoke user access');
+            alert('Failed to revoke access');
         }
     }
 
@@ -258,10 +277,19 @@ class UserManager extends Component {
                             <p className="text-xs text-gray-500">Master permission management</p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-2 text-sm">
+                    <div className="flex items-center gap-3">
                         <span className="bg-pink-100 text-pink-700 px-3 py-1 rounded-full font-semibold">
                             {isSuperAdmin ? 'God Mode (Super Admin)' : 'Tenant Admin Access'}
                         </span>
+                        <button
+                            onClick={() => this.setState({ showAddUserModal: true })}
+                            className="bg-green-600 hover:bg-green-700 text-white px-4 py-1 rounded-lg shadow font-medium flex items-center gap-2"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                            </svg>
+                            Add New Email
+                        </button>
                     </div>
                 </div>
 
@@ -296,7 +324,7 @@ class UserManager extends Component {
                     <div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
                         <div className="flex justify-between items-start">
                             <div>
-                                <p className="text-xs text-gray-500 font-semibold uppercase">Approved</p>
+                                <p className="text-xs text-gray-500 font-semibold uppercase">Active Whitelist</p>
                                 <p className="text-2xl font-bold text-gray-800 mt-1">{approvedCount}</p>
                             </div>
                             <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
@@ -582,6 +610,60 @@ class UserManager extends Component {
                         onClose={this.closePermissionsModal}
                         onSave={this.updateUserPermissions}
                     />
+                )}
+
+                {/* Add User Whitelist Modal */}
+                {this.state.showAddUserModal && (
+                    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] backdrop-blur-sm">
+                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in duration-200">
+                            <div className="bg-gradient-to-r from-green-600 to-teal-600 p-6 text-white">
+                                <h3 className="text-xl font-bold">Add Authorized User</h3>
+                                <p className="text-green-100 text-sm opacity-90">Only users added here will be able to log in.</p>
+                            </div>
+                            <div className="p-6 space-y-4">
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1">Email Address</label>
+                                    <input
+                                        type="email"
+                                        placeholder="user@example.com"
+                                        className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition"
+                                        value={this.state.newEmail}
+                                        onChange={(e) => this.setState({ newEmail: e.target.value })}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-1">Display Name (Optional)</label>
+                                    <input
+                                        type="text"
+                                        placeholder="John Doe"
+                                        className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition"
+                                        value={this.state.newDisplayName}
+                                        onChange={(e) => this.setState({ newDisplayName: e.target.value })}
+                                    />
+                                </div>
+                                <div className="p-3 bg-blue-50 text-blue-700 rounded-xl text-xs flex gap-2">
+                                    <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <span>Added users can log in via Google or Email. Their role will be set to 'Projects' and they will be tagged under {(isSuperAdmin ? 'God' : user.email)}.</span>
+                                </div>
+                            </div>
+                            <div className="p-6 bg-gray-50 border-t border-gray-200 flex gap-3">
+                                <button
+                                    onClick={() => this.setState({ showAddUserModal: false })}
+                                    className="flex-1 py-2 text-gray-600 font-medium hover:bg-gray-100 rounded-xl transition"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={this.addUser}
+                                    className="flex-1 py-2 bg-green-600 text-white font-bold rounded-xl shadow-lg hover:bg-green-700 transition"
+                                >
+                                    Authorize Access
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 )}
             </div>
         );

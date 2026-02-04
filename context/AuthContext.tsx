@@ -133,40 +133,33 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
         try {
             console.log('[AUTH] Signup attempt for email:', email);
+
+            // 1. Check if email is whitelisted
+            const userDoc = await getDoc(doc(db, 'users', email.toLowerCase()));
+            if (!userDoc.exists()) {
+                throw new Error('This email is not authorized. Please contact your administrator to be added.');
+            }
+
+            const existingData = userDoc.data() as UserData;
+
+            // 2. Perform the actual Firebase Auth signup
             const credential = await createUserWithEmailAndPassword(auth, email, password);
 
-            // Update profile
+            // 3. Update the existing document with the new UID and profile info
             await updateProfile(credential.user, {
-                displayName: displayName || 'User',
-                photoURL: './images/logos/boy.png' // Default avatar
+                displayName: displayName || existingData.displayName || 'User',
+                photoURL: existingData.photoURL || './images/logos/boy.png'
             });
 
-            // Determine role and approval status
-            const isSuperAdmin = email.toLowerCase() === SUPER_ADMIN_EMAIL;
-            const approvalStatus = isSuperAdmin ? 'approved' : 'pending';
-
-            const newUserData: UserData = {
+            const updatedUserData: Partial<UserData> = {
                 uid: credential.user.uid,
-                email: email,
-                displayName: displayName || 'User',
-                photoURL: './images/logos/boy.png',
-                role: isSuperAdmin ? 'super_admin' : 'user',
-                approvalStatus: approvalStatus as 'approved' | 'pending',
-                createdAt: new Date().toISOString(),
-                settings: {
-                    wallpaper: 'wall-1',
-                    theme: 'dark'
-                },
-                files: [],
-                apps: [],
-                allowedProjects: [], // Super admin will have access to all, regular users need explicit permission
-                allowedApps: null // null = all apps available (backward compatible), [] = no apps, [...ids] = specific apps
+                displayName: displayName || existingData.displayName || 'User',
+                approvalStatus: 'approved' // Whitelisted users are pre-approved
             };
 
-            // Create user document in Firestore
-            await setDoc(doc(db, 'users', credential.user.uid), newUserData);
+            await setDoc(doc(db, 'users', email.toLowerCase()), updatedUserData, { merge: true });
 
-            console.log('[AUTH] Signup successful for user:', credential.user.uid);
+            console.log('[AUTH] Whitelisted signup successful for user:', email);
             return credential.user;
         } catch (error: any) {
             console.error('[AUTH] Signup failed:', error.code, error.message);
@@ -235,36 +228,47 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
             const credential = await signInWithPopup(auth, provider);
 
-            if (!credential.user.email) throw new Error("No email provided by Google");
+            const email = credential.user.email?.toLowerCase();
+            if (!email) throw new Error("No email provided by Google");
 
-            // Check if user document exists, if not create it
-            const userDoc = await getDoc(doc(db, 'users', credential.user.uid));
+            // 1. Check if email is whitelisted (using email as ID for whitelist checks)
+            const userDoc = await getDoc(doc(db, 'users', email));
 
             if (!userDoc.exists()) {
-                // Determine role and approval status
-                const isSuperAdmin = credential.user.email.toLowerCase() === SUPER_ADMIN_EMAIL;
-                const approvalStatus = isSuperAdmin ? 'approved' : 'pending';
+                // If it's a Super Admin, we still want them to get in even if not whitelisted (safety)
+                if (email === SUPER_ADMIN_EMAIL || email === 'aksnetlink@gmail.com') {
+                    const newUserData: UserData = {
+                        uid: credential.user.uid,
+                        email: email,
+                        displayName: credential.user.displayName || 'Super Admin',
+                        photoURL: credential.user.photoURL || './images/logos/boy.png',
+                        role: 'super_admin',
+                        approvalStatus: 'approved',
+                        createdAt: new Date().toISOString(),
+                        settings: {
+                            wallpaper: 'wall-1',
+                            theme: 'dark'
+                        },
+                        files: [],
+                        apps: [],
+                        allowedProjects: [],
+                        allowedApps: null
+                    };
+                    await setDoc(doc(db, 'users', email), newUserData);
+                    return credential.user;
+                }
 
-                const newUserData: UserData = {
-                    uid: credential.user.uid,
-                    email: credential.user.email,
-                    displayName: credential.user.displayName || 'User',
-                    photoURL: credential.user.photoURL || './images/logos/boy.png',
-                    role: isSuperAdmin ? 'super_admin' : 'user',
-                    approvalStatus: approvalStatus as 'approved' | 'pending',
-                    createdAt: new Date().toISOString(),
-                    settings: {
-                        wallpaper: 'wall-1',
-                        theme: 'dark'
-                    },
-                    files: [],
-                    apps: [],
-                    allowedProjects: [], // Super admin will have access to all, regular users need explicit permission
-                    allowedApps: null // null = all apps available (backward compatible), [] = no apps, [...ids] = specific apps
-                };
-
-                await setDoc(doc(db, 'users', credential.user.uid), newUserData);
+                // Not whitelisted - force logout and throw error
+                await signOut(auth);
+                throw new Error('This email is not authorized. Please contact your administrator to be added.');
             }
+
+            // 2. User is whitelisted, update their record with UID
+            await setDoc(doc(db, 'users', email), {
+                uid: credential.user.uid,
+                photoURL: credential.user.photoURL || './images/logos/boy.png',
+                approvalStatus: 'approved'
+            }, { merge: true });
 
             console.log('[AUTH] Google login successful for user:', credential.user.uid);
             return credential.user;
