@@ -279,8 +279,12 @@ export class Desktop extends Component {
                 hasPermission = userData.allowedApps.includes(app.id);
             }
 
-            // CRITICAL: If no permission, force-disable it regardless of local state
-            const isInstalled = hasPermission && !disabledFromStorage.includes(app.id);
+            // CRITICAL FIX: For managed users (with explicit allowedApps), we force installation.
+            // This ensures assigned apps ALWAYS show up and cannot be "uninstalled" (hidden).
+            // For standard users/admins, we respect the local disabled/uninstalled state.
+            const isManaged = userData && Array.isArray(userData.allowedApps);
+            const isInstalled = isManaged ? hasPermission : (hasPermission && !disabledFromStorage.includes(app.id));
+
             if (isInstalled) installedCount++;
 
             // IMPORTANT: All apps are processed (for App Store), but only installed apps show on desktop
