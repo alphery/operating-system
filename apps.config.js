@@ -18,10 +18,8 @@ import { displayFileManager } from './components/apps/file_manager';
 import { displayTodo } from './components/apps/todo';
 import { displayWeather } from './components/apps/weather';
 import { displayCalendar } from './components/apps/calendar';
-import UserPermissionsManager from './components/apps/user_permissions';
 import { displayAboutAlphery } from './components/apps/about_alphery';
 import RealtimeDemo from './components/apps/realtime_demo';
-import { displayTenantManager } from './components/apps/tenant_manager';
 
 // Default installed apps for all new users
 const DEFAULT_INSTALLED_APPS = [
