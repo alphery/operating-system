@@ -733,8 +733,8 @@ export default class CRM extends Component {
                             <img src="./themes/Yaru/system/user-home.png" alt="User" className="avatar" />
                         </div>
                         <div className="user-info">
-                            <h3 className="brand-name">HostoGo Tech</h3>
-                            <p className="user-name">Muhammd Salim</p>
+                            <h3 className="brand-name">Enterprise ERP</h3>
+                            <p className="user-name">Admin User</p>
                         </div>
                     </div>
                 </div>
@@ -990,7 +990,7 @@ export default class CRM extends Component {
 
                         <div className="user-dropdown">
                             <img src="./themes/Yaru/system/user-home.png" alt="User" className="top-avatar" />
-                            <span className="user-name">Kristin KR</span>
+                            <span className="user-name">Admin User</span>
                             <i className="fe fe-chevron-down"></i>
                         </div>
 
@@ -1186,7 +1186,7 @@ export default class CRM extends Component {
                         <div className="card-top">
                             <div className="card-info">
                                 <span className="card-label">Ticket reply time</span>
-                                <span className="card-main-val">1,679</span>
+                                <span className="card-main-val">{(this.state.opportunities || []).length > 0 ? '12m' : '0m'}</span>
                             </div>
                             <div className="chart-legend">
                                 <span className="legend-item"><span className="dot" style={{ background: '#10b981' }}></span> High</span>
@@ -1234,14 +1234,14 @@ export default class CRM extends Component {
                                 <span className="dot green"></span>
                                 <div className="bar-stat-info">
                                     <span className="bs-label">Avg. Ticket Solved</span>
-                                    <span className="bs-val">1,654</span>
+                                    <span className="bs-val">0</span>
                                 </div>
                             </div>
                             <div className="bar-stat-item">
                                 <span className="dot light-blue"></span>
                                 <div className="bar-stat-info">
                                     <span className="bs-label">Avg. Ticket Created</span>
-                                    <span className="bs-val">4,567</span>
+                                    <span className="bs-val">0</span>
                                 </div>
                             </div>
                         </div>

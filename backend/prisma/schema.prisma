@@ -21,7 +21,9 @@ model Tenant {
   entityDefinitions EntityDefinition[]
   entityRecords     EntityRecord[]
   crmActivities     CRMActivity[]
-  invitations Invitation[]
+  invitations       Invitation[]
+  workflows         Workflow[]
+  dashboards        Dashboard[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -389,4 +391,75 @@ model EmailQueue {
   @@index([tenantId])
   @@index([status])
   @@index([createdAt])
+}
+
+// === 1. WORKFLOW AUTOMATION ENGINE ===
+model Workflow {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name        String   // e.g. "Send Welcome Email"
+  moduleSlug  String   // e.g. "lead", "patient"
+  trigger     String   // "ON_CREATE", "ON_UPDATE", "ON_FIELD_CHANGE"
+  triggerField String? // If trigger is ON_FIELD_CHANGE
+  isActive    Boolean  @default(true)
+  actions     WorkflowAction[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([moduleSlug])
+}
+
+model WorkflowAction {
+  id          String   @id @default(uuid())
+  workflowId  String
+  workflow    Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  order       Int      // Execution order
+  type        String   // "EMAIL", "UPDATE_RECORD", "CREATE_TASK", "WEBHOOK"
+  config      Json     // { "to": "{{email}}", "subject": "Welcome!", "set_status": "Active" }
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// === 2. DYNAMIC DASHBOARD ENGINE ===
+model Dashboard {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name        String   // e.g. "CEO Overview", "Sales Dashboard"
+  role        String?  // Only visible to this role (optional)
+  widgets     DashboardWidget[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+model DashboardWidget {
+  id          String   @id @default(uuid())
+  dashboardId String
+  dashboard   Dashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+  title       String    // e.g. "Revenue this Month"
+  type        String    // "METRIC", "LINE_CHART", "BAR_CHART", "LIST", "PIE"
+  moduleSlug  String    // e.g. "invoice"
+  config      Json      // { "filter": { "status": "Paid" }, "xAxis": "createdAt", "yAxis": "amount" }
+  position    Json      // { "x": 0, "y": 0, "w": 2, "h": 2 } (Grid layout)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// === 3. INDUSTRY TEMPLATE ENGINE ===
+// "Blueprints" to instantiate a tenant setup
+model IndustryTemplate {
+  id          String   @id @default(uuid())
+  slug        String   @unique // e.g. "healthcare-erp"
+  name        String   // e.g. "Healthcare ERP", "Manufacturing Lite"
+  description String
+  modules     Json     // Array of complete EntityDefinitions
+  workflows   Json     // Array of Workflows
+  dashboards  Json     // Array of Dashboard configs
+  isPublic    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

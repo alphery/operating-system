@@ -22,6 +22,7 @@ import { AuditModule } from './audit/audit.module';
 import { NotificationModule } from './notification/notification.module';
 import { EmailModule } from './email/email.module';
 import { RoleModule } from './role/role.module';
+import { FactoryModule } from './factory/factory.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { RoleModule } from './role/role.module';
     NotificationModule,
     EmailModule,
     RoleModule,
+    FactoryModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService],
