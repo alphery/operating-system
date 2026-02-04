@@ -334,7 +334,7 @@ class UserManager extends Component {
 
                                 <div className="flex flex-wrap gap-2 mb-4 text-xs text-gray-600">
                                     <span className={`px-2 py-1 rounded border ${user.role === 'super_admin' ? 'bg-purple-50 border-purple-200 text-purple-700' : 'bg-gray-50 border-gray-200'}`}>
-                                        Role: {user.role === 'super_admin' ? 'Super Admin' : (user.role === 'team' ? 'Team' : 'Projects')}
+                                        Role: {(user.role === 'super_admin' || user.email === 'alpherymail@gmail.com' || user.email === 'aksnetlink@gmail.com') ? 'Super Admin' : (user.role === 'team' ? 'Team' : 'Projects')}
                                     </span>
                                     <span className="px-2 py-1 rounded bg-gray-50 border border-gray-200">
                                         {new Date(user.createdAt).toLocaleDateString()}
@@ -430,7 +430,7 @@ class UserManager extends Component {
                                         <td className="px-6 py-4">
                                             <span className={`px-2 py-1 rounded-full text-xs font-semibold
                                                 ${user.role === 'super_admin' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>
-                                                {user.role === 'super_admin' ? 'Super Admin' : (user.role === 'team' ? 'Team' : 'Projects')}
+                                                {(user.role === 'super_admin' || user.email === 'alpherymail@gmail.com' || user.email === 'aksnetlink@gmail.com') ? 'Super Admin' : (user.role === 'team' ? 'Team' : 'Projects')}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4">
