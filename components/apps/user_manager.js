@@ -448,9 +448,13 @@ class UserManager extends Component {
                                     )}
 
                                     {/* Revoke */}
-                                    {user.approvalStatus === 'approved' && (isSuperAdmin || user.parentUserId === this.props.user.email) && (
-                                        <button onClick={() => this.revokeUser(user.email)} className="px-4 py-1.5 bg-red-500 text-white rounded font-medium text-sm">Revoke Access</button>
-                                    )}
+                                    {user.approvalStatus === 'approved' &&
+                                        (isSuperAdmin || user.parentUserId === this.props.user.email) &&
+                                        user.role !== 'super_admin' &&
+                                        user.email !== 'alpherymail@gmail.com' &&
+                                        user.email !== 'aksnetlink@gmail.com' && (
+                                            <button onClick={() => this.revokeUser(user.email)} className="px-4 py-1.5 bg-red-500 text-white rounded font-medium text-sm">Revoke Access</button>
+                                        )}
 
                                     {/* Delete */}
                                     {user.approvalStatus === 'rejected' && user.role !== 'super_admin' && (
@@ -559,14 +563,18 @@ class UserManager extends Component {
                                                 )}
 
                                                 {/* Show revoke for approved users */}
-                                                {user.approvalStatus === 'approved' && (isSuperAdmin || user.parentUserId === this.props.user.email) && (
-                                                    <button
-                                                        onClick={() => this.revokeUser(user.email)}
-                                                        className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition"
-                                                    >
-                                                        Revoke
-                                                    </button>
-                                                )}
+                                                {user.approvalStatus === 'approved' &&
+                                                    (isSuperAdmin || user.parentUserId === this.props.user.email) &&
+                                                    user.role !== 'super_admin' &&
+                                                    user.email !== 'alpherymail@gmail.com' &&
+                                                    user.email !== 'aksnetlink@gmail.com' && (
+                                                        <button
+                                                            onClick={() => this.revokeUser(user.email)}
+                                                            className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition"
+                                                        >
+                                                            Revoke
+                                                        </button>
+                                                    )}
                                                 {/* Show delete for rejected users */}
                                                 {user.approvalStatus === 'rejected' && user.role !== 'super_admin' && (
                                                     <button
