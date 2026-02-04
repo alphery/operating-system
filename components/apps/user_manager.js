@@ -124,16 +124,18 @@ class UserManager extends Component {
     }
 
     // Simplified Revoke - just delete from whitelist or set status
-    revokeUser = async (userEmail) => {
+    // Simplified Revoke - uses the actual document ID (can be UID or email)
+    revokeUser = async (userId, userEmail) => {
         if (!window.confirm(`Are you sure you want to revoke access for ${userEmail}? They will be kicked out immediately.`)) return;
         if (!db) return;
 
         try {
-            // We use email as ID for whitelist management now
-            await deleteDoc(doc(db, 'users', userEmail.toLowerCase()));
+            // We use the 'id' which is doc.id from loadUsers
+            await deleteDoc(doc(db, 'users', userId));
+            alert(`Access revoked for ${userEmail}`);
         } catch (error) {
             console.error('Error revoking user:', error);
-            alert('Failed to revoke access');
+            alert('Failed to revoke access. Please try again.');
         }
     }
 
@@ -453,7 +455,7 @@ class UserManager extends Component {
                                         user.role !== 'super_admin' &&
                                         user.email !== 'alpherymail@gmail.com' &&
                                         user.email !== 'aksnetlink@gmail.com' && (
-                                            <button onClick={() => this.revokeUser(user.email)} className="px-4 py-1.5 bg-red-500 text-white rounded font-medium text-sm">Revoke Access</button>
+                                            <button onClick={() => this.revokeUser(user.id, user.email)} className="px-4 py-1.5 bg-red-500 text-white rounded font-medium text-sm">Revoke Access</button>
                                         )}
 
                                     {/* Delete */}
@@ -569,7 +571,7 @@ class UserManager extends Component {
                                                     user.email !== 'alpherymail@gmail.com' &&
                                                     user.email !== 'aksnetlink@gmail.com' && (
                                                         <button
-                                                            onClick={() => this.revokeUser(user.email)}
+                                                            onClick={() => this.revokeUser(user.id, user.email)}
                                                             className="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition"
                                                         >
                                                             Revoke
