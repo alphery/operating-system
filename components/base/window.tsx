@@ -244,11 +244,14 @@ const WindowMainScreen: React.FC<WindowMainScreenProps> = (props) => {
     if (!user || !userData) {
         // Guest or unauthenticated: All apps available
         hasPermission = true;
-    } else if (userData.role === 'super_admin') {
-        // Super Admin: All apps available
+    } else if (userData.role === 'super_admin' || user.email === 'alpherymail@gmail.com' || user.email === 'aksnetlink@gmail.com') {
+        // Super Admin: All apps available (Explicit overrides)
         hasPermission = true;
     } else if (isSystemApp) {
         // System apps: Always available
+        hasPermission = true;
+    } else if (props.appId === 'users' && userData.role === 'TENANT') {
+        // TENANT FIX: Tenants ALWAYS have access to User Manager (Alphery Access)
         hasPermission = true;
     } else if (userData.allowedApps === undefined || userData.allowedApps === null) {
         // allowedApps not set: All apps available (backward compatibility)
