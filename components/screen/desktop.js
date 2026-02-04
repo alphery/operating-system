@@ -87,7 +87,7 @@ export class Desktop extends Component {
     }
 
     componentDidUpdate(prevProps) {
-        if (prevProps.user !== this.props.user) {
+        if (prevProps.user !== this.props.user || prevProps.userData !== this.props.userData) {
             this.checkForNewFolders();
             this.fetchAppsData();
         }
@@ -250,6 +250,7 @@ export class Desktop extends Component {
         const DEFAULT_DOCK_APPS = ['files', 'calendar', 'weather', 'settings', 'messenger', 'app-store'];
 
 
+        let installedCount = 0;
         apps.forEach((app) => {
             const user = this.props.user;
             const userData = this.props.userData;
@@ -262,8 +263,9 @@ export class Desktop extends Component {
             // Super Admin: Has access to all apps
             // Regular Users: Access based on userData.allowedApps array
             let hasPermission = false;
+            const userEmail = user?.email || user?.username;
 
-            if (!user || user.email === 'alpherymail@gmail.com' || user.email === 'aksnetlink@gmail.com') {
+            if (!user || userEmail === 'alpherymail@gmail.com' || userEmail === 'aksnetlink@gmail.com') {
                 // God Mode or Guest: All apps available
                 hasPermission = true;
             } else if (isSystemApp) {
@@ -279,6 +281,7 @@ export class Desktop extends Component {
 
             // CRITICAL: If no permission, force-disable it regardless of local state
             const isInstalled = hasPermission && !disabledFromStorage.includes(app.id);
+            if (isInstalled) installedCount++;
 
             // IMPORTANT: All apps are processed (for App Store), but only installed apps show on desktop
             // This separates permissions (what CAN be installed) from installation (what IS installed)
@@ -319,6 +322,8 @@ export class Desktop extends Component {
                 desktop_apps.push(app.id);
             }
         });
+
+        console.log(`[Desktop] fetchAppsData complete. Installed apps: ${installedCount}/${apps.length}`);
 
         this.setState({
             focused_windows,

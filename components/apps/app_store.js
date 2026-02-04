@@ -221,7 +221,8 @@ class AppStore extends Component {
         const { user, userData } = this.props;
 
         // Permissions Filter: System admins see all, others based on allowedApps
-        const isSuperAdmin = user && (user.email === 'alpherymail@gmail.com' || user.email === 'aksnetlink@gmail.com');
+        const userEmail = user?.email || user?.username;
+        const isSuperAdmin = user && (userEmail === 'alpherymail@gmail.com' || userEmail === 'aksnetlink@gmail.com');
         const allowedAppsList = userData?.allowedApps || null;
         const systemApps = ['app-store', 'settings', 'messenger', 'trash'];
 
