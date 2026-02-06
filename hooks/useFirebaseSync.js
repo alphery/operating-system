@@ -1,7 +1,7 @@
 import { useEffect, useCallback } from 'react';
 import { doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext-new';
 
 /**
  * Custom hook to sync data between Firebase and local state

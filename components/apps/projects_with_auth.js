@@ -4,12 +4,12 @@
  */
 import React from 'react';
 import { Projects } from './projects';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/AuthContext-new';
 
 function ProjectsWithPermissions(props) {
-    const { user, userData } = useAuth();
+    const { user, platformUser } = useAuth();
 
-    return <Projects {...props} user={user} userData={userData} />;
+    return <Projects {...props} user={user} userData={platformUser} />;
 }
 
 export const displayProject = () => {

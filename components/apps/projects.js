@@ -1,7 +1,7 @@
 import React, { Component } from 'react';
 // import { db } from '../../config/firebase'; 
 // import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, query, orderBy, getDoc } from 'firebase/firestore'; 
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/AuthContext-new';
 import { io } from 'socket.io-client';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';

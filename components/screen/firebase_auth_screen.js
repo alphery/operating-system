@@ -1,18 +1,18 @@
 import React, { useState } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/AuthContext-new';
 
 export default function FirebaseAuthScreen({ onAuthSuccess }) {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
-    const { loginWithGoogle } = useAuth();
+    const { signInWithGoogle } = useAuth();
 
     const handleGoogleLogin = async () => {
         setError('');
         setLoading(true);
 
         try {
-            await loginWithGoogle();
+            await signInWithGoogle();
             onAuthSuccess();
         } catch (err) {
             setError(err.message);

@@ -171,10 +171,11 @@ export class Desktop extends Component {
         let focused_windows = {}, closed_windows = {}, disabled_apps = {}, favourite_apps = {}, overlapped_windows = {}, minimized_windows = {};
         let desktop_apps = [];
 
-        // Safe access to UID with fallback
-        const userUid = (this.props.user && this.props.user.uid) ? this.props.user.uid : 'guest';
-        // Bumped key to _v3 to ensure clean state for disabled apps and apply new defaults (Camera, Voice Recorder, Gallery hidden)
-        const storageKey = `disabled_apps_${userUid}_v3`;
+        // Safe access to ID with fallback (using platformUser.id if available)
+        const userUid = (this.props.userData && this.props.userData.id) ? this.props.userData.id :
+            ((this.props.user && this.props.user.uid) ? this.props.user.uid : 'guest');
+        // Bumped key to _v4 for clean state
+        const storageKey = `disabled_apps_${userUid}_v4`;
 
         // Priority system for disabled apps:
         // 1. Firestore (cloud - survives browser changes & history clears) for authenticated users
@@ -263,20 +264,24 @@ export class Desktop extends Component {
             // Super Admin: Has access to all apps
             // Regular Users: Access based on userData.allowedApps array
             let hasPermission = false;
-            const userEmail = user?.email || user?.username;
 
-            if (!user || userEmail === 'alpherymail@gmail.com' || userEmail === 'aksnetlink@gmail.com') {
+            if (!user || (userData && userData.isGod)) {
                 // God Mode or Guest: All apps available
                 hasPermission = true;
             } else if (isSystemApp) {
                 // System apps: Always available
                 hasPermission = true;
-            } else if (userData.allowedApps === undefined || userData.allowedApps === null) {
-                // allowedApps not set: All apps available (backward compatibility)
+            } else if (this.props.currentTenant) {
+                // In the new system, tenant members see apps assigned to the tenant
+                // For now, allow everything or implement tenant-app check
                 hasPermission = true;
-            } else if (Array.isArray(userData.allowedApps)) {
-                // Check if app is in user's allowed apps list
-                hasPermission = userData.allowedApps.includes(app.id);
+            } else {
+                // Regular Firestore legacy check
+                if (userData && (userData.allowedApps === undefined || userData.allowedApps === null)) {
+                    hasPermission = true;
+                } else if (userData && Array.isArray(userData.allowedApps)) {
+                    hasPermission = userData.allowedApps.includes(app.id);
+                }
             }
 
             // CRITICAL FIX: For managed users (with explicit allowedApps), we force installation.

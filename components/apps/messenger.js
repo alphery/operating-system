@@ -2,14 +2,14 @@ import React, { Component } from 'react';
 import { db, storage } from '../../config/firebase';
 import { collection, query, where, or, and, orderBy, limit, onSnapshot, addDoc, getDocs, serverTimestamp, updateDoc, doc, getDoc, deleteField, setDoc, deleteDoc } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/AuthContext-new';
 import EmojiPicker from 'emoji-picker-react';
 import axios from 'axios';
 
 // Wrapper to use hooks in class component
 function MessengerWithAuth(props) {
-    const { user, userData } = useAuth();
-    return <Messenger user={user} userData={userData} {...props} />;
+    const { user, platformUser } = useAuth();
+    return <Messenger user={user} userData={platformUser} {...props} />;
 }
 
 class Messenger extends Component {

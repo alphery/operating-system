@@ -1,8 +1,8 @@
 import React from 'react';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/AuthContext-new';
 
 export default function PendingApprovalScreen() {
-    const { logout, userData } = useAuth();
+    const { signOut: logout, platformUser: userData } = useAuth();
 
     return (
         <div className="w-screen h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 relative overflow-hidden">

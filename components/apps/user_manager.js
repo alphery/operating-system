@@ -1,12 +1,12 @@
 import React, { Component } from 'react';
 import { db } from '../../config/firebase';
 import { collection, onSnapshot, updateDoc, doc, deleteDoc, setDoc } from 'firebase/firestore';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/AuthContext-new';
 
 // Wrapper to use hooks
 function UserManagerWithAuth(props) {
-    const { user, userData } = useAuth();
-    return <UserManager user={user} userData={userData} {...props} />;
+    const { user, platformUser, currentTenant } = useAuth();
+    return <UserManager user={user} userData={platformUser} currentTenant={currentTenant} {...props} />;
 }
 
 class UserManager extends Component {
@@ -81,7 +81,7 @@ class UserManager extends Component {
         if (!db) return;
 
         try {
-            const isSuperAdmin = user.email === 'alpherymail@gmail.com' || user.email === 'aksnetlink@gmail.com';
+            const isSuperAdmin = userData && userData.isGod;
 
             // Set role: if super admin adds, default to Projects. If Tenant adds, forced to Projects.
             const role = 'user';
@@ -194,8 +194,8 @@ class UserManager extends Component {
         const { user, userData } = this.props;
 
         const userEmail = user.email || user.username;
-        const isSuperAdmin = userEmail === 'alpherymail@gmail.com' || userEmail === 'aksnetlink@gmail.com' || userData?.role === 'super_admin';
-        const isTenantAdmin = userData?.role === 'TENANT';
+        const isSuperAdmin = userData && userData.isGod;
+        const isTenantAdmin = !!this.props.currentTenant;
 
         let visibleUsers = users;
 
@@ -238,8 +238,8 @@ class UserManager extends Component {
         const { user, userData } = this.props;
 
         const userEmail = user.email || user.username;
-        const isSuperAdmin = userEmail === 'alpherymail@gmail.com' || userEmail === 'aksnetlink@gmail.com' || userData?.role === 'super_admin';
-        const isTenantAdmin = userData?.role === 'TENANT';
+        const isSuperAdmin = userData && userData.isGod;
+        const isTenantAdmin = !!this.props.currentTenant;
 
         // Check if authorized
         if (!isSuperAdmin && !isTenantAdmin) {

@@ -1,11 +1,12 @@
 
 import React, { Component, useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/AuthContext-new';
 
 // Helper to get user context
 function AppStoreWithAuth(props) {
-    const { user, userData, updateUserData } = useAuth();
-    return <AppStore user={user} userData={userData} updateUserData={updateUserData} {...props} />;
+    const { user, platformUser, currentTenant } = useAuth();
+    // Wrap updateUserData stub if needed or just pass platformUser
+    return <AppStore user={user} userData={platformUser} currentTenant={currentTenant} {...props} />;
 }
 
 // --- CONSTANTS & MOCK DATA ---
@@ -101,12 +102,13 @@ class AppStore extends Component {
     }
 
     getUserId = () => {
-        return (this.props.user && this.props.user.uid) ? this.props.user.uid : 'guest';
+        return (this.props.userData && this.props.userData.id) ? this.props.userData.id :
+            ((this.props.user && this.props.user.uid) ? this.props.user.uid : 'guest');
     }
 
     getDisabledApps = () => {
         const userId = this.getUserId();
-        const key = `disabled_apps_${userId}_v3`;
+        const key = `disabled_apps_${userId}_v4`;
         try {
             const data = localStorage.getItem(key);
             return data ? JSON.parse(data) : [];
@@ -221,16 +223,16 @@ class AppStore extends Component {
         const { user, userData } = this.props;
 
         // Permissions Filter: System admins see all, others based on allowedApps
-        const userEmail = user?.email || user?.username;
-        const isSuperAdmin = user && (userEmail === 'alpherymail@gmail.com' || userEmail === 'aksnetlink@gmail.com');
-        const allowedAppsList = userData?.allowedApps || null;
+        const isGod = userData && userData.isGod;
+        // In the new system, we might check tenant permissions
+        const allowedAppsList = null; // Placeholder: Fetch from backend or tenant later
         const systemApps = ['app-store', 'settings', 'messenger', 'trash'];
 
         const enrichedApps = apps
             .filter(app => {
-                if (isSuperAdmin || !user) return true; // Super admin and guest see all
+                if (isGod || !user) return true; // God Mode and guest see all
                 if (systemApps.includes(app.id)) return true; // System apps always visible
-                if (allowedAppsList === null) return true; // Default fallback (all visible)
+                if (allowedAppsList === null) return true; // Default fallback (all visible for now)
                 return allowedAppsList.includes(app.id); // Restricted list
             })
             .map(app => ({ ...app, ...this.getMetadata(app.id) }));

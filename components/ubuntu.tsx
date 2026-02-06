@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext-new';
 import BootingScreen from './screen/booting_screen';
 import Desktop from './screen/desktop';
 import LockScreen from './screen/lock_screen';
@@ -20,7 +20,7 @@ interface LocalUser {
 }
 
 export default function Ubuntu() {
-	const { user, userData, updateUserData, logout } = useAuth();
+	const { user, platformUser, currentTenant, signOut } = useAuth();
 	const [screenLocked, setScreenLocked] = useState<boolean>(false);
 	const [bgImageName, setBgImageName] = useState<string>('wall-8');
 	const [bootingScreen, setBootingScreen] = useState<boolean>(true);
@@ -38,7 +38,7 @@ export default function Ubuntu() {
 	const handleLogout = async () => {
 		ReactGA.pageview('/logout');
 		try {
-			await logout();
+			await signOut();
 			setCurrentUser(null);
 			setDemoMode(false);
 			setScreenLocked(false);
@@ -69,22 +69,20 @@ export default function Ubuntu() {
 	}, []);
 
 	// Memoize approval status check to prevent unnecessary re-renders
+	// In the new system, if we have a platformUser, they are basic-approved
 	const isApproved = useMemo(() => {
-		if (!user || !userData) return false;
-		return userData.approvalStatus === 'approved';
-	}, [user, userData?.approvalStatus]);
+		return !!user && !!platformUser;
+	}, [user, platformUser]);
 
 	const isPending = useMemo(() => {
-		if (!user || !userData) return false;
-		return userData.approvalStatus !== 'approved';
-	}, [user, userData?.approvalStatus]);
+		return !!user && !platformUser;
+	}, [user, platformUser]);
 
 	// Update currentUser when Firebase user changes
 	useEffect(() => {
 		console.log('[UBUNTU] Auth state changed:', {
 			hasUser: !!user,
-			hasUserData: !!userData,
-			approvalStatus: userData?.approvalStatus,
+			hasPlatformUser: !!platformUser,
 			isApproved,
 			isPending
 		});
@@ -97,13 +95,13 @@ export default function Ubuntu() {
 			return;
 		}
 
-		if (user && userData && isApproved) {
+		if (user && platformUser && isApproved) {
 			// User is approved - proceed normally
 			const firebaseUser: LocalUser = {
-				uid: user.uid, // PASS UID HERE
-				username: user.email,
-				displayName: userData.displayName || user.displayName,
-				image: userData.photoURL || user.photoURL,
+				uid: platformUser.id, // Use UUID from backend
+				username: platformUser.email,
+				displayName: platformUser.displayName || user.displayName,
+				image: platformUser.photoUrl || user.photoURL,
 				password: '' // Not needed for Firebase users
 			};
 			console.log('[UBUNTU] User approved, setting current user:', firebaseUser);
@@ -111,17 +109,12 @@ export default function Ubuntu() {
 			setScreenLocked(false);
 			setShowFirebaseAuth(false);
 
-			// Load user's wallpaper from Firebase
-			if (userData.settings?.wallpaper) {
-				setBgImageName(userData.settings.wallpaper);
-			}
-		} else if (user && userData && !isApproved) {
-			// User not approved
-			console.log('[UBUNTU] User pending approval');
-			setShowFirebaseAuth(false);
-			setCurrentUser(null);
+			// Load user's wallpaper (Placeholder for now, could be in backend settings)
+			// if (platformUser.settings?.wallpaper) {
+			// 	setBgImageName(platformUser.settings.wallpaper);
+			// }
 		}
-	}, [user, userData, isApproved]);
+	}, [user, platformUser, isApproved]);
 
 	const setTimeOutBootScreen = () => {
 		setTimeout(() => {
@@ -193,15 +186,10 @@ export default function Ubuntu() {
 	const changeBackgroundImage = async (imgName: string) => {
 		setBgImageName(imgName);
 
-		// Save to Firebase if user is logged in
-		if (user && userData && updateUserData) {
-			await updateUserData({
-				...userData,
-				settings: {
-					...userData.settings,
-					wallpaper: imgName
-				}
-			});
+		// Save to backend if user is logged in
+		if (user && platformUser) {
+			// TODO: Implement updatePlatformUser in AuthContext-new
+			// await updatePlatformUser({ settings: { ...platformUser.settings, wallpaper: imgName } });
 		}
 		// Save to local session for local users
 		else if (currentUser) {
@@ -246,7 +234,7 @@ export default function Ubuntu() {
 	return (
 		<div className="w-screen h-screen overflow-hidden" id="monitor-screen">
 			{/* Pending Approval Screen - shows if user is logged in but not approved */}
-			{user && userData && isPending && !bootingScreen && (
+			{isPending && !bootingScreen && (
 				<PendingApprovalScreen />
 			)}
 
@@ -256,7 +244,7 @@ export default function Ubuntu() {
 			)}
 
 			{/* Lock Screen - for local users or locked Firebase users */}
-			{((!user && !showFirebaseAuth) || (user && userData && isApproved) || demoMode) && (
+			{((!user && !showFirebaseAuth) || isApproved || demoMode) && (
 				<LockScreen
 					isLocked={screenLocked}
 					bgImgName={bgImageName}
@@ -284,8 +272,8 @@ export default function Ubuntu() {
 				bg_image_name={bgImageName}
 				changeBackgroundImage={changeBackgroundImage}
 				user={currentUser}
-				userData={userData}
-				updateUserData={updateUserData}
+				userData={platformUser}
+				currentTenant={currentTenant}
 			/>
 		</div>
 	);
