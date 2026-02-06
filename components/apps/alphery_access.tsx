@@ -1,34 +1,34 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth, useAuthenticatedFetch } from '../../../context/AuthContext-new';
+import { useAuth, useAuthenticatedFetch } from '../../context/AuthContext-new';
 
 // ═══════════════════════════════════════════════════════════
 // ALPHERY ACCESS - ADMIN CONSOLE
 // ═══════════════════════════════════════════════════════════
 
 export default function AlpheryAccess() {
-    const { platformUser, currentTenant } = useAuth();
-    const authenticatedFetch = useAuthenticatedFetch();
+  const { platformUser, currentTenant } = useAuth();
+  const authenticatedFetch = useAuthenticatedFetch();
 
-    // God sees everything, others see their tenant
-    const isGod = platformUser?.isGod || false;
+  // God sees everything, others see their tenant
+  const isGod = platformUser?.isGod || false;
 
-    return (
-        <div className="alphery-access">
-            <header className="access-header">
-                <h1>
-                    🔐 Alphery Access
-                    {isGod && <span className="god-badge">GOD MODE</span>}
-                </h1>
-                <p className="subtitle">
-                    {isGod
-                        ? 'Platform-wide user and permission management'
-                        : `Managing ${currentTenant?.name || 'workspace'}`}
-                </p>
-            </header>
+  return (
+    <div className="alphery-access">
+      <header className="access-header">
+        <h1>
+          🔐 Alphery Access
+          {isGod && <span className="god-badge">GOD MODE</span>}
+        </h1>
+        <p className="subtitle">
+          {isGod
+            ? 'Platform-wide user and permission management'
+            : `Managing ${currentTenant?.name || 'workspace'}`}
+        </p>
+      </header>
 
-            {isGod ? <GodDashboard /> : <TenantAdminDashboard />}
+      {isGod ? <GodDashboard /> : <TenantAdminDashboard />}
 
-            <style jsx>{`
+      <style jsx>{`
         .alphery-access {
           padding: 2rem;
           background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -71,8 +71,8 @@ export default function AlpheryAccess() {
           opacity: 0.9;
         }
       `}</style>
-        </div>
-    );
+    </div>
+  );
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -80,62 +80,62 @@ export default function AlpheryAccess() {
 // ═══════════════════════════════════════════════════════════
 
 function GodDashboard() {
-    const [tenants, setTenants] = useState([]);
-    const [users, setUsers] = useState([]);
-    const [apps, setApps] = useState([]);
-    const [activeTab, setActiveTab] = useState('tenants');
-    const authenticatedFetch = useAuthenticatedFetch();
+  const [tenants, setTenants] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [apps, setApps] = useState([]);
+  const [activeTab, setActiveTab] = useState('tenants');
+  const authenticatedFetch = useAuthenticatedFetch();
 
-    useEffect(() => {
-        loadPlatformData();
-    }, []);
+  useEffect(() => {
+    loadPlatformData();
+  }, []);
 
-    async function loadPlatformData() {
-        try {
-            const [tenantsRes, usersRes, appsRes] = await Promise.all([
-                authenticatedFetch('http://localhost:3001/platform/tenants'),
-                authenticatedFetch('http://localhost:3001/platform/users'),
-                authenticatedFetch('http://localhost:3001/platform/apps'),
-            ]);
+  async function loadPlatformData() {
+    try {
+      const [tenantsRes, usersRes, appsRes] = await Promise.all([
+        authenticatedFetch('http://localhost:3001/platform/tenants'),
+        authenticatedFetch('http://localhost:3001/platform/users'),
+        authenticatedFetch('http://localhost:3001/platform/apps'),
+      ]);
 
-            setTenants(await tenantsRes.json());
-            setUsers(await usersRes.json());
-            setApps(await appsRes.json());
-        } catch (error) {
-            console.error('Failed to load platform data:', error);
-        }
+      setTenants(await tenantsRes.json());
+      setUsers(await usersRes.json());
+      setApps(await appsRes.json());
+    } catch (error) {
+      console.error('Failed to load platform data:', error);
     }
+  }
 
-    return (
-        <div className="god-dashboard">
-            <nav className="tabs">
-                <button
-                    className={activeTab === 'tenants' ? 'active' : ''}
-                    onClick={() => setActiveTab('tenants')}
-                >
-                    🏢 Tenants ({tenants.length})
-                </button>
-                <button
-                    className={activeTab === 'users' ? 'active' : ''}
-                    onClick={() => setActiveTab('users')}
-                >
-                    👥 Platform Users ({users.length})
-                </button>
-                <button
-                    className={activeTab === 'apps' ? 'active' : ''}
-                    onClick={() => setActiveTab('apps')}
-                >
-                    📱 Apps ({apps.length})
-                </button>
-            </nav>
+  return (
+    <div className="god-dashboard">
+      <nav className="tabs">
+        <button
+          className={activeTab === 'tenants' ? 'active' : ''}
+          onClick={() => setActiveTab('tenants')}
+        >
+          🏢 Tenants ({tenants.length})
+        </button>
+        <button
+          className={activeTab === 'users' ? 'active' : ''}
+          onClick={() => setActiveTab('users')}
+        >
+          👥 Platform Users ({users.length})
+        </button>
+        <button
+          className={activeTab === 'apps' ? 'active' : ''}
+          onClick={() => setActiveTab('apps')}
+        >
+          📱 Apps ({apps.length})
+        </button>
+      </nav>
 
-            <div className="tab-content">
-                {activeTab === 'tenants' && <TenantsList tenants={tenants} onUpdate={loadPlatformData} />}
-                {activeTab === 'users' && <UsersList users={users} onUpdate={loadPlatformData} />}
-                {activeTab === 'apps' && <AppsList apps={apps} onUpdate={loadPlatformData} />}
-            </div>
+      <div className="tab-content">
+        {activeTab === 'tenants' && <TenantsList tenants={tenants} onUpdate={loadPlatformData} />}
+        {activeTab === 'users' && <UsersList users={users} onUpdate={loadPlatformData} />}
+        {activeTab === 'apps' && <AppsList apps={apps} onUpdate={loadPlatformData} />}
+      </div>
 
-            <style jsx>{`
+      <style jsx>{`
         .god-dashboard {
           max-width: 1200px;
           margin: 0 auto;
@@ -180,8 +180,8 @@ function GodDashboard() {
           box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
         }
       `}</style>
-        </div>
-    );
+    </div>
+  );
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -189,61 +189,61 @@ function GodDashboard() {
 // ═══════════════════════════════════════════════════════════
 
 function TenantAdminDashboard() {
-    const { currentTenant } = useAuth();
-    const [users, setUsers] = useState([]);
-    const [apps, setApps] = useState([]);
-    const [activeTab, setActiveTab] = useState('users');
-    const authenticatedFetch = useAuthenticatedFetch();
+  const { currentTenant } = useAuth();
+  const [users, setUsers] = useState([]);
+  const [apps, setApps] = useState([]);
+  const [activeTab, setActiveTab] = useState('users');
+  const authenticatedFetch = useAuthenticatedFetch();
 
-    useEffect(() => {
-        if (currentTenant) {
-            loadTenantData();
-        }
-    }, [currentTenant]);
-
-    async function loadTenantData() {
-        if (!currentTenant) return;
-
-        try {
-            const [usersRes, appsRes] = await Promise.all([
-                authenticatedFetch(`http://localhost:3001/tenants/${currentTenant.id}/users`),
-                authenticatedFetch(`http://localhost:3001/tenants/${currentTenant.id}/apps`),
-            ]);
-
-            setUsers(await usersRes.json());
-            setApps(await appsRes.json());
-        } catch (error) {
-            console.error('Failed to load tenant data:', error);
-        }
+  useEffect(() => {
+    if (currentTenant) {
+      loadTenantData();
     }
+  }, [currentTenant]);
 
-    return (
-        <div className="tenant-dashboard">
-            <nav className="tabs">
-                <button
-                    className={activeTab === 'users' ? 'active' : ''}
-                    onClick={() => setActiveTab('users')}
-                >
-                    👥 Team Members ({users.length})
-                </button>
-                <button
-                    className={activeTab === 'apps' ? 'active' : ''}
-                    onClick={() => setActiveTab('apps')}
-                >
-                    📱 Apps ({apps.length})
-                </button>
-            </nav>
+  async function loadTenantData() {
+    if (!currentTenant) return;
 
-            <div className="tab-content">
-                {activeTab === 'users' && (
-                    <TenantUsersList users={users} tenantId={currentTenant?.id} onUpdate={loadTenantData} />
-                )}
-                {activeTab === 'apps' && (
-                    <TenantAppsList apps={apps} tenantId={currentTenant?.id} onUpdate={loadTenantData} />
-                )}
-            </div>
+    try {
+      const [usersRes, appsRes] = await Promise.all([
+        authenticatedFetch(`http://localhost:3001/tenants/${currentTenant.id}/users`),
+        authenticatedFetch(`http://localhost:3001/tenants/${currentTenant.id}/apps`),
+      ]);
 
-            <style jsx>{`
+      setUsers(await usersRes.json());
+      setApps(await appsRes.json());
+    } catch (error) {
+      console.error('Failed to load tenant data:', error);
+    }
+  }
+
+  return (
+    <div className="tenant-dashboard">
+      <nav className="tabs">
+        <button
+          className={activeTab === 'users' ? 'active' : ''}
+          onClick={() => setActiveTab('users')}
+        >
+          👥 Team Members ({users.length})
+        </button>
+        <button
+          className={activeTab === 'apps' ? 'active' : ''}
+          onClick={() => setActiveTab('apps')}
+        >
+          📱 Apps ({apps.length})
+        </button>
+      </nav>
+
+      <div className="tab-content">
+        {activeTab === 'users' && (
+          <TenantUsersList users={users} tenantId={currentTenant?.id} onUpdate={loadTenantData} />
+        )}
+        {activeTab === 'apps' && (
+          <TenantAppsList apps={apps} tenantId={currentTenant?.id} onUpdate={loadTenantData} />
+        )}
+      </div>
+
+      <style jsx>{`
         .tenant-dashboard {
           max-width: 1200px;
           margin: 0 auto;
@@ -289,8 +289,8 @@ function TenantAdminDashboard() {
           color: #333;
         }
       `}</style>
-        </div>
-    );
+    </div>
+  );
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -298,22 +298,22 @@ function TenantAdminDashboard() {
 // ═══════════════════════════════════════════════════════════
 
 function TenantsList({ tenants, onUpdate }: any) {
-    return (
-        <div className="tenants-list">
-            <h2>🏢 All Tenants</h2>
-            <div className="list">
-                {tenants.map((tenant: any) => (
-                    <div key={tenant.id} className="card">
-                        <h3>{tenant.name}</h3>
-                        <p>Owner: {tenant.owner?.email}</p>
-                        <p>Plan: {tenant.plan}</p>
-                        <p>Members: {tenant._count?.members || 0}</p>
-                        <p>Apps: {tenant._count?.apps || 0}</p>
-                    </div>
-                ))}
-            </div>
+  return (
+    <div className="tenants-list">
+      <h2>🏢 All Tenants</h2>
+      <div className="list">
+        {tenants.map((tenant: any) => (
+          <div key={tenant.id} className="card">
+            <h3>{tenant.name}</h3>
+            <p>Owner: {tenant.owner?.email}</p>
+            <p>Plan: {tenant.plan}</p>
+            <p>Members: {tenant._count?.members || 0}</p>
+            <p>Apps: {tenant._count?.apps || 0}</p>
+          </div>
+        ))}
+      </div>
 
-            <style jsx>{`
+      <style jsx>{`
         .tenants-list h2 {
           margin-bottom: 1.5rem;
           color: #333;
@@ -343,8 +343,8 @@ function TenantsList({ tenants, onUpdate }: any) {
           color: #666;
         }
       `}</style>
-        </div>
-    );
+    </div>
+  );
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -352,33 +352,33 @@ function TenantsList({ tenants, onUpdate }: any) {
 // ═══════════════════════════════════════════════════════════
 
 function UsersList({ users, onUpdate }: any) {
-    return (
-        <div className="users-list">
-            <h2>👥 Platform Users</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Email</th>
-                        <th>Name</th>
-                        <th>God</th>
-                        <th>Tenants</th>
-                        <th>Created</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {users.map((user: any) => (
-                        <tr key={user.id}>
-                            <td>{user.email}</td>
-                            <td>{user.displayName || '-'}</td>
-                            <td>{user.isGod ? '⭐' : '-'}</td>
-                            <td>{user.tenantMemberships?.length || 0}</td>
-                            <td>{new Date(user.createdAt).toLocaleDateString()}</td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
+  return (
+    <div className="users-list">
+      <h2>👥 Platform Users</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Email</th>
+            <th>Name</th>
+            <th>God</th>
+            <th>Tenants</th>
+            <th>Created</th>
+          </tr>
+        </thead>
+        <tbody>
+          {users.map((user: any) => (
+            <tr key={user.id}>
+              <td>{user.email}</td>
+              <td>{user.displayName || '-'}</td>
+              <td>{user.isGod ? '⭐' : '-'}</td>
+              <td>{user.tenantMemberships?.length || 0}</td>
+              <td>{new Date(user.createdAt).toLocaleDateString()}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
 
-            <style jsx>{`
+      <style jsx>{`
         .users-list h2 {
           margin-bottom: 1.5rem;
           color: #333;
@@ -406,8 +406,8 @@ function UsersList({ users, onUpdate }: any) {
           background: #f9fafb;
         }
       `}</style>
-        </div>
-    );
+    </div>
+  );
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -415,25 +415,25 @@ function UsersList({ users, onUpdate }: any) {
 // ═══════════════════════════════════════════════════════════
 
 function AppsList({ apps, onUpdate }: any) {
-    return (
-        <div className="apps-list">
-            <h2>📱 Application Catalog</h2>
-            <div className="grid">
-                {apps.map((app: any) => (
-                    <div key={app.id} className="app-card">
-                        <h3>{app.name}</h3>
-                        <p>{app.description}</p>
-                        <div className="meta">
-                            <span className={`badge ${app.isCore ? 'core' : ''}`}>
-                                {app.isCore ? 'Core' : 'Optional'}
-                            </span>
-                            <span className="category">{app.category}</span>
-                        </div>
-                    </div>
-                ))}
+  return (
+    <div className="apps-list">
+      <h2>📱 Application Catalog</h2>
+      <div className="grid">
+        {apps.map((app: any) => (
+          <div key={app.id} className="app-card">
+            <h3>{app.name}</h3>
+            <p>{app.description}</p>
+            <div className="meta">
+              <span className={`badge ${app.isCore ? 'core' : ''}`}>
+                {app.isCore ? 'Core' : 'Optional'}
+              </span>
+              <span className="category">{app.category}</span>
             </div>
+          </div>
+        ))}
+      </div>
 
-            <style jsx>{`
+      <style jsx>{`
         .apps-list h2 {
           margin-bottom: 1.5rem;
           color: #333;
@@ -497,8 +497,8 @@ function AppsList({ apps, onUpdate }: any) {
           color: #9ca3af;
         }
       `}</style>
-        </div>
-    );
+    </div>
+  );
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -506,33 +506,33 @@ function AppsList({ apps, onUpdate }: any) {
 // ═══════════════════════════════════════════════════════════
 
 function TenantUsersList({ users, tenantId, onUpdate }: any) {
-    return (
-        <div className="tenant-users-list">
-            <h2>👥 Team Members</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Role</th>
-                        <th>Permitted Apps</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {users.map((member: any) => (
-                        <tr key={member.id}>
-                            <td>{member.user.displayName || '-'}</td>
-                            <td>{member.user.email}</td>
-                            <td>
-                                <span className={`role-badge ${member.role}`}>{member.role}</span>
-                            </td>
-                            <td>{member.appPermissions?.length || 0} apps</td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
+  return (
+    <div className="tenant-users-list">
+      <h2>👥 Team Members</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Permitted Apps</th>
+          </tr>
+        </thead>
+        <tbody>
+          {users.map((member: any) => (
+            <tr key={member.id}>
+              <td>{member.user.displayName || '-'}</td>
+              <td>{member.user.email}</td>
+              <td>
+                <span className={`role-badge ${member.role}`}>{member.role}</span>
+              </td>
+              <td>{member.appPermissions?.length || 0} apps</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
 
-            <style jsx>{`
+      <style jsx>{`
         .tenant-users-list h2 {
           margin-bottom: 1.5rem;
         }
@@ -577,8 +577,8 @@ function TenantUsersList({ users, tenantId, onUpdate }: any) {
           color: #065f46;
         }
       `}</style>
-        </div>
-    );
+    </div>
+  );
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -586,24 +586,24 @@ function TenantUsersList({ users, tenantId, onUpdate }: any) {
 // ═══════════════════════════════════════════════════════════
 
 function TenantAppsList({ apps, tenantId, onUpdate }: any) {
-    return (
-        <div className="tenant-apps-list">
-            <h2>📱 Enabled Apps</h2>
-            <div className="grid">
-                {apps.map((tenantApp: any) => (
-                    <div key={tenantApp.id} className="app-card">
-                        <h3>{tenantApp.app.name}</h3>
-                        <p>{tenantApp.app.description}</p>
-                        <div className="status">
-                            <span className={`badge ${tenantApp.enabled ? 'enabled' : 'disabled'}`}>
-                                {tenantApp.enabled ? '✓ Enabled' : '✗ Disabled'}
-                            </span>
-                        </div>
-                    </div>
-                ))}
+  return (
+    <div className="tenant-apps-list">
+      <h2>📱 Enabled Apps</h2>
+      <div className="grid">
+        {apps.map((tenantApp: any) => (
+          <div key={tenantApp.id} className="app-card">
+            <h3>{tenantApp.app.name}</h3>
+            <p>{tenantApp.app.description}</p>
+            <div className="status">
+              <span className={`badge ${tenantApp.enabled ? 'enabled' : 'disabled'}`}>
+                {tenantApp.enabled ? '✓ Enabled' : '✗ Disabled'}
+              </span>
             </div>
+          </div>
+        ))}
+      </div>
 
-            <style jsx>{`
+      <style jsx>{`
         .tenant-apps-list h2 {
           margin-bottom: 1.5rem;
         }
@@ -649,6 +649,6 @@ function TenantAppsList({ apps, tenantId, onUpdate }: any) {
           color: #991b1b;
         }
       `}</style>
-        </div>
-    );
+    </div>
+  );
 }
