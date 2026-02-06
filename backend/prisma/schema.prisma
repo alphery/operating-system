@@ -495,3 +495,65 @@ model DashboardWidget {
 
   @@map("dashboard_widgets")
 }
+
+// ═══════════════════════════════════════════════════════════
+// NEW MODELS FOR MISSING SERVICES
+// ═══════════════════════════════════════════════════════════
+
+model EmailQueue {
+  id        String   @id @default(uuid())
+  to        String
+  subject   String
+  body      String
+  status    String   @default("Pending") // Pending, Sent, Failed
+  error     String?
+  sentAt    DateTime? @map("sent_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("email_queue")
+}
+
+model IndustryTemplate {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  description String?
+  modules     Json     // List of modules to enable
+  settings    Json?    // Default settings
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("industry_templates")
+}
+
+model Notification {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id") // Notification recipient (PlatformUser usually)
+  title       String
+  message     String
+  type        String   @default("info") // info, success, warning, error
+  isRead      Boolean  @default(false) @map("is_read")
+  link        String?
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("notifications")
+}
+
+model CustomRole {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  name        String
+  description String?
+  permissions Json     // Define granular permissions here
+  isSystem    Boolean  @default(false) @map("is_system") // If true, cannot be deleted
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, name])
+  @@map("custom_roles")
+}
