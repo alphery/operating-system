@@ -3,7 +3,7 @@ import 'tailwindcss/tailwind.css'
 import '../styles/sf-pro.css'
 import '../styles/index.css'
 import '../styles/performance.css'
-import { AuthProvider } from '../context/AuthContext'
+import { AuthProvider } from '../context/AuthContext-new'
 import { SupabaseAuthProvider } from '../context/SupabaseAuthContext'
 import { SocketProvider } from '../context/SocketContext'
 

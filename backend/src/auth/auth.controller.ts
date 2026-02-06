@@ -1,57 +1,40 @@
-import { Controller, Post, Body, Get, Headers, UnauthorizedException } from '@nestjs/common';
+import { Controller, Post, Body, Get, UseGuards, Request } from '@nestjs/common';
 import { AuthService } from './auth.service';
+import { TenantGuard } from './guards';
+import { Public } from './decorators';
 
 @Controller('auth')
 export class AuthController {
-    constructor(private readonly authService: AuthService) { }
+    constructor(private authService: AuthService) { }
 
-    /**
-     * POST /api/auth/google
-     * Login or register with Google
-     * 
-     * Frontend sends Google ID token after user signs in
-     */
-    @Post('google')
-    async googleLogin(@Body() body: { idToken: string; invitationToken?: string }) {
-        if (body.invitationToken) {
-            // User is accepting an invitation
-            // First verify Google token to get user data
-            const ticket = await this.authService['googleClient'].verifyIdToken({
-                idToken: body.idToken,
-                audience: process.env.GOOGLE_CLIENT_ID,
-            });
-            const payload = ticket.getPayload();
-
-            if (!payload) {
-                throw new UnauthorizedException('Invalid Google token');
-            }
-
-            return this.authService.acceptInvitation(
-                body.invitationToken,
-                payload.sub,
-                {
-                    name: payload.name,
-                    firstName: payload.given_name,
-                    lastName: payload.family_name,
-                }
-            );
-        }
-
-        // Normal login/signup
-        return this.authService.googleLogin(body.idToken);
+    @Public()
+    @Post('login')
+    async login(@Body() body: { idToken: string }) {
+        return this.authService.validateFirebaseToken(body.idToken);
     }
 
-    /**
-     * GET /api/auth/me
-     * Get current user info from JWT
-     */
     @Get('me')
-    async getCurrentUser(@Headers('authorization') authorization: string) {
-        if (!authorization || !authorization.startsWith('Bearer ')) {
-            throw new UnauthorizedException('No token provided');
-        }
+    async getMe(@Request() req) {
+        const userId = req.user.sub;
+        const tenants = await this.authService.getUserTenants(userId);
 
-        const token = authorization.substring(7);
-        return this.authService.validateToken(token);
+        return {
+            user: req.user,
+            tenants: tenants.map((t) => ({
+                id: t.tenant.id,
+                name: t.tenant.name,
+                role: t.role,
+                subdomain: t.tenant.subdomain,
+            })),
+        };
+    }
+
+    @Get('tenants/:tenantId/apps')
+    @UseGuards(TenantGuard)
+    async getAvailableApps(@Request() req) {
+        const userId = req.user.sub;
+        const tenantId = req.params.tenantId || req.tenantId;
+
+        return this.authService.getAvailableApps(userId, tenantId);
     }
 }

@@ -31,7 +31,6 @@ export class AuthService {
     async validateFirebaseToken(idToken: string): Promise<{
         sessionToken: string;
         platformUser: any;
-        tenants: any[];
     }> {
         try {
             // Step 1: Verify Firebase token signature and expiry
@@ -79,10 +78,7 @@ export class AuthService {
                 throw new UnauthorizedException('User account is disabled');
             }
 
-            // Step 4: Get user's tenants
-            const tenants = await this.getUserTenants(platformUser.id);
-
-            // Step 5: Issue OUR session token (JWT with UUID, not firebase_uid)
+            // Step 4: Issue OUR session token (JWT with UUID, not firebase_uid)
             const sessionPayload: SessionTokenPayload = {
                 sub: platformUser.id, // UUID
                 email: platformUser.email,
@@ -102,12 +98,6 @@ export class AuthService {
                     photoUrl: platformUser.photoUrl,
                     isGod: platformUser.isGod,
                 },
-                tenants: tenants.map((t) => ({
-                    id: t.tenant.id,
-                    name: t.tenant.name,
-                    role: t.role,
-                    subdomain: t.tenant.subdomain,
-                })),
             };
         } catch (error) {
             console.error('[AUTH] Firebase token validation failed:', error);
@@ -176,59 +166,6 @@ export class AuthService {
                 appPermissions: {
                     include: {
                         app: true,
-                    },
-                },
-            },
-        });
-    }
-
-    /**
-     * Get available apps for user in tenant
-     */
-    async getAvailableApps(userId: string, tenantId: string) {
-        const user = await this.prisma.platformUser.findUnique({
-            where: { id: userId },
-        });
-
-        // God sees all apps
-        if (user?.isGod) {
-            return this.prisma.app.findMany({
-                where: { isActive: true },
-            });
-        }
-
-        // Get user's tenant membership
-        const membership = await this.getTenantMembership(userId, tenantId);
-        if (!membership) return [];
-
-        // Owner/Admin sees all enabled tenant apps
-        if (['owner', 'admin'].includes(membership.role)) {
-            return this.prisma.app.findMany({
-                where: {
-                    isActive: true,
-                    tenantApps: {
-                        some: {
-                            tenantId: tenantId,
-                            enabled: true,
-                        },
-                    },
-                },
-            });
-        }
-
-        // Regular users see only permitted apps
-        return this.prisma.app.findMany({
-            where: {
-                isActive: true,
-                tenantApps: {
-                    some: {
-                        tenantId: tenantId,
-                        enabled: true,
-                    },
-                },
-                userPermissions: {
-                    some: {
-                        tenantUserId: membership.id,
                     },
                 },
             },

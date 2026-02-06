@@ -12,6 +12,7 @@ import { displayAboutAjith } from './components/apps/anurag';
 import { displayCalculator } from './components/apps/calc';
 import { displayProject } from './components/apps/crm_odoo';
 import { displayUserManager } from './components/apps/user_manager';
+import displayAlpheryAccess from './components/apps/alphery_access.tsx';
 import { displayMessenger } from './components/apps/messenger';
 import { displayAppStore } from './components/apps/app_store';
 import { displayFileManager } from './components/apps/file_manager';
@@ -46,13 +47,13 @@ const apps = [
         screen: displayMessenger,
     },
     {
-        id: "users",
+        id: "alphery-access",
         title: "Alphery Access",
         icon: './themes/Yaru/apps/users.png',
         disabled: false,
         favourite: false,
         desktop_shortcut: false,
-        screen: displayUserManager,
+        screen: displayAlpheryAccess,
     },
     {
         id: "projects",

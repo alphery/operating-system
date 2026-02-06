@@ -23,6 +23,7 @@ import { NotificationModule } from './notification/notification.module';
 import { EmailModule } from './email/email.module';
 import { RoleModule } from './role/role.module';
 import { FactoryModule } from './factory/factory.module';
+import { PlatformModule } from './platform/platform.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { FactoryModule } from './factory/factory.module';
     // RedisModule, // Commented out - Install Redis first for caching
     StorageModule,
     AuthModule,
+    PlatformModule,
     UsersModule,
     ProjectsModule,
     TasksModule,

@@ -1,0 +1,472 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  subdomain String?  @unique
+  plan      String   @default("free") // free, pro, enterprise
+  allowedApps String[] @default([]) // List of app IDs enabled for this tenant
+  ownerId   String?  // User who created/owns this workspace
+  users     User[]
+  clients   Client[]
+  projects  Project[]
+  tasks     Task[]
+  entityDefinitions EntityDefinition[]
+  entityRecords     EntityRecord[]
+  crmActivities     CRMActivity[]
+  invitations       Invitation[]
+  workflows         Workflow[]
+  dashboards        Dashboard[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model User {
+  id             String       @id @default(uuid())
+  tenantId       String
+  tenant         Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  email          String       
+  password       String?      // Optional for Google OAuth users
+  googleId       String?      @unique // Google OAuth ID
+  name           String?      // Full name from Google
+  firstName      String?
+  lastName       String?
+  role           Role         @default(USER)
+  teamRole       String       @default("member") // owner, admin, member, viewer
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  files          File[]
+  tasks          Task[]
+  timesheets     Timesheet[]
+  
+  // Hierarchical tagging
+  parentUserId   String?
+  parentUser     User?         @relation("TenantHierarchy", fields: [parentUserId], references: [id])
+  managedUsers   User[]        @relation("TenantHierarchy")
+
+  // Relations for Entity Engine
+  createdRecords EntityRecord[] @relation("CreatedRecords")
+  ownedRecords   EntityRecord[] @relation("OwnedRecords")
+
+  @@unique([tenantId, email])
+}
+
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  users     User[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model File {
+  id        String   @id @default(uuid())
+  name      String
+  url       String
+  size      Int
+  type      String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// === ERP MODULES ===
+
+model Client {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  email     String?
+  company   String?
+  phone     String?
+  address   String?
+  status    String   @default("New")
+  value     Float    @default(0)
+  priority  String   @default("Medium")
+  projects  Project[]
+  quotations Quotation[]
+  invoices   Invoice[]
+  activities CRMActivity[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+model Project {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  status      String   @default("Planning") // Planning, In Progress, Review, Completed
+  priority    String   @default("Medium")
+  budget      Float?
+  spent       Float?
+  startDate   DateTime?
+  endDate     DateTime?
+  clientId    String?
+  client      Client?  @relation(fields: [clientId], references: [id])
+  tasks       Task[]
+  documents   Document[]
+  tags        String[]
+  progress    Int      @default(0)
+  timesheets  Timesheet[]
+  expenses    Expense[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([clientId])
+}
+
+model Task {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  status      String   @default("To Do")
+  priority    String   @default("Medium")
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id])
+  assignedTo  String?
+  assignee    User?    @relation(fields: [assignedTo], references: [id])
+  dueDate     DateTime?
+  hoursEstimated Float?
+  timesheets  Timesheet[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([projectId])
+}
+
+model Quotation {
+  id        String   @id @default(uuid())
+  title     String
+  clientId  String?
+  client    Client?  @relation(fields: [clientId], references: [id])
+  items     Json     // Array of { description, quantity, price }
+  total     Float
+  status    String   @default("Draft") // Draft, Sent, Approved, Rejected
+  validUntil DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Invoice {
+  id        String   @id @default(uuid())
+  invoiceNumber String @unique
+  clientId  String?
+  client    Client?  @relation(fields: [clientId], references: [id])
+  items     Json
+  total     Float
+  status    String   @default("Pending") // Pending, Paid, Overdue, Cancelled
+  dueDate   DateTime?
+  paidAt    DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+
+model CRMActivity {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  title     String
+  type      String   // Call, Meeting, Email, Task
+  status    String   @default("Pending") // Pending, Completed
+  dueDate   DateTime?
+  completedAt DateTime?
+  notes     String?
+  clientId  String?
+  client    Client?  @relation(fields: [clientId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([clientId])
+}
+
+model Document {
+  id        String   @id @default(uuid())
+  title     String
+  url       String
+  type      String     @default("File")
+  projectId String?
+  project   Project?   @relation(fields: [projectId], references: [id])
+  uploadedBy String?
+  createdAt DateTime   @default(now())
+}
+
+model Timesheet {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  taskId    String?
+  task      Task?    @relation(fields: [taskId], references: [id])
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id])
+  duration  Int      // In minutes
+  description String?
+  billable  Boolean  @default(true)
+  date      DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Expense {
+  id        String   @id @default(uuid())
+  title     String
+  amount    Float
+  currency  String   @default("USD")
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id])
+  category  String   // Travel, Software, Meals, etc.
+  receiptUrl String?
+  incurredAt DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum Role {
+  ADMIN
+  TENANT
+  BUSINESS
+  USER
+  TEAM
+}
+
+// === DYNAMIC ENTITY ENGINE (THE CORE) ===
+
+model EntityDefinition {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name        String   // e.g. "Lead", "Patient", "Order"
+  slug        String   // e.g. "lead", "patient" (API friendly)
+  icon        String?  // e.g. "user", "heart", "briefcase"
+  description String?
+  
+  fields      EntityField[]
+  records     EntityRecord[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tenantId, slug])
+}
+
+model EntityField {
+  id          String   @id @default(uuid())
+  entityDefId String
+  entityDef   EntityDefinition @relation(fields: [entityDefId], references: [id], onDelete: Cascade)
+  
+  name        String   // e.g. "Budget", "Blood Group"
+  key         String   // e.g. "budget", "blood_group"
+  type        String   // "text", "number", "currency", "date", "status", "relation"
+  options     Json?    // For select/enum types: ["A+", "B+"]
+  isRequired  Boolean  @default(false)
+  isList      Boolean  @default(false)
+  order       Int      @default(0)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([entityDefId, key])
+}
+
+model EntityRecord {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  entityDefId String
+  entityDef   EntityDefinition @relation(fields: [entityDefId], references: [id], onDelete: Cascade)
+  
+  // 🔥 THE MAGIC: All data is stored here dynamically
+  data        Json     // { "budget": 5000, "blood_group": "A+", "status": "New" }
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Standard tracking
+  createdBy   String?
+  creator     User?    @relation("CreatedRecords", fields: [createdBy], references: [id])
+  ownerId     String?
+  owner       User?    @relation("OwnedRecords", fields: [ownerId], references: [id])
+
+  @@index([tenantId])
+  @@index([entityDefId])
+}
+
+model Invitation {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  email       String
+  role        String   @default("member") // owner, admin, member, viewer
+  status      String   @default("pending") // pending, accepted, expired
+  invitedBy   String   // User ID who sent invitation
+  token       String   @unique // Unique token for invitation link
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  
+  @@index([tenantId])
+  @@index([email])
+  @@index([token])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  tenantId  String
+  userId    String
+  action    String   // CREATE, UPDATE, DELETE
+  entity    String   // Client, Lead, Project, etc.
+  entityId  String
+  oldValue  Json?    // Previous state (for UPDATE/DELETE)
+  newValue  Json?    // New state (for CREATE/UPDATE)
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([entity])
+  @@index([createdAt])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  tenantId  String
+  userId    String   // Who receives this notification
+  type      String   // MENTION, TASK_ASSIGNED, DEAL_WON, etc.
+  title     String
+  message   String
+  link      String?  // URL to navigate to
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
+}
+
+model CustomRole {
+  id          String   @id @default(uuid())
+  tenantId    String
+  name        String   // "Sales Manager", "Junior Accountant"
+  description String?
+  permissions Json     // { "client": { "read": true, "write": true, "fields": { "salary": false } }, "lead": { "read": true, "write": false } }
+  isSystem    Boolean  @default(false) // true for owner/admin/member/viewer
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model EmailQueue {
+  id          String   @id @default(uuid())
+  tenantId    String?
+  to          String   // Recipient email
+  from        String?  // Sender email (optional, uses default)
+  subject     String
+  body        String   @db.Text // HTML or plain text
+  template    String?  // Template name (e.g., "invitation", "notification")
+  data        Json?    // Template variables
+  status      String   @default("pending") // pending, sent, failed
+  attempts    Int      @default(0)
+  error       String?  @db.Text
+  sentAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// === 1. WORKFLOW AUTOMATION ENGINE ===
+model Workflow {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name        String   // e.g. "Send Welcome Email"
+  moduleSlug  String   // e.g. "lead", "patient"
+  trigger     String   // "ON_CREATE", "ON_UPDATE", "ON_FIELD_CHANGE"
+  triggerField String? // If trigger is ON_FIELD_CHANGE
+  isActive    Boolean  @default(true)
+  actions     WorkflowAction[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([moduleSlug])
+}
+
+model WorkflowAction {
+  id          String   @id @default(uuid())
+  workflowId  String
+  workflow    Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  order       Int      // Execution order
+  type        String   // "EMAIL", "UPDATE_RECORD", "CREATE_TASK", "WEBHOOK"
+  config      Json     // { "to": "{{email}}", "subject": "Welcome!", "set_status": "Active" }
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// === 2. DYNAMIC DASHBOARD ENGINE ===
+model Dashboard {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name        String   // e.g. "CEO Overview", "Sales Dashboard"
+  role        String?  // Only visible to this role (optional)
+  widgets     DashboardWidget[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+model DashboardWidget {
+  id          String   @id @default(uuid())
+  dashboardId String
+  dashboard   Dashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+  title       String    // e.g. "Revenue this Month"
+  type        String    // "METRIC", "LINE_CHART", "BAR_CHART", "LIST", "PIE"
+  moduleSlug  String    // e.g. "invoice"
+  config      Json      // { "filter": { "status": "Paid" }, "xAxis": "createdAt", "yAxis": "amount" }
+  position    Json      // { "x": 0, "y": 0, "w": 2, "h": 2 } (Grid layout)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// === 3. INDUSTRY TEMPLATE ENGINE ===
+// "Blueprints" to instantiate a tenant setup
+model IndustryTemplate {
+  id          String   @id @default(uuid())
+  slug        String   @unique // e.g. "healthcare-erp"
+  name        String   // e.g. "Healthcare ERP", "Manufacturing Lite"
+  description String
+  modules     Json     // Array of complete EntityDefinitions
+  workflows   Json     // Array of Workflows
+  dashboards  Json     // Array of Dashboard configs
+  isPublic    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

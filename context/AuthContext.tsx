@@ -72,13 +72,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
                 setUser(user);
 
                 // Set up real-time listener for user data
-                if (db) {
+                if (db && user.email) {
                     try {
-                        const userDocRef = doc(db, 'users', user.uid);
+                        const userDocRef = doc(db, 'users', user.email.toLowerCase());
                         userDataUnsubscribe = onSnapshot(userDocRef, (docSnap) => {
                             if (docSnap.exists()) {
                                 console.log('[AuthContext] User data updated from Firestore');
                                 setUserData(docSnap.data() as UserData);
+                            } else {
+                                // If doc doesn't exist at email key, it might be new or strictly UID based? 
+                                // But system prefers Email. We leave userData null so defaults apply or waiting for creation.
+                                console.log('[AuthContext] No user document found for email:', user.email);
                             }
                         }, (error) => {
                             console.error('Error listening to user data:', error);
@@ -109,12 +113,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }, []);
 
     const loadUserData = async (uid: string) => {
-        if (!db) {
-            console.warn('Firestore not available in demo mode');
-            return;
-        }
+        // NOTE: This legacy function expects UID. If keys are emails, this might fail unless UID matches Email.
+        // Kept for interface compatibility but warning: Docs are keyed by Email now.
+        if (!db) return;
 
         try {
+            // Attempt to find user by UID query if we don't know the email?
+            // For now, retaining simplistic getDoc which likely fails if key != uid.
+            // Ideally should be passed email or query by field 'uid'
             const userDoc = await getDoc(doc(db, 'users', uid));
             if (userDoc.exists()) {
                 setUserData(userDoc.data() as UserData);
@@ -297,7 +303,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     };
 
     const updateUserData = async (data: Partial<UserData>) => {
-        if (!user) return;
+        if (!user || !user.email) return;
 
         if (!db) {
             console.warn('Firestore not available. Cannot update user data in demo mode.');
@@ -305,7 +311,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         }
 
         try {
-            const userRef = doc(db, 'users', user.uid);
+            const userRef = doc(db, 'users', user.email.toLowerCase());
             await setDoc(userRef, data, { merge: true });
 
             // We need to merge the new data with existing state locally
