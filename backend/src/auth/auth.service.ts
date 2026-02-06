@@ -268,7 +268,7 @@ export class AuthService {
         if (['owner', 'admin'].includes(membership.role)) return true;
 
         // 5. Check explicit permission
-        const permission = await this.prisma.platformUserAppPermission.findUnique({
+        const permission = await this.prisma.userAppPermission.findUnique({
             where: {
                 tenantUserId_appId: {
                     tenantUserId: membership.id,

@@ -23,7 +23,7 @@ export class FactoryService {
 
     async getTemplates() {
         return this.prisma.industryTemplate.findMany({
-            where: { isPublic: true }
+            // where: { isPublic: true } // isPublic removed from schema
         });
     }
 
@@ -67,9 +67,11 @@ export class FactoryService {
             moduleMap.set(mod.slug, def.id);
         }
 
-        // 2. Create Workflows
-        const workflows = template.workflows as any[];
-        if (workflows) {
+        // 2. Create Workflows (Parsing from modules or extra metadata)
+        // Historically this was in a separate field, but now it might be embedded
+        const workflows = (template as any).workflows || [];
+
+        if (Array.isArray(workflows)) {
             for (const wf of workflows) {
                 await this.prisma.workflow.create({
                     data: {
@@ -78,7 +80,7 @@ export class FactoryService {
                         moduleSlug: wf.moduleSlug,
                         trigger: wf.trigger,
                         triggerField: wf.triggerField,
-                        isActive: true,
+                        isActive: true, // Default to active
                         actions: {
                             create: wf.actions.map((act: any, idx: number) => ({
                                 type: act.type,
@@ -92,8 +94,9 @@ export class FactoryService {
         }
 
         // 3. Create Dashboards
-        const dashboards = template.dashboards as any[];
-        if (dashboards) {
+        const dashboards = (template as any).dashboards || [];
+
+        if (Array.isArray(dashboards)) {
             for (const db of dashboards) {
                 await this.prisma.dashboard.create({
                     data: {

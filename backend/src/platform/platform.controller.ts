@@ -337,7 +337,7 @@ export class TenantController {
             throw new Error('User not found in tenant');
         }
 
-        return this.prisma.platformUserAppPermission.upsert({
+        return this.prisma.userAppPermission.upsert({
             where: {
                 tenantUserId_appId: {
                     tenantUserId: membership.id,
@@ -376,7 +376,7 @@ export class TenantController {
             throw new Error('User not found in tenant');
         }
 
-        return this.prisma.platformUserAppPermission.delete({
+        return this.prisma.userAppPermission.delete({
             where: {
                 tenantUserId_appId: {
                     tenantUserId: membership.id,
