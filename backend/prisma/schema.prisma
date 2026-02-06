@@ -17,26 +17,27 @@ datasource db {
 // ═══════════════════════════════════════════════════════════
 
 model PlatformUser {
-  id            String   @id @default(uuid())
-  firebaseUid   String   @unique @map("firebase_uid") // NEVER use as FK
-  email         String   // Display only, indexed for search
-  displayName   String?  @map("display_name")
-  firstName     String?  @map("first_name")
-  lastName      String?  @map("last_name")
-  photoUrl      String?  @map("photo_url")
-  isGod         Boolean  @default(false) @map("is_god") // Platform owner
-  isActive      Boolean  @default(true) @map("is_active")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
-  lastLoginAt   DateTime? @map("last_login_at")
+  id          String    @id @default(uuid())
+  firebaseUid String    @unique @map("firebase_uid") // NEVER use as FK
+  email       String // Display only, indexed for search
+  displayName String?   @map("display_name")
+  firstName   String?   @map("first_name")
+  lastName    String?   @map("last_name")
+  photoUrl    String?   @map("photo_url")
+  isGod       Boolean   @default(false) @map("is_god") // Platform owner
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  lastLoginAt DateTime? @map("last_login_at")
 
   // Relations
-  ownedTenants     Tenant[]      @relation("TenantOwner")
+  ownedTenants      Tenant[]       @relation("TenantOwner")
   tenantMemberships TenantUser[]
-  invitationsSent  Invitation[]  @relation("InvitedBy")
-  auditLogs        AuditLog[]
-  notifications    Notification[]
-  timesheets       Timesheet[] @relation("UserTimesheets")
+  invitationsSent   Invitation[]   @relation("InvitedBy")
+  auditLogs         AuditLog[]
+  notifications     Notification[]
+  timesheets        Timesheet[]    @relation("UserTimesheets")
+  assignedTasks     Task[]         @relation("TaskAssignee")
 
   @@unique([email], map: "unique_email_case_insensitive")
   @@index([firebaseUid])
@@ -46,33 +47,33 @@ model PlatformUser {
 }
 
 model Tenant {
-  id          String   @id @default(uuid())
+  id          String       @id @default(uuid())
   name        String
-  subdomain   String?  @unique // For future: tenant.alphery.com
-  ownerUserId String   @map("owner_user_id")
+  subdomain   String?      @unique // For future: tenant.alphery.com
+  ownerUserId String       @map("owner_user_id")
   owner       PlatformUser @relation("TenantOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
-  plan        String   @default("free") // free, pro, enterprise
-  allowedApps String[] @default([]) // For backward compatibility
-  isActive    Boolean  @default(true) @map("is_active")
-  settings    Json     @default("{}")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  plan        String       @default("free") // free, pro, enterprise
+  allowedApps String[]     @default([]) // For backward compatibility
+  isActive    Boolean      @default(true) @map("is_active")
+  settings    Json         @default("{}")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
 
   // Relations
   users       TenantUser[]
   apps        TenantApp[]
   invitations Invitation[]
   auditLogs   AuditLog[]
-  
+
   // Existing ERP data (keep for backward compatibility)
-  clients         Client[]
-  projects        Project[]
-  tasks           Task[]
-  crmActivities   CRMActivity[]
+  clients           Client[]
+  projects          Project[]
+  tasks             Task[]
+  crmActivities     CRMActivity[]
   entityDefinitions EntityDefinition[]
-  entityRecords   EntityRecord[]
-  workflows       Workflow[]
-  dashboards      Dashboard[]
+  entityRecords     EntityRecord[]
+  workflows         Workflow[]
+  dashboards        Dashboard[]
 
   @@index([ownerUserId])
   @@index([subdomain], map: "idx_tenants_subdomain")
@@ -86,7 +87,7 @@ model App {
   name        String
   description String?
   iconUrl     String?  @map("icon_url")
-  category    String?  // crm, hr, finance, utility, productivity
+  category    String? // crm, hr, finance, utility, productivity
   isCore      Boolean  @default(false) @map("is_core") // Core apps like settings
   isActive    Boolean  @default(true) @map("is_active")
   version     String   @default("1.0.0")
@@ -103,15 +104,15 @@ model App {
 }
 
 model TenantApp {
-  id          String   @id @default(uuid())
-  tenantId    String   @map("tenant_id")
-  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  appId       String   @map("app_id")
-  app         App      @relation(fields: [appId], references: [id], onDelete: Cascade)
-  enabled     Boolean  @default(true)
-  settings    Json     @default("{}") // App-specific tenant configuration
-  enabledAt   DateTime @default(now()) @map("enabled_at")
-  enabledByUserId String? @map("enabled_by_user_id")
+  id              String   @id @default(uuid())
+  tenantId        String   @map("tenant_id")
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  appId           String   @map("app_id")
+  app             App      @relation(fields: [appId], references: [id], onDelete: Cascade)
+  enabled         Boolean  @default(true)
+  settings        Json     @default("{}") // App-specific tenant configuration
+  enabledAt       DateTime @default(now()) @map("enabled_at")
+  enabledByUserId String?  @map("enabled_by_user_id")
 
   @@unique([tenantId, appId], map: "unique_tenant_app")
   @@index([tenantId])
@@ -124,15 +125,15 @@ model TenantApp {
 // ═══════════════════════════════════════════════════════════
 
 model TenantUser {
-  id              String   @id @default(uuid())
-  tenantId        String   @map("tenant_id")
-  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  userId          String   @map("user_id")
+  id              String       @id @default(uuid())
+  tenantId        String       @map("tenant_id")
+  tenant          Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId          String       @map("user_id")
   user            PlatformUser @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role            String   // owner, admin, member, viewer
-  isActive        Boolean  @default(true) @map("is_active")
-  invitedByUserId String?  @map("invited_by_user_id")
-  joinedAt        DateTime @default(now()) @map("joined_at")
+  role            String // owner, admin, member, viewer
+  isActive        Boolean      @default(true) @map("is_active")
+  invitedByUserId String?      @map("invited_by_user_id")
+  joinedAt        DateTime     @default(now()) @map("joined_at")
 
   // Relations
   appPermissions UserAppPermission[]
@@ -146,14 +147,14 @@ model TenantUser {
 }
 
 model UserAppPermission {
-  id            String   @id @default(uuid())
-  tenantUserId  String   @map("tenant_user_id")
-  tenantUser    TenantUser @relation(fields: [tenantUserId], references: [id], onDelete: Cascade)
-  appId         String   @map("app_id")
-  app           App      @relation(fields: [appId], references: [id], onDelete: Cascade)
-  permissions   Json     @default("{\"read\": true, \"write\": false, \"delete\": false}")
-  grantedAt     DateTime @default(now()) @map("granted_at")
-  grantedByUserId String? @map("granted_by_user_id")
+  id              String     @id @default(uuid())
+  tenantUserId    String     @map("tenant_user_id")
+  tenantUser      TenantUser @relation(fields: [tenantUserId], references: [id], onDelete: Cascade)
+  appId           String     @map("app_id")
+  app             App        @relation(fields: [appId], references: [id], onDelete: Cascade)
+  permissions     Json       @default("{\"read\": true, \"write\": false, \"delete\": false}")
+  grantedAt       DateTime   @default(now()) @map("granted_at")
+  grantedByUserId String?    @map("granted_by_user_id")
 
   @@unique([tenantUserId, appId], map: "unique_user_app_permission")
   @@index([tenantUserId])
@@ -162,18 +163,18 @@ model UserAppPermission {
 }
 
 model Invitation {
-  id              String   @id @default(uuid())
-  tenantId        String   @map("tenant_id")
-  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id              String       @id @default(uuid())
+  tenantId        String       @map("tenant_id")
+  tenant          Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   email           String
-  role            String   @default("member")
-  token           String   @unique
-  invitedByUserId String   @map("invited_by_user_id")
+  role            String       @default("member")
+  token           String       @unique
+  invitedByUserId String       @map("invited_by_user_id")
   invitedBy       PlatformUser @relation("InvitedBy", fields: [invitedByUserId], references: [id])
-  status          String   @default("pending") // pending, accepted, expired, revoked
-  expiresAt       DateTime @map("expires_at")
-  acceptedAt      DateTime? @map("accepted_at")
-  createdAt       DateTime @default(now()) @map("created_at")
+  status          String       @default("pending") // pending, accepted, expired, revoked
+  expiresAt       DateTime     @map("expires_at")
+  acceptedAt      DateTime?    @map("accepted_at")
+  createdAt       DateTime     @default(now()) @map("created_at")
 
   @@index([token])
   @@index([email])
@@ -186,20 +187,20 @@ model Invitation {
 // ═══════════════════════════════════════════════════════════
 
 model AuditLog {
-  id         String   @id @default(uuid())
-  tenantId   String?  @map("tenant_id")
-  tenant     Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
-  userId     String?  @map("user_id")
+  id         String        @id @default(uuid())
+  tenantId   String?       @map("tenant_id")
+  tenant     Tenant?       @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  userId     String?       @map("user_id")
   user       PlatformUser? @relation(fields: [userId], references: [id], onDelete: SetNull)
-  action     String   // CREATE_USER, ENABLE_APP, DELETE_TENANT, etc.
-  entity     String?  // Backward compatibility
-  entityType String?  @map("entity_type") // tenant, user, app
-  entityId   String?  @map("entity_id")
-  oldValue   Json?    @map("old_value")
-  newValue   Json?    @map("new_value")
-  ipAddress  String?  @map("ip_address")
-  userAgent  String?  @map("user_agent")
-  createdAt  DateTime @default(now()) @map("created_at")
+  action     String // CREATE_USER, ENABLE_APP, DELETE_TENANT, etc.
+  entity     String? // Backward compatibility
+  entityType String?       @map("entity_type") // tenant, user, app
+  entityId   String?       @map("entity_id")
+  oldValue   Json?         @map("old_value")
+  newValue   Json?         @map("new_value")
+  ipAddress  String?       @map("ip_address")
+  userAgent  String?       @map("user_agent")
+  createdAt  DateTime      @default(now()) @map("created_at")
 
   @@index([tenantId, createdAt], map: "idx_audit_logs_tenant")
   @@index([userId, createdAt], map: "idx_audit_logs_user")
@@ -213,50 +214,50 @@ model AuditLog {
 // ═══════════════════════════════════════════════════════════
 
 model Client {
-  id        String   @id @default(uuid())
-  tenantId  String   @map("tenant_id")
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  name      String
-  email     String?
-  company   String?
-  phone     String?
-  address   String?
-  status    String   @default("New")
-  value     Float    @default(0)
-  priority  String   @default("Medium")
-  projects  Project[]
+  id         String        @id @default(uuid())
+  tenantId   String        @map("tenant_id")
+  tenant     Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name       String
+  email      String?
+  company    String?
+  phone      String?
+  address    String?
+  status     String        @default("New")
+  value      Float         @default(0)
+  priority   String        @default("Medium")
+  projects   Project[]
   quotations Quotation[]
   invoices   Invoice[]
   activities CRMActivity[]
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt  DateTime      @default(now()) @map("created_at")
+  updatedAt  DateTime      @updatedAt @map("updated_at")
 
   @@index([tenantId])
   @@map("clients")
 }
 
 model Project {
-  id          String   @id @default(uuid())
-  tenantId    String   @map("tenant_id")
-  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id          String      @id @default(uuid())
+  tenantId    String      @map("tenant_id")
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   title       String
   description String?
-  status      String   @default("Planning")
-  priority    String   @default("Medium")
+  status      String      @default("Planning")
+  priority    String      @default("Medium")
   budget      Float?
   spent       Float?
-  startDate   DateTime? @map("start_date")
-  endDate     DateTime? @map("end_date")
-  clientId    String?  @map("client_id")
-  client      Client?  @relation(fields: [clientId], references: [id])
+  startDate   DateTime?   @map("start_date")
+  endDate     DateTime?   @map("end_date")
+  clientId    String?     @map("client_id")
+  client      Client?     @relation(fields: [clientId], references: [id])
   tasks       Task[]
   documents   Document[]
   tags        String[]
-  progress    Int      @default(0)
+  progress    Int         @default(0)
   timesheets  Timesheet[]
   expenses    Expense[]
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
 
   @@index([tenantId])
   @@index([clientId])
@@ -264,22 +265,22 @@ model Project {
 }
 
 model Task {
-  id          String   @id @default(uuid())
-  tenantId    String   @map("tenant_id")
-  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  title       String
-  description String?
-  status      String   @default("To Do")
-  priority    String   @default("Medium")
-  projectId   String   @map("project_id")
-  project     Project  @relation(fields: [projectId], references: [id])
-  assignedTo  String?  @map("assigned_to")
-  assignee    PlatformUser? @relation(fields: [assignedTo], references: [id])
-  dueDate     DateTime? @map("due_date")
-  hoursEstimated Float? @map("hours_estimated")
-  timesheets  Timesheet[]
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id             String        @id @default(uuid())
+  tenantId       String        @map("tenant_id")
+  tenant         Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  title          String
+  description    String?
+  status         String        @default("To Do")
+  priority       String        @default("Medium")
+  projectId      String        @map("project_id")
+  project        Project       @relation(fields: [projectId], references: [id])
+  assignedTo     String?       @map("assigned_to")
+  assignee       PlatformUser? @relation("TaskAssignee", fields: [assignedTo], references: [id])
+  dueDate        DateTime?     @map("due_date")
+  hoursEstimated Float?        @map("hours_estimated")
+  timesheets     Timesheet[]
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
 
   @@index([tenantId])
   @@index([projectId])
@@ -287,50 +288,50 @@ model Task {
 }
 
 model Quotation {
-  id        String   @id @default(uuid())
-  title     String
-  clientId  String?  @map("client_id")
-  client    Client?  @relation(fields: [clientId], references: [id])
-  items     Json
-  total     Float
-  status    String   @default("Draft")
+  id         String    @id @default(uuid())
+  title      String
+  clientId   String?   @map("client_id")
+  client     Client?   @relation(fields: [clientId], references: [id])
+  items      Json
+  total      Float
+  status     String    @default("Draft")
   validUntil DateTime? @map("valid_until")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
 
   @@map("quotations")
 }
 
 model Invoice {
-  id        String   @id @default(uuid())
-  invoiceNumber String @unique @map("invoice_number")
-  clientId  String?  @map("client_id")
-  client    Client?  @relation(fields: [clientId], references: [id])
-  items     Json
-  total     Float
-  status    String   @default("Pending")
-  dueDate   DateTime? @map("due_date")
-  paidAt    DateTime? @map("paid_at")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id            String    @id @default(uuid())
+  invoiceNumber String    @unique @map("invoice_number")
+  clientId      String?   @map("client_id")
+  client        Client?   @relation(fields: [clientId], references: [id])
+  items         Json
+  total         Float
+  status        String    @default("Pending")
+  dueDate       DateTime? @map("due_date")
+  paidAt        DateTime? @map("paid_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
 
   @@map("invoices")
 }
 
 model CRMActivity {
-  id        String   @id @default(uuid())
-  tenantId  String   @map("tenant_id")
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  title     String
-  type      String
-  status    String   @default("Pending")
-  dueDate   DateTime? @map("due_date")
+  id          String    @id @default(uuid())
+  tenantId    String    @map("tenant_id")
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  title       String
+  type        String
+  status      String    @default("Pending")
+  dueDate     DateTime? @map("due_date")
   completedAt DateTime? @map("completed_at")
-  notes     String?
-  clientId  String?  @map("client_id")
-  client    Client?  @relation(fields: [clientId], references: [id])
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  notes       String?
+  clientId    String?   @map("client_id")
+  client      Client?   @relation(fields: [clientId], references: [id])
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
   @@index([tenantId])
   @@index([clientId])
@@ -338,48 +339,48 @@ model CRMActivity {
 }
 
 model Document {
-  id        String   @id @default(uuid())
-  title     String
-  url       String
-  type      String   @default("File")
-  projectId String?  @map("project_id")
-  project   Project? @relation(fields: [projectId], references: [id])
-  uploadedBy String? @map("uploaded_by")
-  createdAt DateTime @default(now()) @map("created_at")
+  id         String   @id @default(uuid())
+  title      String
+  url        String
+  type       String   @default("File")
+  projectId  String?  @map("project_id")
+  project    Project? @relation(fields: [projectId], references: [id])
+  uploadedBy String?  @map("uploaded_by")
+  createdAt  DateTime @default(now()) @map("created_at")
 
   @@map("documents")
 }
 
 model Timesheet {
-  id        String   @id @default(uuid())
-  userId    String   @map("user_id")
-  user      PlatformUser @relation("UserTimesheets", fields: [userId], references: [id])
-  taskId    String?  @map("task_id")
-  task      Task?    @relation(fields: [taskId], references: [id])
-  projectId String   @map("project_id")
-  project   Project  @relation(fields: [projectId], references: [id])
-  duration  Int
+  id          String       @id @default(uuid())
+  userId      String       @map("user_id")
+  user        PlatformUser @relation("UserTimesheets", fields: [userId], references: [id])
+  taskId      String?      @map("task_id")
+  task        Task?        @relation(fields: [taskId], references: [id])
+  projectId   String       @map("project_id")
+  project     Project      @relation(fields: [projectId], references: [id])
+  duration    Int
   description String?
-  billable  Boolean  @default(true)
-  date      DateTime @default(now())
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  billable    Boolean      @default(true)
+  date        DateTime     @default(now())
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
 
   @@map("timesheets")
 }
 
 model Expense {
-  id        String   @id @default(uuid())
-  title     String
-  amount    Float
-  currency  String   @default("USD")
-  projectId String?  @map("project_id")
-  project   Project? @relation(fields: [projectId], references: [id])
-  category  String
-  receiptUrl String? @map("receipt_url")
+  id         String   @id @default(uuid())
+  title      String
+  amount     Float
+  currency   String   @default("USD")
+  projectId  String?  @map("project_id")
+  project    Project? @relation(fields: [projectId], references: [id])
+  category   String
+  receiptUrl String?  @map("receipt_url")
   incurredAt DateTime @default(now()) @map("incurred_at")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
   @@map("expenses")
 }
@@ -389,51 +390,51 @@ model Expense {
 // ═══════════════════════════════════════════════════════════
 
 model EntityDefinition {
-  id          String   @id @default(uuid())
-  tenantId    String   @map("tenant_id")
-  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id          String         @id @default(uuid())
+  tenantId    String         @map("tenant_id")
+  tenant      Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name        String
   slug        String
   icon        String?
   description String?
   fields      EntityField[]
   records     EntityRecord[]
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
 
   @@unique([tenantId, slug])
   @@map("entity_definitions")
 }
 
 model EntityField {
-  id          String   @id @default(uuid())
-  entityDefId String   @map("entity_def_id")
+  id          String           @id @default(uuid())
+  entityDefId String           @map("entity_def_id")
   entityDef   EntityDefinition @relation(fields: [entityDefId], references: [id], onDelete: Cascade)
   name        String
   key         String
   type        String
   options     Json?
-  isRequired  Boolean  @default(false) @map("is_required")
-  isList      Boolean  @default(false) @map("is_list")
-  order       Int      @default(0)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  isRequired  Boolean          @default(false) @map("is_required")
+  isList      Boolean          @default(false) @map("is_list")
+  order       Int              @default(0)
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
 
   @@unique([entityDefId, key])
   @@map("entity_fields")
 }
 
 model EntityRecord {
-  id          String   @id @default(uuid())
-  tenantId    String   @map("tenant_id")
-  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  entityDefId String   @map("entity_def_id")
+  id          String           @id @default(uuid())
+  tenantId    String           @map("tenant_id")
+  tenant      Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  entityDefId String           @map("entity_def_id")
   entityDef   EntityDefinition @relation(fields: [entityDefId], references: [id], onDelete: Cascade)
   data        Json
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  createdBy   String?  @map("created_by")
-  ownerId     String?  @map("owner_id")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  createdBy   String?          @map("created_by")
+  ownerId     String?          @map("owner_id")
 
   @@index([tenantId])
   @@index([entityDefId])
@@ -445,17 +446,17 @@ model EntityRecord {
 // ═══════════════════════════════════════════════════════════
 
 model Workflow {
-  id          String   @id @default(uuid())
-  tenantId    String   @map("tenant_id")
-  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  name        String
-  moduleSlug  String   @map("module_slug")
-  trigger     String
-  triggerField String? @map("trigger_field")
-  isActive    Boolean  @default(true) @map("is_active")
-  actions     WorkflowAction[]
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id           String           @id @default(uuid())
+  tenantId     String           @map("tenant_id")
+  tenant       Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name         String
+  moduleSlug   String           @map("module_slug")
+  trigger      String
+  triggerField String?          @map("trigger_field")
+  isActive     Boolean          @default(true) @map("is_active")
+  actions      WorkflowAction[]
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
 
   @@index([tenantId])
   @@index([moduleSlug])
@@ -463,43 +464,43 @@ model Workflow {
 }
 
 model WorkflowAction {
-  id          String   @id @default(uuid())
-  workflowId  String   @map("workflow_id")
-  workflow    Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
-  order       Int
-  type        String
-  config      Json
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id         String   @id @default(uuid())
+  workflowId String   @map("workflow_id")
+  workflow   Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  order      Int
+  type       String
+  config     Json
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
   @@map("workflow_actions")
 }
 
 model Dashboard {
-  id          String   @id @default(uuid())
-  tenantId    String   @map("tenant_id")
-  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  name        String
-  role        String?
-  widgets     DashboardWidget[]
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id        String            @id @default(uuid())
+  tenantId  String            @map("tenant_id")
+  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  role      String?
+  widgets   DashboardWidget[]
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
 
   @@index([tenantId])
   @@map("dashboards")
 }
 
 model DashboardWidget {
-  id          String   @id @default(uuid())
-  dashboardId String   @map("dashboard_id")
+  id          String    @id @default(uuid())
+  dashboardId String    @map("dashboard_id")
   dashboard   Dashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
   title       String
   type        String
-  moduleSlug  String   @map("module_slug")
+  moduleSlug  String    @map("module_slug")
   config      Json
   position    Json
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
   @@map("dashboard_widgets")
 }
@@ -509,20 +510,20 @@ model DashboardWidget {
 // ═══════════════════════════════════════════════════════════
 
 model EmailQueue {
-  id        String   @id @default(uuid())
-  tenantId  String?  @map("tenant_id")
+  id        String    @id @default(uuid())
+  tenantId  String?   @map("tenant_id")
   to        String
   from      String?
   subject   String
-  body      String   @db.Text
+  body      String    @db.Text
   template  String?
   data      Json?
-  status    String   @default("pending") // pending, sent, failed
-  attempts  Int      @default(0)
-  error     String?  @db.Text
+  status    String    @default("pending") // pending, sent, failed
+  attempts  Int       @default(0)
+  error     String?   @db.Text
   sentAt    DateTime? @map("sent_at")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
 
   @@index([status])
   @@map("email_queue")
@@ -533,8 +534,8 @@ model IndustryTemplate {
   name        String
   slug        String   @unique
   description String?
-  modules     Json     // List of modules to enable
-  settings    Json?    // Default settings
+  modules     Json // List of modules to enable
+  settings    Json? // Default settings
   isActive    Boolean  @default(true) @map("is_active")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
@@ -543,17 +544,17 @@ model IndustryTemplate {
 }
 
 model Notification {
-  id        String   @id @default(uuid())
-  tenantId  String?  @map("tenant_id")
-  userId    String   @map("user_id")
+  id        String       @id @default(uuid())
+  tenantId  String?      @map("tenant_id")
+  userId    String       @map("user_id")
   user      PlatformUser @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type      String   @default("info")
+  type      String       @default("info")
   title     String
   message   String
   link      String?
-  read      Boolean  @default(false)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  read      Boolean      @default(false)
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
 
   @@index([userId])
   @@map("notifications")
@@ -564,7 +565,7 @@ model CustomRole {
   tenantId    String   @map("tenant_id")
   name        String
   description String?
-  permissions Json     // Define granular permissions here
+  permissions Json // Define granular permissions here
   isSystem    Boolean  @default(false) @map("is_system") // If true, cannot be deleted
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
