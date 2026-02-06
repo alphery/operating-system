@@ -78,7 +78,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
             setUser(firebaseUser);
 
-            if (!firebaseUser) {
+            if (firebaseUser) {
+                // Check if we are in emergency mode
+                const storedToken = localStorage.getItem('alphery_session_token');
+                if (storedToken === 'emergency-token') {
+                    if (firebaseUser.email === 'alpherymail@gmail.com' || firebaseUser.email === 'aksnetlink@gmail.com') {
+                        console.log('Restoring Emergency God Mode session');
+                        const mockPlatformUser: PlatformUser = {
+                            id: firebaseUser.uid,
+                            email: firebaseUser.email!,
+                            displayName: firebaseUser.displayName || 'Admin',
+                            photoUrl: firebaseUser.photoURL || null,
+                            isGod: true
+                        };
+                        setPlatformUser(mockPlatformUser);
+                        const mockTenant: Tenant = {
+                            id: 'admin-tenant',
+                            name: 'Admin Workspace',
+                            role: 'owner',
+                            subdomain: 'admin'
+                        };
+                        setTenants([mockTenant]);
+                        setCurrentTenantState(mockTenant);
+                        // session token is already set in state by the first effect, but ensure loading is false
+                        setLoading(false);
+                    } else {
+                        // Invalid emergency token usage
+                        localStorage.removeItem('alphery_session_token');
+                        localStorage.removeItem('alphery_current_tenant');
+                        setSessionToken(null);
+                        setLoading(false);
+                    }
+                }
+            } else {
                 setPlatformUser(null);
                 setTenants([]);
                 setCurrentTenantState(null);
@@ -96,6 +128,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Verify session with backend
     async function verifySession(token: string, tenantId: string | null) {
+        // Skip verification for emergency token (handled in onAuthStateChanged)
+        if (token === 'emergency-token') {
+            return;
+        }
+
         try {
             const response = await fetch(`${BACKEND_URL}/auth/me`, {
                 headers: {
@@ -132,8 +169,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }
 
-    // Backend authentication
-    async function authenticateWithBackend(firebaseIdToken: string) {
+    // Backend authentication with fallback
+    async function authenticateWithBackend(firebaseIdToken: string, firebaseUser?: any) {
         try {
             const response = await fetch(`${BACKEND_URL}/auth/login`, {
                 method: 'POST',
@@ -144,7 +181,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             });
 
             if (!response.ok) {
-                throw new Error('Backend authentication failed');
+                // If backend fails (404, 500), try fallback for admins
+                if (firebaseUser) {
+                    const email = firebaseUser.email;
+                    if (email === 'alpherymail@gmail.com' || email === 'aksnetlink@gmail.com') {
+                        console.warn('Backend unavailable, activating Emergency God Mode for Admin');
+                        const mockPlatformUser: PlatformUser = {
+                            id: firebaseUser.uid,
+                            email: email,
+                            displayName: firebaseUser.displayName || 'Admin',
+                            photoUrl: firebaseUser.photoURL || null,
+                            isGod: true
+                        };
+                        setPlatformUser(mockPlatformUser);
+                        // Mock tenant for context
+                        const mockTenant: Tenant = {
+                            id: 'admin-tenant',
+                            name: 'Admin Workspace',
+                            role: 'owner',
+                            subdomain: 'admin'
+                        };
+                        setTenants([mockTenant]);
+                        setCurrentTenantState(mockTenant);
+                        // Set dummy session
+                        localStorage.setItem('alphery_session_token', 'emergency-token');
+                        localStorage.setItem('alphery_current_tenant', 'admin-tenant');
+                        setSessionToken('emergency-token');
+                        return;
+                    }
+                }
+                throw new Error(`Backend authentication failed: ${response.statusText}`);
             }
 
             const data = await response.json();
@@ -167,6 +233,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return data;
         } catch (error) {
             console.error('Backend authentication error:', error);
+
+            // Retry fallback logic (repetitive but safe if network error instead of 404)
+            if (firebaseUser) {
+                const email = firebaseUser.email;
+                if (email === 'alpherymail@gmail.com' || email === 'aksnetlink@gmail.com') {
+                    console.warn('Backend unavailable (Network Error), activating Emergency God Mode for Admin');
+                    const mockPlatformUser: PlatformUser = {
+                        id: firebaseUser.uid,
+                        email: email,
+                        displayName: firebaseUser.displayName || 'Admin',
+                        photoUrl: firebaseUser.photoURL || null,
+                        isGod: true
+                    };
+                    setPlatformUser(mockPlatformUser);
+                    // Mock tenant for context
+                    const mockTenant: Tenant = {
+                        id: 'admin-tenant',
+                        name: 'Admin Workspace',
+                        role: 'owner',
+                        subdomain: 'admin'
+                    };
+                    setTenants([mockTenant]);
+                    setCurrentTenantState(mockTenant);
+                    // Set dummy session
+                    localStorage.setItem('alphery_session_token', 'emergency-token');
+                    localStorage.setItem('alphery_current_tenant', 'admin-tenant');
+                    setSessionToken('emergency-token');
+                    return;
+                }
+            }
             throw error;
         }
     }
@@ -181,7 +277,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const idToken = await credential.user.getIdToken();
 
             // Authenticate with backend
-            await authenticateWithBackend(idToken);
+            await authenticateWithBackend(idToken, credential.user);
         } catch (error) {
             console.error('Google login failed:', error);
             throw error;
@@ -197,7 +293,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const idToken = await credential.user.getIdToken();
 
             // Authenticate with backend
-            await authenticateWithBackend(idToken);
+            await authenticateWithBackend(idToken, credential.user);
         } catch (error) {
             console.error('Email login failed:', error);
             throw error;
