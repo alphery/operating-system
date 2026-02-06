@@ -14,10 +14,12 @@ export class InvitationService {
         role?: string;
     }) {
         // Check if user already exists in this tenant
-        const existingUser = await this.prisma.user.findFirst({
+        const existingUser = await this.prisma.platformUser.findFirst({
             where: {
                 email: data.email,
-                tenantId,
+                tenantMemberships: {
+                    some: { tenantId }
+                }
             },
         });
 
@@ -47,7 +49,7 @@ export class InvitationService {
                 tenantId,
                 email: data.email,
                 role: data.role || 'member',
-                invitedBy: invitedById,
+                invitedByUserId: invitedById,
                 token,
                 status: 'pending',
                 expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days

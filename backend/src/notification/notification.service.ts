@@ -100,8 +100,12 @@ export class NotificationService {
         link?: string;
     }) {
         // Get all users in tenant
-        const users = await this.prisma.user.findMany({
-            where: { tenantId: params.tenantId },
+        const users = await this.prisma.platformUser.findMany({
+            where: {
+                tenantMemberships: {
+                    some: { tenantId: params.tenantId }
+                }
+            },
             select: { id: true },
         });
 

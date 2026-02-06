@@ -7,13 +7,13 @@ export class UsersController {
 
     @Get()
     async getAllUsers() {
-        return await this.prisma.user.findMany({
+        return await this.prisma.platformUser.findMany({
             select: {
                 id: true,
                 email: true,
                 firstName: true,
                 lastName: true,
-                role: true,
+                isGod: true,
                 createdAt: true,
             },
         });
@@ -21,25 +21,25 @@ export class UsersController {
 
     @Get(':id')
     async getUser(@Param('id') id: string) {
-        return await this.prisma.user.findUnique({
+        return await this.prisma.platformUser.findUnique({
             where: { id },
             include: {
-                organization: true,
-                files: true,
+                tenantMemberships: {
+                    include: { tenant: true }
+                }
             },
         });
     }
 
     @Post()
     async createUser(@Body() data: any) {
-        return await this.prisma.user.create({
+        return await this.prisma.platformUser.create({
             data: {
-                tenantId: data.tenantId || 'default-tenant',
+                firebaseUid: data.firebaseUid,
                 email: data.email,
-                password: data.password,
                 firstName: data.firstName,
                 lastName: data.lastName,
-                role: data.role || 'USER',
+                isGod: data.isGod || false,
             },
         });
     }

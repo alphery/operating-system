@@ -27,6 +27,7 @@
     "node_modules",
     "dist",
     "test",
-    "prisma"
+    "prisma",
+    "scripts"
   ]
 }

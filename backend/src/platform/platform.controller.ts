@@ -35,7 +35,7 @@ export class PlatformController {
                 },
                 _count: {
                     select: {
-                        members: true,
+                        users: true,
                         apps: true,
                     },
                 },
@@ -180,7 +180,7 @@ export class TenantController {
                 },
                 _count: {
                     select: {
-                        members: true,
+                        users: true,
                         apps: true,
                     },
                 },
@@ -337,7 +337,7 @@ export class TenantController {
             throw new Error('User not found in tenant');
         }
 
-        return this.prisma.userAppPermission.upsert({
+        return this.prisma.platformUserAppPermission.upsert({
             where: {
                 tenantUserId_appId: {
                     tenantUserId: membership.id,
@@ -376,7 +376,7 @@ export class TenantController {
             throw new Error('User not found in tenant');
         }
 
-        return this.prisma.userAppPermission.delete({
+        return this.prisma.platformUserAppPermission.delete({
             where: {
                 tenantUserId_appId: {
                     tenantUserId: membership.id,

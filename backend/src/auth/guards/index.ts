@@ -17,7 +17,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 export class PlatformGuard implements CanActivate {
     constructor(private jwtService: JwtService) { }
 
-    async canActivate(context: ExecutionContext): boolean {
+    async canActivate(context: ExecutionContext): Promise<boolean> {
         const request = context.switchToHttp().getRequest();
         const token = this.extractToken(request);
 
@@ -61,7 +61,7 @@ export class TenantGuard implements CanActivate {
         private prisma: PrismaService,
     ) { }
 
-    async canActivate(context: ExecutionContext): boolean {
+    async canActivate(context: ExecutionContext): Promise<boolean> {
         const request = context.switchToHttp().getRequest();
         const token = this.extractToken(request);
 
@@ -137,7 +137,7 @@ export class AppPermissionGuard implements CanActivate {
         private prisma: PrismaService,
     ) { }
 
-    async canActivate(context: ExecutionContext): boolean {
+    async canActivate(context: ExecutionContext): Promise<boolean> {
         // Get required app from decorator
         const requiredApp = this.reflector.get<string>(
             'app',
@@ -186,7 +186,7 @@ export class AppPermissionGuard implements CanActivate {
         }
 
         // Check explicit permission
-        const permission = await this.prisma.userAppPermission.findUnique({
+        const permission = await this.prisma.platformUserAppPermission.findUnique({
             where: {
                 tenantUserId_appId: {
                     tenantUserId: tenantUserId,
