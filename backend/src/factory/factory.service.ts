@@ -14,9 +14,8 @@ export class FactoryService {
                 slug: data.slug,
                 description: data.description,
                 modules: data.modules, // JSON array of definitions
-                workflows: data.workflows, // JSON
-                dashboards: data.dashboards, // JSON
-                isPublic: data.isPublic
+                // workflows and dashboards are now assumed to be part of modules or not in schema
+                // isPublic removed from schema
             }
         });
     }

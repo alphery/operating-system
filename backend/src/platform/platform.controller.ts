@@ -35,7 +35,7 @@ export class PlatformController {
                 },
                 _count: {
                     select: {
-                        members: true,
+                        users: true,
                         apps: true,
                     },
                 },
@@ -180,7 +180,7 @@ export class TenantController {
                 },
                 _count: {
                     select: {
-                        members: true,
+                        users: true,
                         apps: true,
                     },
                 },

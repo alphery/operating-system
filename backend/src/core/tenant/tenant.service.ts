@@ -13,7 +13,7 @@ export class TenantService {
             orderBy: { createdAt: 'desc' },
             include: {
                 _count: {
-                    select: { members: true }
+                    select: { users: true }
                 }
             }
         });
@@ -23,7 +23,7 @@ export class TenantService {
         return this.prisma.tenant.findUnique({
             where: { id: tenantId },
             include: {
-                members: true,
+                users: true,
                 _count: {
                     select: {
                         clients: true,

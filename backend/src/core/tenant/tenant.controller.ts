@@ -7,7 +7,7 @@ export class TenantController {
 
     @Post()
     async create(@Body() data: { name: string; plan?: string; allowedApps?: string[] }) {
-        return this.tenantService.createTenant(data);
+        throw new Error('Please use the Platform API to create tenants with an owner.');
     }
 
     @Get()
