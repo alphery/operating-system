@@ -4,7 +4,7 @@ import Settings from '../apps/settings';
 import ReactGA from 'react-ga';
 import { displayTerminal } from '../apps/terminal';
 import AccessDenied from '../util/AccessDenied';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/AuthContext-new';
 
 interface WindowProps {
     id: string;
@@ -232,7 +232,7 @@ interface WindowMainScreenProps {
 }
 
 const WindowMainScreen: React.FC<WindowMainScreenProps> = (props) => {
-    const { user, userData } = useAuth();
+    const { user, platformUser, currentTenant } = useAuth();
 
     // System apps that are always accessible
     const SYSTEM_APPS = ['app-store', 'settings', 'messenger', 'trash', 'files', 'gedit'];
@@ -241,24 +241,25 @@ const WindowMainScreen: React.FC<WindowMainScreenProps> = (props) => {
     // Check if user has permission to use this app
     let hasPermission = false;
 
-    if (!user || !userData) {
+    if (!user || !platformUser) {
         // Guest or unauthenticated: All apps available
         hasPermission = true;
-    } else if (userData.role === 'super_admin' || user.email === 'alpherymail@gmail.com' || user.email === 'aksnetlink@gmail.com') {
-        // Super Admin: All apps available (Explicit overrides)
+    } else if (platformUser.isGod || user.email === 'alpherymail@gmail.com' || user.email === 'aksnetlink@gmail.com') {
+        // Platform God: All apps available
         hasPermission = true;
     } else if (isSystemApp) {
         // System apps: Always available
         hasPermission = true;
-    } else if (props.appId === 'users' && userData.role === 'TENANT') {
-        // TENANT FIX: Tenants ALWAYS have access to User Manager (Alphery Access)
+    } else if (props.appId === 'alphery-access' && currentTenant && (currentTenant.role === 'owner' || currentTenant.role === 'admin')) {
+        // Alphery Access: Only for Tenant Owners/Admins
         hasPermission = true;
-    } else if (userData.allowedApps === undefined || userData.allowedApps === null) {
-        // allowedApps not set: All apps available (backward compatibility)
+    } else if (!currentTenant) {
+        // Not in a tenant: Only system apps
+        hasPermission = false;
+    } else {
+        // Default for now: If they are in a tenant, let them try to open it.
+        // The app itself or backend will handle deeper permission errors.
         hasPermission = true;
-    } else if (Array.isArray(userData.allowedApps)) {
-        // Check if app is in user's allowed apps list
-        hasPermission = userData.allowedApps.includes(props.appId);
     }
 
     // If no permission, show Access Denied screen
