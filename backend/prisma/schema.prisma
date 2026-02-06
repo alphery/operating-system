@@ -36,7 +36,7 @@ model PlatformUser {
   invitationsSent  Invitation[]  @relation("InvitedBy")
   auditLogs        AuditLog[]
   notifications    Notification[]
-  timesheets       Timesheet[]
+  timesheets       Timesheet[] @relation("UserTimesheets")
 
   @@unique([email], map: "unique_email_case_insensitive")
   @@index([firebaseUid])
@@ -353,6 +353,7 @@ model Document {
 model Timesheet {
   id        String   @id @default(uuid())
   userId    String   @map("user_id")
+  user      PlatformUser @relation("UserTimesheets", fields: [userId], references: [id])
   taskId    String?  @map("task_id")
   task      Task?    @relation(fields: [taskId], references: [id])
   projectId String   @map("project_id")
