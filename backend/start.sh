@@ -1,6 +1,15 @@
 #!/bin/sh
 set -e
 
+echo "🚀 Starting application..."
+
+# Check if DATABASE_URL is set
+if [ -z "$DATABASE_URL" ]; then
+    echo "❌ Error: DATABASE_URL environment variable is not set."
+    echo "ℹ️  Please set DATABASE_URL in your Railway project settings."
+    exit 1
+fi
+
 echo "🚀 Running database migrations..."
 # Check if migrations directory exists, if so migrate, else push
 if [ -d "prisma/migrations" ]; then
