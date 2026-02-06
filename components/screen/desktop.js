@@ -197,29 +197,35 @@ export class Desktop extends Component {
 
             // For new users, initialize with only default installed apps
             if (!hasExistingData) {
-                // Determine what can be installed
-                const allowedApps = (this.props.userData && this.props.userData.allowedApps) ? this.props.userData.allowedApps : null;
+                // If God Mode, DO NOT disable anything by default. Start with everything enabled.
+                if (this.props.userData && this.props.userData.isGod) {
+                    console.log(`[Desktop] God Mode detected. Enabling all apps by default.`);
+                    disabledFromStorage = [];
+                } else {
+                    // Determine what can be installed
+                    const allowedApps = (this.props.userData && this.props.userData.allowedApps) ? this.props.userData.allowedApps : null;
 
-                const DEFAULT_INSTALLED = window.DEFAULT_INSTALLED_APPS || [
-                    'chrome', 'messenger', 'calendar', 'weather',
-                    'settings', 'files', 'trash', 'gedit', 'app-store'
-                ];
+                    const DEFAULT_INSTALLED = window.DEFAULT_INSTALLED_APPS || [
+                        'chrome', 'messenger', 'calendar', 'weather',
+                        'settings', 'files', 'trash', 'gedit', 'app-store'
+                    ];
 
-                // Logic: Disable everything that is NOT in DEFAULT_INSTALLED
-                // OR disable everything NOT in allowedApps
-                apps.forEach(app => {
-                    const isSystem = ['app-store', 'settings', 'messenger', 'trash'].includes(app.id);
-                    const isAllowed = allowedApps === null || allowedApps.includes(app.id) || isSystem;
-                    const isDefault = DEFAULT_INSTALLED.includes(app.id);
+                    // Logic: Disable everything that is NOT in DEFAULT_INSTALLED
+                    // OR disable everything NOT in allowedApps
+                    apps.forEach(app => {
+                        const isSystem = ['app-store', 'settings', 'messenger', 'trash'].includes(app.id);
+                        const isAllowed = allowedApps === null || allowedApps.includes(app.id) || isSystem;
+                        const isDefault = DEFAULT_INSTALLED.includes(app.id);
 
-                    // If it's not allowed, it MUST be disabled
-                    // If it's allowed but not default, it starts as disabled (must be installed from store)
-                    if (!isAllowed || !isDefault) {
-                        if (!disabledFromStorage.includes(app.id)) {
-                            disabledFromStorage.push(app.id);
+                        // If it's not allowed, it MUST be disabled
+                        // If it's allowed but not default, it starts as disabled (must be installed from store)
+                        if (!isAllowed || !isDefault) {
+                            if (!disabledFromStorage.includes(app.id)) {
+                                disabledFromStorage.push(app.id);
+                            }
                         }
-                    }
-                });
+                    });
+                }
 
                 // Save the initial state for new users
                 localStorage.setItem(storageKey, JSON.stringify(disabledFromStorage));
