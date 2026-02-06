@@ -92,10 +92,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return unsubscribe;
     }, []);
 
+    const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+
     // Verify session with backend
     async function verifySession(token: string, tenantId: string | null) {
         try {
-            const response = await fetch('http://localhost:3001/auth/me', {
+            const response = await fetch(`${BACKEND_URL}/auth/me`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                 },
@@ -133,7 +135,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Backend authentication
     async function authenticateWithBackend(firebaseIdToken: string) {
         try {
-            const response = await fetch('http://localhost:3001/auth/login', {
+            const response = await fetch(`${BACKEND_URL}/auth/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

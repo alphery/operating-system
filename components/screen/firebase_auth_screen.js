@@ -5,14 +5,14 @@ export default function FirebaseAuthScreen({ onAuthSuccess }) {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
-    const { signInWithGoogle } = useAuth();
+    const { loginWithGoogle } = useAuth();
 
     const handleGoogleLogin = async () => {
         setError('');
         setLoading(true);
 
         try {
-            await signInWithGoogle();
+            await loginWithGoogle();
             onAuthSuccess();
         } catch (err) {
             setError(err.message);
