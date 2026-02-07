@@ -1,27 +1,29 @@
 const { PrismaClient } = require('@prisma/client');
-
 const prisma = new PrismaClient();
 
 async function seed() {
     console.log('🌱 Seeding database...');
 
-    // 1. Create a default God User (required as owner)
+    // 1. Create a default God User (alpherymail@gmail.com)
     const godUser = await prisma.platformUser.upsert({
-        where: { email: 'admin@alphery.com' },
-        update: {},
+        where: { email: 'alpherymail@gmail.com' },
+        update: {
+            isGod: true,
+            isActive: true
+        },
         create: {
-            id: 'default-admin-id',
-            email: 'admin@alphery.com',
-            firebaseUid: 'default-admin-uid',
-            displayName: 'System Admin',
-            isGod: true
+            email: 'alpherymail@gmail.com',
+            firebaseUid: 'alpherymail-default-uid', // This will update once they log in via Firebase
+            displayName: 'Alphery Admin',
+            isGod: true,
+            isActive: true
         }
     });
 
-    console.log('✅ Admin user created/verified');
+    console.log(`✅ Admin user verified: ${godUser.email} (isGod: ${godUser.isGod})`);
 
     // 2. Create or update default tenant linked to the owner
-    await prisma.tenant.upsert({
+    const tenant = await prisma.tenant.upsert({
         where: { id: 'default-tenant' },
         update: {
             ownerUserId: godUser.id
@@ -35,7 +37,7 @@ async function seed() {
         }
     });
 
-    console.log('✅ Default tenant created/verified');
+    console.log(`✅ Default tenant verified: ${tenant.name} (Owned by: ${godUser.email})`);
 
     // 3. Seed Standard Apps
     const standardApps = [
