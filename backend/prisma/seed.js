@@ -36,6 +36,44 @@ async function seed() {
     });
 
     console.log('✅ Default tenant created/verified');
+
+    // 3. Seed Standard Apps
+    const standardApps = [
+        { id: 'messenger', code: 'messenger', name: 'Messenger', category: 'communication', isCore: true },
+        { id: 'alphery-access', code: 'alphery-access', name: 'Alphery Access', category: 'system', isCore: true },
+        { id: 'projects', code: 'projects', name: 'CRM Pro', category: 'productivity', isCore: false },
+        { id: 'app-store', code: 'app-store', name: 'App Store', category: 'system', isCore: true },
+        { id: 'settings', code: 'settings', name: 'Settings', category: 'system', isCore: true },
+        { id: 'files', code: 'files', name: 'Files', category: 'utility', isCore: true },
+        { id: 'todo', code: 'todo', name: 'To-Do', category: 'productivity', isCore: false },
+        { id: 'weather', code: 'weather', name: 'Weather', category: 'utility', isCore: false },
+        { id: 'calendar', code: 'calendar', name: 'Calendar', category: 'productivity', isCore: false }
+    ];
+
+    for (const app of standardApps) {
+        await prisma.app.upsert({
+            where: { id: app.id },
+            update: app,
+            create: app
+        });
+
+        // Enable for default tenant
+        await prisma.tenantApp.upsert({
+            where: {
+                id: `default-tenant-${app.id}`
+            },
+            update: { enabled: true },
+            create: {
+                id: `default-tenant-${app.id}`,
+                tenantId: 'default-tenant',
+                appId: app.id,
+                enabled: true
+            }
+        });
+    }
+
+    console.log('✅ Standard apps seeded and enabled for default tenant');
+
     await prisma.$disconnect();
 }
 
