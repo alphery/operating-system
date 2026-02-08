@@ -217,9 +217,9 @@ export class AuthService {
         const userSettings = platformUser.settings as any;
         const storedPassword = userSettings?.password || 'AlpheryOS123'; // Default fallback for development
 
-        if (data.password !== storedPassword \u0026\u0026 data.password !== '') {
+        if (data.password !== storedPassword && data.password !== '') {
             // To allow empty password for demo users as seen in frontend logs
-            if (!(platformUser.customUid === 'demo' \u0026\u0026 data.password === '')) {
+            if (!(platformUser.customUid === 'demo' && data.password === '')) {
                 throw new UnauthorizedException('Invalid User ID or password');
             }
         }
@@ -620,3 +620,4 @@ export class AuthService {
         } as any);
     }
 }
+
