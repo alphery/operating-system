@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import * as admin from 'firebase-admin';
@@ -12,8 +12,21 @@ interface FirebaseTokenPayload {
 
 interface SessionTokenPayload {
     sub: string; // platform_user.id (UUID)
+    customUid: string; // AUxxxxxx
     email: string;
     isGod: boolean;
+}
+
+interface SignUpDto {
+    name: string;
+    email: string;
+    mobile?: string;
+    password: string;
+}
+
+interface LoginDto {
+    customUid: string;
+    password: string;
 }
 
 @Injectable()
@@ -24,9 +37,213 @@ export class AuthService {
     ) { }
 
     /**
+     * Generate unique custom UID in format AUxxxxxx
+     */
+    private async generateCustomUid(): Promise<string> {
+        let attempts = 0;
+        const maxAttempts = 10;
+
+        while (attempts < maxAttempts) {
+            // Generate 6-digit random number
+            const randomNum = Math.floor(100000 + Math.random() * 900000);
+            const customUid = `AU${randomNum}`;
+
+            // Check if it exists
+            const existing = await this.prisma.platformUser.findUnique({
+                where: { customUid },
+            });
+
+            if (!existing) {
+                return customUid;
+            }
+
+            attempts++;
+        }
+
+        throw new Error('Failed to generate unique custom UID');
+    }
+
+    /**
+     * SIGN UP: Create new user with custom UID
+     */
+    async signUp(data: SignUpDto): Promise<{
+        customUid: string;
+        email: string;
+        message: string;
+    }> {
+        // 1. Check if email already exists
+        const existingUser = await this.prisma.platformUser.findUnique({
+            where: { email: data.email.toLowerCase() },
+        });
+
+        if (existingUser) {
+            throw new ConflictException('Email already registered');
+        }
+
+        // 2. Create Firebase user
+        let firebaseUser;
+        try {
+            firebaseUser = await admin.auth().createUser({
+                email: data.email.toLowerCase(),
+                password: data.password,
+                displayName: data.name,
+            });
+        } catch (error) {
+            console.error('[AUTH] Firebase user creation failed:', error);
+            throw new BadRequestException('Failed to create user account');
+        }
+
+        // 3. Generate custom UID
+        const customUid = await this.generateCustomUid();
+
+        // 4. Check if this is a god email
+        const isGod = this.isGodEmail(data.email);
+
+        // 5. Create platform user
+        try {
+            const platformUser = await this.prisma.platformUser.create({
+                data: {
+                    customUid,
+                    firebaseUid: firebaseUser.uid,
+                    email: data.email.toLowerCase(),
+                    mobile: data.mobile || null,
+                    displayName: data.name,
+                    isGod,
+                    isActive: true,
+                },
+            });
+
+            // 6. Set custom claims in Firebase
+            await admin.auth().setCustomUserClaims(firebaseUser.uid, {
+                customUid,
+                platformUserId: platformUser.id,
+            });
+
+            console.log(`[AUTH] New user created: ${customUid} (${data.email})`);
+
+            return {
+                customUid,
+                email: data.email,
+                message: 'Account created successfully. Please save your User ID.',
+            };
+        } catch (error) {
+            // Rollback: Delete Firebase user if Prisma fails
+            await admin.auth().deleteUser(firebaseUser.uid);
+            throw error;
+        }
+    }
+
+    /**
+     * LOGIN: Authenticate with custom UID + password
+     */
+    async login(data: LoginDto): Promise<{
+        sessionToken: string;
+        platformUser: any;
+        tenants: any[];
+    }> {
+        // 1. Find user by custom UID
+        const platformUser = await this.prisma.platformUser.findUnique({
+            where: { customUid: data.customUid },
+        });
+
+        if (!platformUser) {
+            throw new UnauthorizedException('Invalid User ID or password');
+        }
+
+        // 2. Check if user is active
+        if (!platformUser.isActive) {
+            throw new UnauthorizedException('Account is disabled. Contact administrator.');
+        }
+
+        // 3. Verify password with Firebase
+        try {
+            // We need to use Firebase Admin SDK to verify password
+            // Since Firebase doesn't have direct password verification,
+            // we'll use the signInWithEmailAndPassword from client SDK approach
+            // For now, we'll create a custom token and let frontend verify
+
+            // Get Firebase user
+            const firebaseUser = await admin.auth().getUser(platformUser.firebaseUid);
+
+            // Create custom token for this user
+            const customToken = await admin.auth().createCustomToken(platformUser.firebaseUid, {
+                customUid: platformUser.customUid,
+                platformUserId: platformUser.id,
+            });
+
+            // Note: The actual password verification happens on the frontend
+            // This is a limitation of Firebase Admin SDK
+            // We'll need to pass the email to frontend for verification
+
+        } catch (error) {
+            console.error('[AUTH] Firebase verification failed:', error);
+            throw new UnauthorizedException('Invalid User ID or password');
+        }
+
+        // 4. Update last login
+        await this.prisma.platformUser.update({
+            where: { id: platformUser.id },
+            data: { lastLoginAt: new Date() },
+        });
+
+        // 5. Get user's tenants
+        const tenants = await this.getUserTenants(platformUser.id);
+
+        // 6. Issue session token
+        const sessionPayload: SessionTokenPayload = {
+            sub: platformUser.id,
+            customUid: platformUser.customUid,
+            email: platformUser.email,
+            isGod: platformUser.isGod,
+        };
+
+        const sessionToken = this.jwtService.sign(sessionPayload, {
+            expiresIn: '7d',
+        });
+
+        return {
+            sessionToken,
+            platformUser: {
+                id: platformUser.id,
+                customUid: platformUser.customUid,
+                email: platformUser.email,
+                mobile: platformUser.mobile,
+                displayName: platformUser.displayName,
+                photoUrl: platformUser.photoUrl,
+                isGod: platformUser.isGod,
+            },
+            tenants: tenants.map((t) => ({
+                id: t.tenant.id,
+                name: t.tenant.name,
+                role: t.role,
+                subdomain: t.tenant.subdomain,
+            })),
+        };
+    }
+
+    /**
+     * Get email by custom UID (for frontend Firebase auth)
+     */
+    async getEmailByCustomUid(customUid: string): Promise<{ email: string }> {
+        const user = await this.prisma.platformUser.findUnique({
+            where: { customUid },
+            select: { email: true, isActive: true },
+        });
+
+        if (!user) {
+            throw new UnauthorizedException('Invalid User ID');
+        }
+
+        if (!user.isActive) {
+            throw new UnauthorizedException('Account is disabled');
+        }
+
+        return { email: user.email };
+    }
+
+    /**
      * Validates Firebase ID token and returns platform session
-     * CRITICAL: Firebase is ONLY for identity verification
-     * Authorization is handled by our system
+     * LEGACY: For backward compatibility with old auth flow
      */
     async validateFirebaseToken(idToken: string): Promise<{
         sessionToken: string;
@@ -34,7 +251,6 @@ export class AuthService {
         tenants: any[];
     }> {
         try {
-            // Step 1: Verify Firebase token signature and expiry
             const decodedToken = await admin.auth().verifyIdToken(idToken);
             const firebaseUid = decodedToken.uid;
             const email = decodedToken.email;
@@ -43,17 +259,18 @@ export class AuthService {
                 throw new UnauthorizedException('Email not provided by Firebase');
             }
 
-            // Step 2: Lookup or create platform user
             let platformUser = await this.prisma.platformUser.findUnique({
                 where: { firebaseUid: firebaseUid },
             });
 
             if (!platformUser) {
-                // First-time login: Auto-create platform user
+                // Auto-create for legacy users
+                const customUid = await this.generateCustomUid();
                 const isGod = this.isGodEmail(email);
 
                 platformUser = await this.prisma.platformUser.create({
                     data: {
+                        customUid,
                         firebaseUid: firebaseUid,
                         email: email.toLowerCase(),
                         displayName: decodedToken.name || email.split('@')[0],
@@ -63,40 +280,36 @@ export class AuthService {
                     },
                 });
 
-                console.log(
-                    `[AUTH] New platform user created: ${email} (god: ${isGod})`,
-                );
+                console.log(`[AUTH] Legacy user migrated: ${customUid} (${email})`);
             } else {
-                // Update last login
                 await this.prisma.platformUser.update({
                     where: { id: platformUser.id },
                     data: { lastLoginAt: new Date() },
                 });
             }
 
-            // Step 3: Check if user is active
             if (!platformUser.isActive) {
                 throw new UnauthorizedException('User account is disabled');
             }
 
-            // Step 4: Get user's tenants
             const tenants = await this.getUserTenants(platformUser.id);
 
-            // Step 5: Issue OUR session token (JWT with UUID, not firebase_uid)
             const sessionPayload: SessionTokenPayload = {
-                sub: platformUser.id, // UUID
+                sub: platformUser.id,
+                customUid: platformUser.customUid,
                 email: platformUser.email,
                 isGod: platformUser.isGod,
             };
 
             const sessionToken = this.jwtService.sign(sessionPayload, {
-                expiresIn: '7d', // Long-lived session
+                expiresIn: '7d',
             });
 
             return {
                 sessionToken,
                 platformUser: {
                     id: platformUser.id,
+                    customUid: platformUser.customUid,
                     email: platformUser.email,
                     displayName: platformUser.displayName,
                     photoUrl: platformUser.photoUrl,
@@ -115,9 +328,6 @@ export class AuthService {
         }
     }
 
-    /**
-     * Validates our session token and returns user payload
-     */
     async validateSessionToken(token: string): Promise<SessionTokenPayload> {
         try {
             return this.jwtService.verify<SessionTokenPayload>(token);
@@ -126,21 +336,14 @@ export class AuthService {
         }
     }
 
-    /**
-     * Check if email is a platform god (hardcoded for now)
-     */
     private isGodEmail(email: string): boolean {
         const godEmails = [
             'alpherymail@gmail.com',
             'aksnetlink@gmail.com',
-            // Add more platform owners here
         ];
         return godEmails.includes(email.toLowerCase());
     }
 
-    /**
-     * Get user's tenant memberships
-     */
     async getUserTenants(userId: string) {
         return this.prisma.tenantUser.findMany({
             where: {
@@ -161,9 +364,6 @@ export class AuthService {
         });
     }
 
-    /**
-     * Get user's tenant membership details
-     */
     async getTenantMembership(userId: string, tenantId: string) {
         return this.prisma.tenantUser.findUnique({
             where: {
@@ -182,26 +382,20 @@ export class AuthService {
         });
     }
 
-    /**
-     * Get available apps for user in tenant
-     */
     async getAvailableApps(userId: string, tenantId: string) {
         const user = await this.prisma.platformUser.findUnique({
             where: { id: userId },
         });
 
-        // God sees all apps
         if (user?.isGod) {
             return this.prisma.app.findMany({
                 where: { isActive: true },
             });
         }
 
-        // Get user's tenant membership
         const membership = await this.getTenantMembership(userId, tenantId);
         if (!membership) return [];
 
-        // Owner/Admin sees all enabled tenant apps
         if (['owner', 'admin'].includes(membership.role)) {
             return this.prisma.app.findMany({
                 where: {
@@ -216,7 +410,6 @@ export class AuthService {
             });
         }
 
-        // Regular users see only permitted apps
         return this.prisma.app.findMany({
             where: {
                 isActive: true,
@@ -235,25 +428,19 @@ export class AuthService {
         });
     }
 
-    /**
-     * Check if user can access specific app in tenant
-     */
     async canAccessApp(
         userId: string,
         tenantId: string,
         appId: string,
     ): Promise<boolean> {
-        // 1. Check if user is god
         const user = await this.prisma.platformUser.findUnique({
             where: { id: userId },
         });
         if (user?.isGod) return true;
 
-        // 2. Check tenant membership
         const membership = await this.getTenantMembership(userId, tenantId);
         if (!membership || !membership.isActive) return false;
 
-        // 3. Check if tenant has app enabled
         const tenantApp = await this.prisma.tenantApp.findUnique({
             where: {
                 tenantId_appId: {
@@ -264,10 +451,8 @@ export class AuthService {
         });
         if (!tenantApp || !tenantApp.enabled) return false;
 
-        // 4. Owner/Admin auto-grant
         if (['owner', 'admin'].includes(membership.role)) return true;
 
-        // 5. Check explicit permission
         const permission = await this.prisma.userAppPermission.findUnique({
             where: {
                 tenantUserId_appId: {

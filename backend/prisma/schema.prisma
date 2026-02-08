@@ -18,8 +18,10 @@ datasource db {
 
 model PlatformUser {
   id          String    @id @default(uuid())
+  customUid   String    @unique @map("custom_uid") // AUxxxxxx - User's login ID
   firebaseUid String    @unique @map("firebase_uid") // NEVER use as FK
   email       String // Display only, indexed for search
+  mobile      String?   @map("mobile_number") // Optional mobile number
   displayName String?   @map("display_name")
   firstName   String?   @map("first_name")
   lastName    String?   @map("last_name")
@@ -40,6 +42,7 @@ model PlatformUser {
   assignedTasks     Task[]         @relation("TaskAssignee")
 
   @@unique([email], map: "unique_email_case_insensitive")
+  @@index([customUid])
   @@index([firebaseUid])
   @@index([email])
   @@index([isGod], map: "idx_platform_users_is_god")

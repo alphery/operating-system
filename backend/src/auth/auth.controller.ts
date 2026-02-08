@@ -7,12 +7,62 @@ import { Public } from './decorators';
 export class AuthController {
     constructor(private authService: AuthService) { }
 
+    /**
+     * POST /auth/signup
+     * Register new user with custom UID
+     */
     @Public()
-    @Post('login')
-    async login(@Body() body: { idToken: string }) {
-        return this.authService.validateFirebaseToken(body.idToken);
+    @Post('signup')
+    async signup(@Body() body: {
+        name: string;
+        email: string;
+        mobile?: string;
+        password: string;
+    }) {
+        return this.authService.signUp(body);
     }
 
+    /**
+     * POST /auth/login
+     * Login with custom UID + password
+     */
+    @Public()
+    @Post('login')
+    async login(@Body() body: {
+        customUid?: string;
+        idToken?: string; // For legacy Firebase auth
+        password?: string;
+    }) {
+        // New custom UID login
+        if (body.customUid && body.password) {
+            return this.authService.login({
+                customUid: body.customUid,
+                password: body.password,
+            });
+        }
+
+        // Legacy Firebase token login
+        if (body.idToken) {
+            return this.authService.validateFirebaseToken(body.idToken);
+        }
+
+        throw new Error('Invalid login credentials');
+    }
+
+    /**
+     * POST /auth/get-email
+     * Get email by custom UID (for frontend Firebase auth)
+     */
+    @Public()
+    @Post('get-email')
+    async getEmail(@Body() body: { customUid: string }) {
+        return this.authService.getEmailByCustomUid(body.customUid);
+    }
+
+    /**
+     * GET /auth/me
+     * Get current user info
+     */
     @Get('me')
     async getMe(@Request() req) {
         const userId = req.user.sub;
@@ -29,6 +79,10 @@ export class AuthController {
         };
     }
 
+    /**
+     * GET /auth/tenants/:tenantId/apps
+     * Get available apps for user in tenant
+     */
     @Get('tenants/:tenantId/apps')
     @UseGuards(TenantGuard)
     async getAvailableApps(@Request() req) {

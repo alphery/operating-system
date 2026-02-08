@@ -12,6 +12,7 @@ async function seed() {
             isActive: true
         },
         create: {
+            customUid: 'AU000001', // Reserved for admin
             email: 'alpherymail@gmail.com',
             firebaseUid: 'alpherymail-default-uid', // This will update once they log in via Firebase
             displayName: 'Alphery Admin',
@@ -20,7 +21,7 @@ async function seed() {
         }
     });
 
-    console.log(`✅ Admin user verified: ${godUser.email} (isGod: ${godUser.isGod})`);
+    console.log(`✅ Admin user verified: ${godUser.email} (${godUser.customUid}) (isGod: ${godUser.isGod})`);
 
     // 2. Create or update default tenant linked to the owner
     const tenant = await prisma.tenant.upsert({
