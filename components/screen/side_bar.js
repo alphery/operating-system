@@ -3,19 +3,11 @@ import SideBarApp from '../base/side_bar_app';
 
 export default function SideBar(props) {
     const [hoveredIndex, setHoveredIndex] = useState(null);
+    const [isDockHovered, setIsDockHovered] = useState(false);
 
-    function showSideBar() {
-        props.hideSideBar(null, false);
-    }
-
-    function hideSideBar() {
-        setTimeout(() => {
-            props.hideSideBar(null, true);
-        }, 2000);
-    }
-
-    // Filter apps first to get a clean list for indexing
-    const dockApps = props.apps.filter(app => (props.favourite_apps[app.id] === true || props.closed_windows[app.id] === false) && !props.disabled_apps[app.id]);
+    // Determine final visibility
+    // If props.hide is active (from window overlap/fullscreen), we only show if mouse is hovering or All Apps view is open
+    const shouldHide = props.hide && !isDockHovered && !props.allAppsView;
 
     // Calculate scale based on distance from hovered index
     const getScale = (index) => {
@@ -26,6 +18,9 @@ export default function SideBar(props) {
         if (distance === 2) return 1.15;  // Far neighbors
         return 1;
     };
+
+    // Filter apps first to get a clean list for indexing
+    const dockApps = props.apps.filter(app => (props.favourite_apps[app.id] === true || props.closed_windows[app.id] === false) && !props.disabled_apps[app.id]);
 
     // Helper to render apps with scale logic
     const renderApps = () => {
@@ -55,16 +50,25 @@ export default function SideBar(props) {
 
     return (
         <>
+            {/* INVISIBLE SENSOR: Detects mouse at screen bottom to reveal dock */}
             <div
-                className={(props.hide ? " translate-y-full " : "") + " absolute gpu-accelerated hw-accelerated-transition select-none z-100 bottom-4 w-auto h-[58px] flex justify-center items-end rounded-2xl bg-white window-transparency window-blur border border-white border-opacity-20 optimized-shadow-lg pb-[1px] px-3"}
+                className="fixed bottom-0 left-0 w-full h-2 z-[80] pointer-events-auto bg-transparent"
+                onMouseEnter={() => setIsDockHovered(true)}
+            />
+
+            <div
+                className={`gpu-accelerated ease-expo transition-all duration-300 absolute select-none z-[100] bottom-4 w-auto h-[58px] flex justify-center items-end rounded-2xl bg-white/20 backdrop-blur-2xl border border-white/20 shadow-2xl pb-[1px] px-3
+                ${shouldHide ? "opacity-0 pointer-events-none" : "opacity-100 pointer-events-auto"}`}
                 style={{
-                    zIndex: 100,
-                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
                     left: 'calc(50vw / var(--scale-factor, 1))',
-                    transform: 'translateX(-50%)' + (props.hide ? ' translateY(100%)' : ''),
-                    willChange: 'transform'
+                    transform: `translateX(-50%) translateZ(0) ${shouldHide ? "translateY(120%)" : "translateY(0)"}`,
+                    willChange: 'transform, opacity'
                 }}
-                onMouseLeave={() => setHoveredIndex(null)}
+                onMouseEnter={() => setIsDockHovered(true)}
+                onMouseLeave={() => {
+                    setIsDockHovered(false);
+                    setHoveredIndex(null);
+                }}
             >
                 <AllApps
                     showApps={props.showAllApps}

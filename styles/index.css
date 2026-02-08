@@ -92,6 +92,19 @@ body {
     -webkit-backdrop-filter: blur(var(--backdrop-blur));
 }
 
+/* Performance Optimizations */
+.gpu-accelerated {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    perspective: 1000px;
+    will-change: transform, opacity;
+}
+
+/* Snappy Easing for OS Transitions */
+.ease-expo {
+    transition-timing-function: cubic-bezier(0.19, 1, 0.22, 1);
+}
+
 .window-transparency {
     opacity: var(--window-transparency);
 }
