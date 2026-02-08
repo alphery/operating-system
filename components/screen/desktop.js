@@ -719,36 +719,44 @@ function AppContextMenu({ active, appId, isFavourite, isOnDesktop, addToDesktop,
     const handleUninstall = (e) => { e.stopPropagation(); if (appId) uninstallApp(appId); closeMenu(); };
 
     return (
-        <div id="app-menu" style={{ zIndex: 9999 }} className={(active ? " block " : " hidden ") + " cursor-default w-52 context-menu-bg border text-left font-light border-gray-900 rounded text-white py-2 absolute text-sm shadow-xl backdrop-blur-md bg-opacity-80"}>
-            {!isOnDesktop ? (
-                <div onClick={handleAddToDesktop} className="w-full py-1.5 px-4 hover:bg-white hover:bg-opacity-10 cursor-pointer flex items-center gap-2">
-                    <span className="w-4 h-4 text-xs flex items-center justify-center">+</span>
-                    <span>Add to Desktop</span>
-                </div>
-            ) : (
-                <div onClick={handleRemoveFromDesktop} className="w-full py-1.5 px-4 hover:bg-white hover:bg-opacity-10 cursor-pointer flex items-center gap-2">
-                    <span className="w-4 h-4 text-xs flex items-center justify-center">−</span>
-                    <span>Remove from Desktop</span>
-                </div>
-            )}
+        <div
+            id="app-menu"
+            style={{ zIndex: 9999 }}
+            className={(active ? " animate-menu-pop opacity-100 pointer-events-auto " : " opacity-0 pointer-events-none ") + " cursor-default w-64 bg-black/40 backdrop-blur-2xl border border-white/20 rounded-2xl text-white py-2 absolute text-[13px] shadow-2xl overflow-hidden shadow-black/50 transition-opacity duration-150"}
+        >
+            <div className="px-1.5">
+                {!isOnDesktop ? (
+                    <div onClick={handleAddToDesktop} className="w-full py-2 px-3 hover:bg-white/10 active:bg-white/20 cursor-pointer flex items-center justify-between rounded-lg transition-colors group">
+                        <span className="font-medium text-white/90">Add to Desktop</span>
+                        <span className="opacity-40 group-hover:opacity-70 text-lg leading-none">+</span>
+                    </div>
+                ) : (
+                    <div onClick={handleRemoveFromDesktop} className="w-full py-2 px-3 hover:bg-white/10 active:bg-white/20 cursor-pointer flex items-center justify-between rounded-lg transition-colors group">
+                        <span className="font-medium text-white/90">Remove from Desktop</span>
+                        <span className="opacity-40 group-hover:opacity-70 text-lg leading-none">−</span>
+                    </div>
+                )}
 
-            {!isFavourite ? (
-                <div onClick={handleAddToDock} className="w-full py-1.5 px-4 hover:bg-white hover:bg-opacity-10 cursor-pointer flex items-center gap-2">
-                    <span className="w-4 h-4 text-xs flex items-center justify-center">★</span>
-                    <span>Pin to Dock</span>
-                </div>
-            ) : (
-                <div onClick={handleRemoveFromDock} className="w-full py-1.5 px-4 hover:bg-white hover:bg-opacity-10 cursor-pointer flex items-center gap-2">
-                    <span className="w-4 h-4 text-xs flex items-center justify-center">☆</span>
-                    <span>Unpin from Dock</span>
-                </div>
-            )}
+                {!isFavourite ? (
+                    <div onClick={handleAddToDock} className="w-full py-2 px-3 hover:bg-white/10 active:bg-white/20 cursor-pointer flex items-center justify-between rounded-lg transition-colors group">
+                        <span className="font-medium text-white/90">Pin to Dock</span>
+                        <span className="opacity-40 group-hover:opacity-70 text-base leading-none">★</span>
+                    </div>
+                ) : (
+                    <div onClick={handleRemoveFromDock} className="w-full py-2 px-3 hover:bg-white/10 active:bg-white/20 cursor-pointer flex items-center justify-between rounded-lg transition-colors group">
+                        <span className="font-medium text-white/90">Unpin from Dock</span>
+                        <span className="opacity-40 group-hover:opacity-70 text-base leading-none">☆</span>
+                    </div>
+                )}
+            </div>
 
-            <div className="h-px bg-white bg-opacity-10 my-1"></div>
+            <div className="h-px bg-white/10 my-1.5 mx-1.5"></div>
 
-            <div onClick={handleUninstall} className="w-full py-1.5 px-4 hover:bg-red-500 hover:text-white cursor-pointer flex items-center gap-2 text-red-300">
-                <span className="w-4 h-4 text-xs flex items-center justify-center">🗑️</span>
-                <span>Uninstall App</span>
+            <div className="px-1.5">
+                <div onClick={handleUninstall} className="w-full py-2 px-3 hover:bg-red-500/80 active:bg-red-600/90 cursor-pointer flex items-center justify-between rounded-lg transition-all group">
+                    <span className="font-semibold text-red-400 group-hover:text-white">Uninstall App</span>
+                    <span className="opacity-40 group-hover:opacity-100 text-base filter grayscale group-hover:grayscale-0">🗑️</span>
+                </div>
             </div>
         </div>
     );
