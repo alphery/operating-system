@@ -4,7 +4,36 @@ import JSZip from 'jszip';
 import { useAuth } from '../../context/AuthContext-new';
 
 function FileManagerWithAuth(props) {
-    const { platformUser, user } = useAuth();
+    const { platformUser, user, loading } = useAuth();
+
+    // Wait for both platform user AND Firebase user to be ready
+    // This ensures custom claims are set before File Manager tries to access Firestore
+    if (loading) {
+        return (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                <div style={{ color: '#fff', fontSize: '14px' }}>Initializing...</div>
+            </div>
+        );
+    }
+
+    if (!platformUser) {
+        return (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                <div style={{ color: '#fff', fontSize: '14px' }}>Please sign in to access files</div>
+            </div>
+        );
+    }
+
+    // CRITICAL: Only render File Manager when Firebase user exists
+    // This ensures Firestore rules can see request.auth
+    if (!user) {
+        return (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                <div style={{ color: '#fff', fontSize: '14px' }}>Syncing authentication...</div>
+            </div>
+        );
+    }
+
     return <FileManager platformUser={platformUser} firebaseUser={user} {...props} />;
 }
 
