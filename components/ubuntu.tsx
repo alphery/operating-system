@@ -78,7 +78,6 @@ export default function Ubuntu() {
 		return !!user && !platformUser;
 	}, [user, platformUser]);
 
-	// Update currentUser when Firebase user changes
 	useEffect(() => {
 		console.log('[UBUNTU] Auth state changed:', {
 			hasUser: !!user,
@@ -88,10 +87,13 @@ export default function Ubuntu() {
 		});
 
 		if (!user) {
-			console.log('[UBUNTU] No user (logged out), resetting UI');
+			console.log('[UBUNTU] No user (logged out), redirecting to login');
 			setCurrentUser(null);
 			setDemoMode(false);
-			if (!bootingScreen) setShowFirebaseAuth(true);
+			// Redirect to login page instead of showing Firebase auth
+			if (!bootingScreen && typeof window !== 'undefined') {
+				window.location.href = '/login';
+			}
 			return;
 		}
 
@@ -128,11 +130,8 @@ export default function Ubuntu() {
 		let isShutDown = localStorage.getItem('shut-down');
 		if (isShutDown !== null && isShutDown !== undefined && isShutDown === 'true') {
 			shutDown();
-		} else {
-			// Show Firebase auth if user is not logged in
-			// Otherwise show lock screen for local users
-			setShowFirebaseAuth(true);
 		}
+		// Don't automatically show Firebase auth - let useEffect handle redirect
 	};
 
 	const lockScreen = () => {
