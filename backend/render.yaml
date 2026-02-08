@@ -1,26 +1,25 @@
-# Render Deployment Configuration
-# Copy this to render.yaml in your backend directory if needed
+# Render Deployment Configuration for Alphery OS
+# This uses Supabase for database (not Render's managed DB)
 
 services:
   - type: web
-    name: alphery-erp-backend
+    name: alphery-os-backend
     env: node
-    region: oregon
+    region: singapore
     buildCommand: npm install && npx prisma generate && npm run build
     startCommand: ./start.sh
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
-        value: 3001
+        value: 10000
       - key: DATABASE_URL
-        fromDatabase:
-          name: alphery-erp-db
-          property: connectionString
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
       - key: CORS_ORIGIN
         value: https://alphery-os.vercel.app
-
-databases:
-  - name: alphery-erp-db
-    databaseName: alphery_erp
-    user: alphery_db_user
