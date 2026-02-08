@@ -67,10 +67,11 @@ export default function LoginPage() {
 
             const data = await response.json();
 
-            // Store session
-            localStorage.setItem('sessionToken', data.sessionToken);
-            localStorage.setItem('platformUser', JSON.stringify(data.platformUser));
-            localStorage.setItem('tenants', JSON.stringify(data.tenants));
+            // Store session with correct keys for AuthContext-new.tsx
+            localStorage.setItem('alphery_session_token', data.sessionToken);
+            if (data.tenants && data.tenants.length > 0) {
+                localStorage.setItem('alphery_current_tenant', data.tenants[0].id);
+            }
 
             // Redirect to desktop
             window.location.href = '/';

@@ -69,7 +69,21 @@ export default function FirebaseAuthScreen({ onAuthSuccess }) {
                         </div>
                     )}
 
-                    <div className="text-center pt-4">
+                    <div className="flex flex-col items-center gap-4 pt-4">
+                        <button
+                            onClick={() => window.location.href = '/login'}
+                            className="text-gray-400 hover:text-white transition-colors text-sm font-medium px-4 py-2 rounded-lg hover:bg-white/5 border border-white/10 w-full"
+                        >
+                            Sign in with User ID
+                        </button>
+
+                        <p className="text-gray-500 text-xs">
+                            Don't have an ID?{' '}
+                            <a href="/signup" className="text-blue-400 hover:text-blue-300 font-bold underline">
+                                Create New Account
+                            </a>
+                        </p>
+
                         <button
                             onClick={() => onAuthSuccess({ demoMode: true })}
                             className="text-gray-500 hover:text-white transition-colors text-xs font-medium px-4 py-2 rounded-lg hover:bg-white/5"
