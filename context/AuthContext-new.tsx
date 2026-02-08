@@ -4,6 +4,7 @@ import {
     signInWithPopup,
     GoogleAuthProvider,
     signInWithEmailAndPassword,
+    signInWithCustomToken,
     createUserWithEmailAndPassword,
     signOut as firebaseSignOut,
     onAuthStateChanged,
@@ -247,11 +248,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setTenants(data.tenants);
 
             // ═══════════════════════════════════════════════════════════
-            // BRIDGE REFRESH: Force a token refresh now that backend
-            // has set our custom claims (platformId). This is REQUIRED
-            // for Firestore rules to see our new identity immediately.
+            // BRIDGE SYNC: If backend provided a firebaseToken,
+            // we MUST sign in to Firebase with it to satisfy Security Rules.
             // ═══════════════════════════════════════════════════════════
-            if (firebaseUser) {
+            if (data.firebaseToken && auth) {
+                try {
+                    console.log('[Auth] Syncing Firebase identity with backend custom token...');
+                    await signInWithCustomToken(auth, data.firebaseToken);
+                } catch (e) {
+                    console.error('[Auth] Firebase sync failed:', e);
+                }
+            } else if (firebaseUser) {
+                // If already logged in via social, just refresh claims
                 try {
                     console.log('[Auth] Refreshing Firebase token to pick up new claims...');
                     await firebaseUser.getIdToken(true);
@@ -323,21 +331,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }
 
-    // Login with Email/Password
-    async function loginWithEmail(email: string, password: string) {
-        if (!auth) {
-            throw new Error('Firebase auth not configured');
-        }
+    // Login with User ID
+    async function loginWithUserId(customUid: string, password: string) {
         try {
-            const credential = await signInWithEmailAndPassword(auth, email, password);
+            const response = await fetch(`${BACKEND_URL}/auth/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ customUid, password }),
+            });
 
-            // Get Firebase ID token
-            const idToken = await credential.user.getIdToken();
+            if (!response.ok) {
+                throw new Error('Invalid User ID or password');
+            }
 
-            // Authenticate with backend
-            await authenticateWithBackend(idToken, credential.user);
+            const data = await response.json();
+
+            // This will trigger the sync logic in authenticateWithBackend
+            await authenticateWithBackend(data.sessionToken);
+
+            // Re-fetch me to ensure full profile
+            verifySession(data.sessionToken, null);
         } catch (error) {
-            console.warn('Email login failed (handled by component):', error);
+            console.error('User ID login failed:', error);
             throw error;
         }
     }

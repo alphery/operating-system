@@ -194,6 +194,7 @@ export class AuthService {
      */
     async login(data: LoginDto): Promise<{
         sessionToken: string;
+        firebaseToken: string;
         platformUser: any;
         tenants: any[];
     }> {
@@ -246,8 +247,12 @@ export class AuthService {
             expiresIn: '7d',
         });
 
+        // 7. Issue Firebase Custom Token for frontend syncing
+        const firebaseToken = await admin.auth().createCustomToken(platformUser.firebaseUid);
+
         return {
             sessionToken,
+            firebaseToken, // Added this
             platformUser: {
                 id: platformUser.id,
                 customUid: platformUser.customUid,
