@@ -19,6 +19,7 @@ interface PlatformUser {
     displayName: string | null;
     photoUrl: string | null;
     isGod: boolean;
+    settings?: any;
 }
 
 interface Tenant {
@@ -39,6 +40,7 @@ interface AuthContextType {
     loginWithEmail: (email: string, password: string) => Promise<void>;
     signOut: () => Promise<void>;
     setCurrentTenant: (tenant: Tenant) => void;
+    updatePlatformUser: (data: Partial<PlatformUser>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -351,6 +353,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem('alphery_current_tenant', tenant.id);
     }
 
+    // Update Platform User Settings
+    async function updatePlatformUser(data: Partial<PlatformUser>) {
+        if (!sessionToken) return;
+
+        try {
+            const response = await fetch(`${BACKEND_URL}/auth/me`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${sessionToken}`,
+                },
+                body: JSON.stringify(data),
+            });
+
+            if (response.ok) {
+                const updatedUser = await response.json();
+                setPlatformUser(prev => prev ? { ...prev, ...updatedUser } : null);
+                console.log('[Auth] User updated successfully');
+            }
+        } catch (error) {
+            console.error('Failed to update user:', error);
+        }
+    }
+
     const value: AuthContextType = {
         user,
         platformUser,
@@ -362,6 +388,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loginWithEmail,
         signOut,
         setCurrentTenant,
+        updatePlatformUser,
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

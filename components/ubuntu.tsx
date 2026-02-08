@@ -20,9 +20,14 @@ interface LocalUser {
 }
 
 export default function Ubuntu() {
-	const { user, platformUser, currentTenant, signOut } = useAuth();
+	const { user, platformUser, currentTenant, signOut, updatePlatformUser } = useAuth();
 	const [screenLocked, setScreenLocked] = useState<boolean>(false);
-	const [bgImageName, setBgImageName] = useState<string>('wall-8');
+	const [bgImageName, setBgImageName] = useState<string>(() => {
+		if (typeof window !== 'undefined') {
+			return localStorage.getItem('bg-image') || 'wall-8';
+		}
+		return 'wall-8';
+	});
 	const [bootingScreen, setBootingScreen] = useState<boolean>(true);
 	const [shutDownScreen, setShutDownScreen] = useState<boolean>(false);
 	const [currentUser, setCurrentUser] = useState<LocalUser | null>(null);
@@ -146,6 +151,13 @@ export default function Ubuntu() {
 			setCurrentUser(firebaseUser);
 			setScreenLocked(false);
 			setShowFirebaseAuth(false);
+
+			// Load saved wallpaper from settings
+			if (platformUser.settings && platformUser.settings.wallpaper) {
+				const savedWall = platformUser.settings.wallpaper;
+				setBgImageName(savedWall);
+				localStorage.setItem('bg-image', savedWall);
+			}
 		}
 	}, [user, platformUser, isApproved, bootingScreen]);
 
@@ -215,11 +227,26 @@ export default function Ubuntu() {
 
 	const changeBackgroundImage = async (imgName: string) => {
 		setBgImageName(imgName);
+		localStorage.setItem('bg-image', imgName);
+
+		// Also sync system_settings for the Settings app to prevent override on open
+		try {
+			const savedSettings = localStorage.getItem('system_settings');
+			if (savedSettings) {
+				const settings = JSON.parse(savedSettings);
+				settings.wallpaper = imgName;
+				localStorage.setItem('system_settings', JSON.stringify(settings));
+			}
+		} catch (e) { }
 
 		// Save to backend if user is logged in
 		if (user && platformUser) {
-			// TODO: Implement updatePlatformUser in AuthContext-new
-			// await updatePlatformUser({ settings: { ...platformUser.settings, wallpaper: imgName } });
+			await updatePlatformUser({
+				settings: {
+					...(platformUser.settings || {}),
+					wallpaper: imgName
+				}
+			});
 		}
 		// Save to local session for local users
 		else if (currentUser) {

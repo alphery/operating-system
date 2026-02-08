@@ -66,10 +66,21 @@ export class AuthController {
     @Get('me')
     async getMe(@Request() req) {
         const userId = req.user.sub;
+
+        // Fetch full user to get latest settings/photo
+        const user = await this.authService.getUserById(userId);
         const tenants = await this.authService.getUserTenants(userId);
 
         return {
-            user: req.user,
+            user: {
+                id: user.id,
+                customUid: user.customUid,
+                email: user.email,
+                displayName: user.displayName,
+                photoUrl: user.photoUrl,
+                settings: user.settings,
+                isGod: user.isGod,
+            },
             tenants: tenants.map((t) => ({
                 id: t.tenant.id,
                 name: t.tenant.name,
@@ -90,5 +101,15 @@ export class AuthController {
         const tenantId = req.params.tenantId || req.tenantId;
 
         return this.authService.getAvailableApps(userId, tenantId);
+    }
+
+    /**
+     * PATCH /auth/me
+     * Update user profile settings
+     */
+    @Post('me') // Or use Patch, but sometimes Post is safer for JSON patches in simple setups
+    async updateMe(@Request() req, @Body() body: any) {
+        const userId = req.user.sub;
+        return this.authService.updateUser(userId, body);
     }
 }

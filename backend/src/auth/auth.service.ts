@@ -266,6 +266,7 @@ export class AuthService {
                 mobile: platformUser.mobile,
                 displayName: platformUser.displayName,
                 photoUrl: platformUser.photoUrl,
+                settings: platformUser.settings,
                 isGod: platformUser.isGod,
             },
             tenants: tenants.map((t) => ({
@@ -369,6 +370,7 @@ export class AuthService {
                     email: platformUser.email,
                     displayName: platformUser.displayName,
                     photoUrl: platformUser.photoUrl,
+                    settings: platformUser.settings,
                     isGod: platformUser.isGod,
                 },
                 tenants: tenants.map((t) => ({
@@ -519,5 +521,20 @@ export class AuthService {
         });
 
         return permission !== null;
+    }
+
+    async getUserById(id: string) {
+        const user = await this.prisma.platformUser.findUnique({
+            where: { id },
+        });
+        if (!user) throw new UnauthorizedException('User not found');
+        return user;
+    }
+
+    async updateUser(id: string, data: any) {
+        return this.prisma.platformUser.update({
+            where: { id },
+            data: data,
+        });
     }
 }

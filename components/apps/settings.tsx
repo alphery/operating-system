@@ -116,7 +116,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
 
 export function Settings(props: SettingsProps) {
 
-    const { user } = useAuth();
+    const { user, platformUser, updatePlatformUser } = useAuth();
     const [activeSection, setActiveSection] = useState<SectionId>('appearance');
 
     // Default settings object
@@ -176,16 +176,31 @@ export function Settings(props: SettingsProps) {
     const [settings, setSettings] = useState<SettingsState>(() => {
         try {
             const saved = localStorage.getItem('system_settings');
+            let initialSettings = getDefaultSettings();
+
+            // Priority: Local Storage (cached)
             if (saved) {
-                const parsed = JSON.parse(saved);
-                // Merge with defaults to ensure all keys exist
-                return { ...getDefaultSettings(), ...parsed };
+                initialSettings = { ...initialSettings, ...JSON.parse(saved) };
             }
+
+            // High Priority: Backend Settings (if authenticated)
+            if (platformUser && platformUser.settings) {
+                initialSettings = { ...initialSettings, ...platformUser.settings };
+            }
+
+            return initialSettings;
         } catch (error) {
             console.error('Error loading settings:', error);
         }
         return getDefaultSettings();
     });
+
+    // Keep state in sync with external changes (e.g. wallpaper changed via desktop menu)
+    useEffect(() => {
+        if (props.currBgImgName && props.currBgImgName !== settings.wallpaper) {
+            setSettings(prev => ({ ...prev, wallpaper: props.currBgImgName! }));
+        }
+    }, [props.currBgImgName]);
 
     const wallpapers: Record<string, string> = {
         "wall-1": "./images/wallpapers/wallpaper1.jpg",
@@ -218,7 +233,18 @@ export function Settings(props: SettingsProps) {
 
     const updateSetting = <K extends keyof SettingsState>(key: K, value: SettingsState[K]) => {
         applySettings(key, value);
-        setSettings(prev => ({ ...prev, [key]: value }));
+        const newSettings = { ...settings, [key]: value };
+        setSettings(newSettings);
+
+        // Persistent Save
+        if (platformUser && updatePlatformUser) {
+            updatePlatformUser({
+                settings: {
+                    ...(platformUser.settings || {}),
+                    ...newSettings
+                }
+            });
+        }
     };
 
     const applySettings = <K extends keyof SettingsState>(key: K, value: SettingsState[K]) => {

@@ -171,22 +171,33 @@ export class Desktop extends Component {
         let focused_windows = {}, closed_windows = {}, disabled_apps = {}, favourite_apps = {}, overlapped_windows = {}, minimized_windows = {};
         let desktop_apps = [];
 
-        // Safe access to ID with fallback (using platformUser.id if available)
-        const userUid = (this.props.userData && this.props.userData.id) ? this.props.userData.id :
-            ((this.props.user && this.props.user.uid) ? this.props.user.uid : 'guest');
+        // --- AUTH SYNC FIX ---
+        // If we are authenticated (have this.props.user) but the profile data (userData) 
+        // hasn't arrived yet, we should WAIT. Otherwise we might initialize with 'guest'
+        // or the wrong UID and show demo apps by mistake.
+        if (this.props.user && !this.props.userData) {
+            console.log("[Desktop] Authenticated but userData missing. Delaying apps fetch...");
+            return;
+        }
+
+        // Use the consistent UUID from platformUser if available, otherwise Firebase UID
+        const userUid = (this.props.userData && this.props.userData.id)
+            ? this.props.userData.id
+            : ((this.props.user && this.props.user.uid) ? this.props.user.uid : 'guest');
+
         // Bumped key to _v4 for clean state
         const storageKey = `disabled_apps_${userUid}_v4`;
 
         // Priority system for disabled apps:
         // 1. Firestore (cloud - survives browser changes & history clears) for authenticated users
-        // 2. localStorage (local cache) for guest users or as fallback
         let disabledFromStorage = [];
-        const isAuthenticated = this.props.user && this.props.user.uid;
+        const isAuthenticated = !!(this.props.user && this.props.user.uid);
 
-        if (isAuthenticated && this.props.userData && this.props.userData.disabledApps) {
-            // Load from Firestore for authenticated users (persists across browsers)
-            disabledFromStorage = this.props.userData.disabledApps || [];
-            console.log(`[Desktop] Authenticated user - Loading disabled apps from Firestore:`, disabledFromStorage);
+        if (isAuthenticated && this.props.userData) {
+            // Load from Backend/Firestore for authenticated users (persists across browsers)
+            // It might be in userData.disabledApps or userData.settings.disabledApps
+            disabledFromStorage = this.props.userData.disabledApps || (this.props.userData.settings && this.props.userData.settings.disabledApps) || [];
+            console.log(`[Desktop] Authenticated user - Loading apps for ${userUid}:`, disabledFromStorage);
 
             // Sync to localStorage as cache
             localStorage.setItem(storageKey, JSON.stringify(disabledFromStorage));
