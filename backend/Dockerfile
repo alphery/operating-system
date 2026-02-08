@@ -30,8 +30,8 @@ RUN ls -R dist/
 COPY start.sh ./
 RUN chmod +x start.sh
 
-# Expose port
-EXPOSE 3001
+# Expose port (will use PORT env var at runtime)
+EXPOSE ${PORT:-10000}
 
 # Start the app with migrations
 CMD ["./start.sh"]
