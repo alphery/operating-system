@@ -381,7 +381,7 @@ export function useAuthenticatedFetch() {
             headers.set('Authorization', `Bearer ${sessionToken}`);
         }
 
-        if (currentTenant) {
+        if (currentTenant && !url.includes('/platform/')) {
             headers.set('X-Tenant-ID', currentTenant.id);
         }
 
