@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth, useAuthenticatedFetch } from '../../context/AuthContext-new';
 
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+
 // ═══════════════════════════════════════════════════════════
 // ALPHERY ACCESS - ADMIN CONSOLE
 // ═══════════════════════════════════════════════════════════
@@ -93,14 +95,14 @@ function GodDashboard() {
   async function loadPlatformData() {
     try {
       const [tenantsRes, usersRes, appsRes] = await Promise.all([
-        authenticatedFetch('http://localhost:3001/platform/tenants'),
-        authenticatedFetch('http://localhost:3001/platform/users'),
-        authenticatedFetch('http://localhost:3001/platform/apps'),
+        authenticatedFetch(`${BACKEND_URL}/platform/tenants`),
+        authenticatedFetch(`${BACKEND_URL}/platform/users`),
+        authenticatedFetch(`${BACKEND_URL}/platform/apps`),
       ]);
 
-      setTenants(await tenantsRes.json());
-      setUsers(await usersRes.json());
-      setApps(await appsRes.json());
+      if (tenantsRes.ok) setTenants(await tenantsRes.json());
+      if (usersRes.ok) setUsers(await usersRes.json());
+      if (appsRes.ok) setApps(await appsRes.json());
     } catch (error) {
       console.error('Failed to load platform data:', error);
     }
@@ -206,12 +208,12 @@ function TenantAdminDashboard() {
 
     try {
       const [usersRes, appsRes] = await Promise.all([
-        authenticatedFetch(`http://localhost:3001/tenants/${currentTenant.id}/users`),
-        authenticatedFetch(`http://localhost:3001/tenants/${currentTenant.id}/apps`),
+        authenticatedFetch(`${BACKEND_URL}/tenants/${currentTenant.id}/users`),
+        authenticatedFetch(`${BACKEND_URL}/tenants/${currentTenant.id}/apps`),
       ]);
 
-      setUsers(await usersRes.json());
-      setApps(await appsRes.json());
+      if (usersRes.ok) setUsers(await usersRes.json());
+      if (appsRes.ok) setApps(await appsRes.json());
     } catch (error) {
       console.error('Failed to load tenant data:', error);
     }
@@ -298,49 +300,261 @@ function TenantAdminDashboard() {
 // ═══════════════════════════════════════════════════════════
 
 function TenantsList({ tenants, onUpdate }: any) {
+  const [showCreate, setShowCreate] = useState(false);
+  const [newTenant, setNewTenant] = useState({ name: '', subdomain: '', ownerEmail: '', plan: 'free' });
+  const [loading, setLoading] = useState(false);
+  const authenticatedFetch = useAuthenticatedFetch();
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const res = await authenticatedFetch(`${BACKEND_URL}/platform/tenants`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newTenant),
+      });
+      if (res.ok) {
+        setShowCreate(false);
+        setNewTenant({ name: '', subdomain: '', ownerEmail: '', plan: 'free' });
+        onUpdate();
+      } else {
+        const err = await res.json();
+        alert(err.message || 'Failed to create tenant');
+      }
+    } catch (error) {
+      alert('Error creating tenant');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="tenants-list">
-      <h2>🏢 All Tenants</h2>
+      <div className="header">
+        <h2>🏢 All Tenants</h2>
+        <button className="btn-create" onClick={() => setShowCreate(true)}>+ Create Tenant</button>
+      </div>
+
+      {showCreate && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <h3>Create New Tenant</h3>
+            <form onSubmit={handleCreate}>
+              <div className="form-group">
+                <label>Organization Name</label>
+                <input
+                  value={newTenant.name}
+                  onChange={e => setNewTenant({ ...newTenant, name: e.target.value })}
+                  placeholder="Acme Corp"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Subdomain</label>
+                <input
+                  value={newTenant.subdomain}
+                  onChange={e => setNewTenant({ ...newTenant, subdomain: e.target.value.toLowerCase() })}
+                  placeholder="acme"
+                />
+              </div>
+              <div className="form-group">
+                <label>Owner Email</label>
+                <input
+                  type="email"
+                  value={newTenant.ownerEmail}
+                  onChange={e => setNewTenant({ ...newTenant, ownerEmail: e.target.value })}
+                  placeholder="admin@acme.com"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Plan</label>
+                <select
+                  value={newTenant.plan}
+                  onChange={e => setNewTenant({ ...newTenant, plan: e.target.value })}
+                >
+                  <option value="free">Free</option>
+                  <option value="pro">Pro</option>
+                  <option value="enterprise">Enterprise</option>
+                </select>
+              </div>
+              <div className="modal-actions">
+                <button type="button" onClick={() => setShowCreate(false)}>Cancel</button>
+                <button type="submit" className="btn-submit" disabled={loading}>
+                  {loading ? 'Creating...' : 'Create Tenant'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <div className="list">
         {tenants.map((tenant: any) => (
           <div key={tenant.id} className="card">
             <h3>{tenant.name}</h3>
-            <p>Owner: {tenant.owner?.email}</p>
-            <p>Plan: {tenant.plan}</p>
-            <p>Members: {tenant._count?.members || 0}</p>
-            <p>Apps: {tenant._count?.apps || 0}</p>
+            <p>ID: <span className="small-text">{tenant.id}</span></p>
+            <p>Owner: {tenant.owner?.email || 'N/A'}</p>
+            <p>Plan: <span className={`plan-badge ${tenant.plan}`}>{tenant.plan}</span></p>
+            <div className="meta">
+              <span>👥 {tenant._count?.members || 0}</span>
+              <span>📱 {tenant._count?.apps || 0}</span>
+            </div>
           </div>
         ))}
       </div>
 
       <style jsx>{`
+        .tenants-list .header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 2rem;
+        }
+
         .tenants-list h2 {
-          margin-bottom: 1.5rem;
+          margin: 0;
           color: #333;
+        }
+
+        .btn-create {
+          background: #667eea;
+          color: white;
+          padding: 0.75rem 1.5rem;
+          border-radius: 8px;
+          border: none;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.3s;
+        }
+
+        .btn-create:hover {
+          background: #5568d3;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
         }
 
         .list {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
           gap: 1.5rem;
         }
 
         .card {
-          background: linear-gradient(135deg, #667eea20 0%, #764ba220 100%);
+          background: white;
           padding: 1.5rem;
-          border-radius: 8px;
-          border: 2px solid #667eea40;
+          border-radius: 12px;
+          border: 1px solid #e5e7eb;
+          box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+          transition: all 0.3s;
+        }
+
+        .card:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 12px 20px rgba(0,0,0,0.1);
+          border-color: #667eea;
         }
 
         .card h3 {
-          margin: 0 0 0.5rem 0;
-          color: #667eea;
+          margin: 0 0 1rem 0;
+          color: #1a202c;
+          font-size: 1.25rem;
         }
 
         .card p {
-          margin: 0.25rem 0;
-          font-size: 0.9rem;
-          color: #666;
+          margin: 0.5rem 0;
+          font-size: 0.875rem;
+          color: #4a5568;
+        }
+
+        .small-text {
+          font-family: monospace;
+          font-size: 0.75rem;
+          opacity: 0.7;
+        }
+
+        .plan-badge {
+          padding: 0.2rem 0.6rem;
+          border-radius: 4px;
+          font-size: 0.75rem;
+          font-weight: 700;
+          text-transform: uppercase;
+        }
+
+        .plan-badge.free { background: #edf2f7; color: #4a5568; }
+        .plan-badge.pro { background: #ebf8ff; color: #3182ce; }
+        .plan-badge.enterprise { background: #faf5ff; color: #805ad5; }
+
+        .meta {
+          margin-top: 1.5rem;
+          display: flex;
+          gap: 1rem;
+          font-size: 0.875rem;
+          color: #718096;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0,0,0,0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+          backdrop-filter: blur(4px);
+        }
+
+        .modal {
+          background: white;
+          padding: 2rem;
+          border-radius: 16px;
+          width: 100%;
+          max-width: 450px;
+          color: #333;
+        }
+
+        .form-group {
+          margin-bottom: 1.25rem;
+        }
+
+        .form-group label {
+          display: block;
+          margin-bottom: 0.5rem;
+          font-size: 0.875rem;
+          font-weight: 600;
+        }
+
+        .form-group input, .form-group select {
+          width: 100%;
+          padding: 0.75rem;
+          border: 1px solid #e2e8f0;
+          border-radius: 8px;
+          font-size: 1rem;
+        }
+
+        .modal-actions {
+          display: flex;
+          gap: 1rem;
+          margin-top: 2rem;
+        }
+
+        .modal-actions button {
+          flex: 1;
+          padding: 0.75rem;
+          border-radius: 8px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+
+        .btn-submit {
+          background: #667eea;
+          color: white;
+          border: none;
         }
       `}</style>
     </div>
@@ -358,7 +572,7 @@ function UsersList({ users, onUpdate }: any) {
   const toggleUserStatus = async (userId: string, currentStatus: boolean) => {
     setLoading(userId);
     try {
-      await authenticatedFetch(`http://localhost:3001/platform/users/${userId}/toggle-status`, {
+      await authenticatedFetch(`${BACKEND_URL}/platform/users/${userId}/toggle-status`, {
         method: 'PATCH',
       });
       onUpdate();
@@ -375,7 +589,7 @@ function UsersList({ users, onUpdate }: any) {
 
     setLoading(userId);
     try {
-      await authenticatedFetch(`http://localhost:3001/platform/users/${userId}/promote-god`, {
+      await authenticatedFetch(`${BACKEND_URL}/platform/users/${userId}/promote-god`, {
         method: 'PATCH',
       });
       onUpdate();
