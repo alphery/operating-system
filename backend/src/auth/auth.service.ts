@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
-import * as admin from 'firebase-admin';
+import admin from '../firebase/firebase.config';
 
 interface FirebaseTokenPayload {
     uid: string;

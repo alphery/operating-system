@@ -33,13 +33,19 @@ export class UsersController {
 
     @Post()
     async createUser(@Body() data: any) {
+        // Generate custom UID (simple implementation)
+        const count = await this.prisma.platformUser.count();
+        const customUid = `AU${String(count + 1).padStart(6, '0')}`;
+
         return await this.prisma.platformUser.create({
             data: {
+                customUid,
                 firebaseUid: data.firebaseUid,
                 email: data.email,
                 firstName: data.firstName,
                 lastName: data.lastName,
                 isGod: data.isGod || false,
+                isActive: true,
             },
         });
     }
