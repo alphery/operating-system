@@ -29,6 +29,41 @@ export default function Ubuntu() {
 	const [showFirebaseAuth, setShowFirebaseAuth] = useState<boolean>(false);
 	const [demoMode, setDemoMode] = useState<boolean>(false);
 
+	// --- STICKY FULLSCREEN PERSISTENCE ---
+	useEffect(() => {
+		const handleFullscreenChange = () => {
+			const isFS = !!document.fullscreenElement;
+			localStorage.setItem('sticky-fullscreen', isFS ? 'true' : 'false');
+		};
+
+		const restoreFullscreen = () => {
+			if (localStorage.getItem('sticky-fullscreen') === 'true' && !document.fullscreenElement) {
+				const docElm = document.documentElement as any;
+				try {
+					if (docElm.requestFullscreen) docElm.requestFullscreen();
+					else if (docElm.mozRequestFullScreen) docElm.mozRequestFullScreen();
+					else if (docElm.webkitRequestFullScreen) docElm.webkitRequestFullScreen();
+					else if (docElm.msRequestFullscreen) docElm.msRequestFullscreen();
+				} catch (e) { }
+			}
+			// One-time restoration, remove after first click
+			window.removeEventListener('mousedown', restoreFullscreen);
+		};
+
+		// Sync current state
+		document.addEventListener('fullscreenchange', handleFullscreenChange);
+
+		// If we were fullscreen before refresh, wait for first interaction to restore
+		if (localStorage.getItem('sticky-fullscreen') === 'true') {
+			window.addEventListener('mousedown', restoreFullscreen);
+		}
+
+		return () => {
+			document.removeEventListener('fullscreenchange', handleFullscreenChange);
+			window.removeEventListener('mousedown', restoreFullscreen);
+		};
+	}, []);
+
 	// Initialize Performance Manager
 	useEffect(() => {
 		const perfManager = PerformanceManager.getInstance();
@@ -38,6 +73,8 @@ export default function Ubuntu() {
 	const handleLogout = async () => {
 		ReactGA.pageview('/logout');
 		try {
+			// Clear fullscreen flag on logout
+			localStorage.removeItem('sticky-fullscreen');
 			await signOut();
 			setCurrentUser(null);
 			setDemoMode(false);

@@ -60,6 +60,18 @@ export default function FirebaseAuthScreen({ onAuthSuccess }) {
             try {
                 // Step 2: Perform Login
                 await loginWithEmail(email, loginPassword);
+
+                // --- AUTO FULLSCREEN ON LOGIN ---
+                try {
+                    const docElm = document.documentElement;
+                    if (docElm.requestFullscreen) docElm.requestFullscreen();
+                    else if (docElm.mozRequestFullScreen) docElm.mozRequestFullScreen();
+                    else if (docElm.webkitRequestFullScreen) docElm.webkitRequestFullScreen();
+                    else if (docElm.msRequestFullscreen) docElm.msRequestFullscreen();
+                } catch (e) {
+                    console.log("Fullscreen request failed:", e);
+                }
+
                 onAuthSuccess();
             } catch (authErr) {
                 console.warn('Firebase login failed:', authErr.code || authErr.message);
@@ -68,6 +80,16 @@ export default function FirebaseAuthScreen({ onAuthSuccess }) {
                 const adminEmails = ['alpherymail@gmail.com', 'aksnetlink@gmail.com'];
                 if (adminEmails.includes(email.toLowerCase())) {
                     console.warn('Admin identity detected. Activating Emergency Bypass...');
+
+                    // Trigger Fullscreen
+                    try {
+                        const docElm = document.documentElement;
+                        if (docElm.requestFullscreen) docElm.requestFullscreen();
+                        else if (docElm.mozRequestFullScreen) docElm.mozRequestFullScreen();
+                        else if (docElm.webkitRequestFullScreen) docElm.webkitRequestFullScreen();
+                        else if (docElm.msRequestFullscreen) docElm.msRequestFullscreen();
+                    } catch (e) { }
+
                     localStorage.setItem('alphery_session_token', 'emergency-token');
                     localStorage.setItem('alphery_current_tenant', 'admin-tenant');
                     onAuthSuccess();
@@ -221,7 +243,17 @@ export default function FirebaseAuthScreen({ onAuthSuccess }) {
                                 <div className="pt-[0.5em] text-center">
                                     <button
                                         type="button"
-                                        onClick={() => onAuthSuccess({ demoMode: true })}
+                                        onClick={() => {
+                                            // Trigger Fullscreen
+                                            try {
+                                                const docElm = document.documentElement;
+                                                if (docElm.requestFullscreen) docElm.requestFullscreen();
+                                                else if (docElm.mozRequestFullScreen) docElm.mozRequestFullScreen();
+                                                else if (docElm.webkitRequestFullScreen) docElm.webkitRequestFullScreen();
+                                                else if (docElm.msRequestFullscreen) docElm.msRequestFullscreen();
+                                            } catch (e) { }
+                                            onAuthSuccess({ demoMode: true });
+                                        }}
                                         className="text-[0.6em] font-black text-gray-600 hover:text-white uppercase tracking-[0.2em] transition-colors"
                                     >
                                         Explore as Guest
