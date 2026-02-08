@@ -246,7 +246,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setPlatformUser(data.platformUser);
             setTenants(data.tenants);
 
-            // Set first tenant as current
+            // ═══════════════════════════════════════════════════════════
+            // BRIDGE REFRESH: Force a token refresh now that backend
+            // has set our custom claims (platformId). This is REQUIRED
+            // for Firestore rules to see our new identity immediately.
+            // ═══════════════════════════════════════════════════════════
+            if (firebaseUser) {
+                try {
+                    console.log('[Auth] Refreshing Firebase token to pick up new claims...');
+                    await firebaseUser.getIdToken(true);
+                } catch (e) {
+                    console.error('[Auth] Failed to refresh token:', e);
+                }
+            }
+
             if (data.tenants.length > 0) {
                 const firstTenant = data.tenants[0];
                 setCurrentTenantState(firstTenant);

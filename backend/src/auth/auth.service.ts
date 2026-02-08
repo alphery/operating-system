@@ -524,6 +524,20 @@ export class AuthService {
             where: { id },
         });
         if (!user) throw new UnauthorizedException('User not found');
+
+        // PROACTIVE BRIDGE: Ensure claims are fresh whenever profile is fetched
+        if (user.firebaseUid && user.firebaseUid !== 'alpherymail-default-uid') {
+            try {
+                await admin.auth().setCustomUserClaims(user.firebaseUid, {
+                    customUid: user.customUid,
+                    platformId: user.id,
+                    isGod: user.isGod
+                });
+            } catch (e) {
+                console.warn(`[Auth] Failed to set proactive claims for ${user.id}:`, e.message);
+            }
+        }
+
         return user;
     }
 
