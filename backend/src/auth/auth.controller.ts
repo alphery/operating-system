@@ -112,4 +112,15 @@ export class AuthController {
         const userId = req.user.sub;
         return this.authService.updateUser(userId, body);
     }
+
+    /**
+     * GET /auth/search?q=...
+     * Search users by customUid or displayName
+     */
+    @Get('search')
+    async searchUsers(@Request() req) {
+        const query = req.query.q || '';
+        const userId = req.user.sub;
+        return this.authService.searchUsers(query, userId);
+    }
 }

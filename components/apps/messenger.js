@@ -8,8 +8,8 @@ import axios from 'axios';
 
 // Wrapper to use hooks in class component
 function MessengerWithAuth(props) {
-    const { user, platformUser } = useAuth();
-    return <Messenger user={user} userData={platformUser} {...props} />;
+    const { user, platformUser, sessionToken } = useAuth();
+    return <Messenger user={user} userData={platformUser} sessionToken={sessionToken} {...props} />;
 }
 
 class Messenger extends Component {
@@ -160,7 +160,8 @@ class Messenger extends Component {
         }
 
         const currentUser = {
-            uid: user.uid,
+            uid: userData.id || user.uid,
+            customUid: userData.customUid,
             email: user.email,
             displayName: userData.displayName || user.displayName,
             photoURL: userData.photoURL || user.photoURL
@@ -1197,7 +1198,7 @@ class Messenger extends Component {
         const chatsRef = collection(db, 'chats');
         const q = query(
             chatsRef,
-            where('participants', 'array-contains', this.props.user.uid)
+            where('participants', 'array-contains', this.state.currentUser.uid)
         );
 
         this.unsubscribeConversations = onSnapshot(q, (snapshot) => {
@@ -1217,7 +1218,7 @@ class Messenger extends Component {
                     };
                 }
 
-                const otherUid = data.participants.find(uid => uid !== this.props.user.uid);
+                const otherUid = data.participants.find(uid => uid !== this.state.currentUser.uid);
                 const otherUserInfo = data.userInfo ? data.userInfo[otherUid] : {};
 
                 return {
@@ -1286,27 +1287,34 @@ class Messenger extends Component {
         }
     }
 
-    searchUserByEmail = async (email) => {
-        if (!email.trim()) {
+    searchUserByEmail = async (query) => {
+        if (!query.trim()) {
             this.setState({ searchedUsers: [] });
             return;
         }
 
         try {
-            const usersRef = collection(db, 'users');
-            const snapshot = await getDocs(usersRef);
+            const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
+            const response = await fetch(`${BACKEND_URL}/auth/search?q=${encodeURIComponent(query)}`, {
+                headers: {
+                    'Authorization': `Bearer ${this.props.sessionToken}`
+                }
+            });
 
-            const results = snapshot.docs
-                .map(doc => ({ uid: doc.id, ...doc.data() }))
-                .filter(u =>
-                    u.uid !== this.props.user.uid &&
-                    (
-                        (u.email && u.email.toLowerCase().includes(email.toLowerCase())) ||
-                        (u.displayName && u.displayName.toLowerCase().includes(email.toLowerCase()))
-                    )
-                );
+            if (!response.ok) throw new Error('Search failed');
 
-            this.setState({ searchedUsers: results });
+            const results = await response.json();
+
+            // Map backend fields to Messenger structure
+            const mappedResults = results.map(u => ({
+                uid: u.id,
+                customUid: u.customUid,
+                displayName: u.displayName,
+                email: u.email,
+                photoURL: u.photoUrl
+            }));
+
+            this.setState({ searchedUsers: mappedResults });
         } catch (error) {
             console.error('Error searching users:', error);
         }
@@ -1315,7 +1323,7 @@ class Messenger extends Component {
     startConversation = (user) => {
         // Remove from hidden users if they were hidden
         if (this.state.hiddenUsers.includes(user.uid)) {
-            const hiddenUsersKey = `hidden_chats_${this.props.user?.uid || 'guest'}`;
+            const hiddenUsersKey = `hidden_chats_${this.state.currentUser?.uid || 'guest'}`;
             const newHiddenUsers = this.state.hiddenUsers.filter(uid => uid !== user.uid);
             localStorage.setItem(hiddenUsersKey, JSON.stringify(newHiddenUsers));
             this.setState({ hiddenUsers: newHiddenUsers });
@@ -1366,7 +1374,7 @@ class Messenger extends Component {
     }
 
     hideUser = (user) => {
-        const hiddenUsersKey = `hidden_chats_${this.props.user?.uid || 'guest'}`;
+        const hiddenUsersKey = `hidden_chats_${this.state.currentUser?.uid || 'guest'}`;
         const hiddenUsers = [...this.state.hiddenUsers, user.uid];
 
         localStorage.setItem(hiddenUsersKey, JSON.stringify(hiddenUsers));
@@ -1378,7 +1386,7 @@ class Messenger extends Component {
     }
 
     unhideUser = (userId) => {
-        const hiddenUsersKey = `hidden_chats_${this.props.user?.uid || 'guest'}`;
+        const hiddenUsersKey = `hidden_chats_${this.state.currentUser?.uid || 'guest'}`;
         const hiddenUsers = this.state.hiddenUsers.filter(id => id !== userId);
 
         localStorage.setItem(hiddenUsersKey, JSON.stringify(hiddenUsers));
@@ -2314,8 +2322,8 @@ class Messenger extends Component {
                                 <div className="p-4 border-b border-gray-200">
                                     <div className="relative">
                                         <input
-                                            type="email"
-                                            placeholder="Search by email address..."
+                                            type="text"
+                                            placeholder="Search by User ID (AUxxxxxx) or Name..."
                                             value={this.state.searchEmail}
                                             onChange={(e) => {
                                                 this.setState({ searchEmail: e.target.value });
@@ -2328,7 +2336,7 @@ class Messenger extends Component {
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                                         </svg>
                                     </div>
-                                    <p className="text-xs text-gray-500 mt-2">Enter the email address of the person you want to chat with</p>
+                                    <p className="text-xs text-gray-500 mt-2">Enter the alphery ID or display name of the person you want to chat with</p>
                                 </div>
 
                                 {/* Search Results */}
@@ -2348,7 +2356,10 @@ class Messenger extends Component {
                                                     )}
                                                 </div>
                                                 <div className="flex-1 overflow-hidden">
-                                                    <p className="font-semibold text-gray-800 truncate">{user.displayName || 'Anonymous'}</p>
+                                                    <div className="flex items-center gap-2">
+                                                        <p className="font-semibold text-gray-800 truncate">{user.displayName || 'Anonymous'}</p>
+                                                        <span className="text-[10px] bg-teal-100 text-teal-700 px-1.5 py-0.5 rounded font-bold">{user.customUid}</span>
+                                                    </div>
                                                     <p className="text-xs text-gray-500 truncate">{user.email}</p>
                                                 </div>
                                                 <div className="text-teal-600">
@@ -2369,9 +2380,9 @@ class Messenger extends Component {
                                     ) : (
                                         <div className="text-center py-8 text-gray-400">
                                             <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path>
                                             </svg>
-                                            <p className="text-sm">Search for users by email</p>
+                                            <p className="text-sm">Search for users by alphery ID or Name</p>
                                             <p className="text-xs mt-1">Start typing to see results</p>
                                         </div>
                                     )}

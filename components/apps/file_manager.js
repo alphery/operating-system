@@ -1,7 +1,12 @@
 import React, { Component } from 'react';
 import FirebaseFileService from '../../utils/firebase_file_service';
 import JSZip from 'jszip';
-import { auth } from '../../config/firebase';
+import { useAuth } from '../../context/AuthContext-new';
+
+function FileManagerWithAuth(props) {
+    const { platformUser, user } = useAuth();
+    return <FileManager platformUser={platformUser} firebaseUser={user} {...props} />;
+}
 
 export class FileManager extends Component {
     constructor() {
@@ -43,26 +48,35 @@ export class FileManager extends Component {
     }
 
     componentDidMount() {
-        this.unsubscribeAuth = auth.onAuthStateChanged((user) => {
-            if (user) {
-                this.setState({ user }, () => {
+        if (this.props.platformUser) {
+            this.setState({ user: this.props.platformUser }, () => {
+                this.loadFiles();
+                this.updateStats();
+            });
+        }
+        window.addEventListener('click', this.closeContextMenu);
+    }
+
+    componentDidUpdate(prevProps) {
+        if (prevProps.platformUser?.id !== this.props.platformUser?.id) {
+            if (this.props.platformUser) {
+                this.setState({ user: this.props.platformUser }, () => {
                     this.loadFiles();
                     this.updateStats();
                 });
             } else {
                 this.setState({ user: null, files: [], loading: false });
             }
-        });
-        window.addEventListener('click', this.closeContextMenu);
+        }
     }
 
     componentWillUnmount() {
-        if (this.unsubscribeAuth) this.unsubscribeAuth();
         window.removeEventListener('click', this.closeContextMenu);
     }
 
     updateStats = async () => {
-        const stats = await FirebaseFileService.getStorageStats();
+        if (!this.state.user) return;
+        const stats = await FirebaseFileService.getStorageStats(this.state.user.id);
         this.setState({ storageUsed: stats.used });
     }
 
@@ -121,10 +135,10 @@ export class FileManager extends Component {
     }
 
     saveRename = async () => {
-        const { renamingItem } = this.state;
-        if (!renamingItem || !renamingItem.name.trim()) return;
+        const { renamingItem, user } = this.state;
+        if (!renamingItem || !renamingItem.name.trim() || !user) return;
         try {
-            await FirebaseFileService.renameItem(renamingItem.id, renamingItem.name.trim());
+            await FirebaseFileService.renameItem(user.id, renamingItem.id, renamingItem.name.trim());
             this.setState({ renamingItem: null });
             await this.loadFiles();
         } catch (e) {
@@ -153,8 +167,10 @@ export class FileManager extends Component {
     }
 
     toggleStar = async (item) => {
+        const { user } = this.state;
+        if (!user) return;
         try {
-            await FirebaseFileService.toggleStar(item.id, item.isStarred);
+            await FirebaseFileService.toggleStar(user.id, item.id, item.isStarred);
             await this.loadFiles();
             this.closeContextMenu();
         } catch (e) {
@@ -205,7 +221,7 @@ export class FileManager extends Component {
         this.setState({ loading: true, error: null });
 
         try {
-            let files = await FirebaseFileService.getFiles(this.state.currentFolderId);
+            let files = await FirebaseFileService.getFiles(this.state.user.id, this.state.currentFolderId);
 
             // Filter starred if needed
             if (this.state.showStarredOnly) {
@@ -237,6 +253,7 @@ export class FileManager extends Component {
 
         try {
             await FirebaseFileService.uploadFile(
+                this.state.user.id,
                 file,
                 this.state.currentFolderId,
                 this.state.folderStack,
@@ -258,6 +275,7 @@ export class FileManager extends Component {
 
         try {
             await FirebaseFileService.createFolder(
+                this.state.user.id,
                 newFolderName.trim(),
                 currentFolderId,
                 folderStack
@@ -271,10 +289,10 @@ export class FileManager extends Component {
     }
 
     deleteItem = async (item) => {
-        if (!window.confirm(`Delete "${item.name}"?`)) return;
+        if (!this.state.user || !window.confirm(`Delete "${item.name}"?`)) return;
 
         try {
-            await FirebaseFileService.deleteItem(item);
+            await FirebaseFileService.deleteItem(this.state.user.id, item);
             await this.loadFiles();
         } catch (error) {
             console.error('Error deleting item:', error);
@@ -340,8 +358,8 @@ export class FileManager extends Component {
             let target = rootFiles.find(f => f.isFolder && f.name === folderName);
 
             if (!target) {
-                await FirebaseFileService.createFolder(folderName, 'root', [{ name: 'Home', id: 'root' }]);
-                const refreshed = await FirebaseFileService.getFiles('root');
+                await FirebaseFileService.createFolder(this.state.user.id, folderName, 'root', [{ name: 'Home', id: 'root' }]);
+                const refreshed = await FirebaseFileService.getFiles(this.state.user.id, 'root');
                 target = refreshed.find(f => f.isFolder && f.name === folderName);
             }
 
@@ -391,7 +409,7 @@ export class FileManager extends Component {
                 <div className="w-full h-full flex items-center justify-center bg-white flex-col gap-4 text-slate-800">
                     <div className="text-6xl">🔒</div>
                     <h2 className="text-2xl font-bold">Authentication Required</h2>
-                    <p>Please log in with Google to access your files.</p>
+                    <p>Please log in with your alphery account to access your files.</p>
                 </div>
             );
         }
@@ -755,7 +773,7 @@ export class FileManager extends Component {
 }
 
 export const displayFileManager = () => {
-    return <FileManager />;
+    return <FileManagerWithAuth />;
 };
 
 export default FileManager;

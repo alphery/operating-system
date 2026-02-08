@@ -537,4 +537,29 @@ export class AuthService {
             data: data,
         });
     }
+
+    async searchUsers(query: string, excludeUserId: string) {
+        return this.prisma.platformUser.findMany({
+            where: {
+                AND: [
+                    { id: { not: excludeUserId } },
+                    {
+                        OR: [
+                            { customUid: { contains: query, mode: 'insensitive' } },
+                            { displayName: { contains: query, mode: 'insensitive' } },
+                            { email: { contains: query, mode: 'insensitive' } },
+                        ],
+                    },
+                ],
+            },
+            select: {
+                id: true,
+                customUid: true,
+                displayName: true,
+                photoUrl: true,
+                email: true,
+            },
+            limit: 10,
+        } as any);
+    }
 }
