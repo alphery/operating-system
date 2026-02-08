@@ -115,11 +115,28 @@ export class PlatformController {
     }
 
     // PROMOTE USER TO GOD
-    @Patch('users/:userId/god')
+    @Patch('users/:userId/promote-god')
     async promoteToGod(@Param('userId') userId: string) {
         return this.prisma.platformUser.update({
             where: { id: userId },
             data: { isGod: true },
+        });
+    }
+
+    // TOGGLE USER STATUS (ACTIVATE/DEACTIVATE)
+    @Patch('users/:userId/toggle-status')
+    async toggleUserStatus(@Param('userId') userId: string) {
+        const user = await this.prisma.platformUser.findUnique({
+            where: { id: userId },
+        });
+
+        if (!user) {
+            throw new Error('User not found');
+        }
+
+        return this.prisma.platformUser.update({
+            where: { id: userId },
+            data: { isActive: !user.isActive },
         });
     }
 

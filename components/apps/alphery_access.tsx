@@ -352,41 +352,130 @@ function TenantsList({ tenants, onUpdate }: any) {
 // ═══════════════════════════════════════════════════════════
 
 function UsersList({ users, onUpdate }: any) {
+  const authenticatedFetch = useAuthenticatedFetch();
+  const [loading, setLoading] = useState<string | null>(null);
+
+  const toggleUserStatus = async (userId: string, currentStatus: boolean) => {
+    setLoading(userId);
+    try {
+      await authenticatedFetch(`http://localhost:3001/platform/users/${userId}/toggle-status`, {
+        method: 'PATCH',
+      });
+      onUpdate();
+    } catch (error) {
+      console.error('Failed to toggle user status:', error);
+      alert('Failed to update user status');
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const promoteToGod = async (userId: string) => {
+    if (!confirm('Are you sure you want to promote this user to God status?')) return;
+
+    setLoading(userId);
+    try {
+      await authenticatedFetch(`http://localhost:3001/platform/users/${userId}/promote-god`, {
+        method: 'PATCH',
+      });
+      onUpdate();
+    } catch (error) {
+      console.error('Failed to promote user:', error);
+      alert('Failed to promote user');
+    } finally {
+      setLoading(null);
+    }
+  };
+
   return (
     <div className="users-list">
-      <h2>👥 Platform Users</h2>
+      <div className="header">
+        <h2>👥 Platform Users</h2>
+        <p className="subtitle">Manage all users across the platform</p>
+      </div>
+
       <table>
         <thead>
           <tr>
+            <th>User ID</th>
             <th>Email</th>
             <th>Name</th>
+            <th>Mobile</th>
+            <th>Status</th>
             <th>God</th>
             <th>Tenants</th>
             <th>Created</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
           {users.map((user: any) => (
-            <tr key={user.id}>
+            <tr key={user.id} className={!user.isActive ? 'inactive' : ''}>
+              <td>
+                <span className="user-id">{user.customUid}</span>
+              </td>
               <td>{user.email}</td>
               <td>{user.displayName || '-'}</td>
-              <td>{user.isGod ? '⭐' : '-'}</td>
+              <td>{user.mobile || '-'}</td>
+              <td>
+                <span className={`status-badge ${user.isActive ? 'active' : 'inactive'}`}>
+                  {user.isActive ? '✓ Active' : '✗ Inactive'}
+                </span>
+              </td>
+              <td>
+                {user.isGod ? (
+                  <span className="god-badge">⭐ GOD</span>
+                ) : (
+                  '-'
+                )}
+              </td>
               <td>{user.tenantMemberships?.length || 0}</td>
               <td>{new Date(user.createdAt).toLocaleDateString()}</td>
+              <td>
+                <div className="actions">
+                  <button
+                    onClick={() => toggleUserStatus(user.id, user.isActive)}
+                    disabled={loading === user.id}
+                    className="btn-small"
+                  >
+                    {user.isActive ? 'Deactivate' : 'Activate'}
+                  </button>
+                  {!user.isGod && (
+                    <button
+                      onClick={() => promoteToGod(user.id)}
+                      disabled={loading === user.id}
+                      className="btn-small btn-promote"
+                    >
+                      Promote
+                    </button>
+                  )}
+                </div>
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
 
       <style jsx>{`
-        .users-list h2 {
+        .users-list .header {
           margin-bottom: 1.5rem;
+        }
+
+        .users-list h2 {
+          margin: 0 0 0.5rem 0;
           color: #333;
+        }
+
+        .subtitle {
+          margin: 0;
+          color: #666;
+          font-size: 0.9rem;
         }
 
         table {
           width: 100%;
           border-collapse: collapse;
+          font-size: 0.9rem;
         }
 
         th {
@@ -395,6 +484,7 @@ function UsersList({ users, onUpdate }: any) {
           text-align: left;
           font-weight: 600;
           color: #333;
+          white-space: nowrap;
         }
 
         td {
@@ -404,6 +494,81 @@ function UsersList({ users, onUpdate }: any) {
 
         tr:hover {
           background: #f9fafb;
+        }
+
+        tr.inactive {
+          opacity: 0.6;
+        }
+
+        .user-id {
+          font-family: 'Courier New', monospace;
+          background: #667eea20;
+          padding: 0.25rem 0.5rem;
+          border-radius: 4px;
+          font-weight: 600;
+          color: #667eea;
+        }
+
+        .status-badge {
+          padding: 0.25rem 0.75rem;
+          border-radius: 4px;
+          font-size: 0.75rem;
+          font-weight: 600;
+          white-space: nowrap;
+        }
+
+        .status-badge.active {
+          background: #d1fae5;
+          color: #065f46;
+        }
+
+        .status-badge.inactive {
+          background: #fee2e2;
+          color: #991b1b;
+        }
+
+        .god-badge {
+          background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+          padding: 0.25rem 0.75rem;
+          border-radius: 4px;
+          font-size: 0.75rem;
+          font-weight: 600;
+          color: white;
+          white-space: nowrap;
+        }
+
+        .actions {
+          display: flex;
+          gap: 0.5rem;
+        }
+
+        .btn-small {
+          padding: 0.25rem 0.75rem;
+          font-size: 0.75rem;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+          background: #667eea;
+          color: white;
+          font-weight: 600;
+          transition: all 0.2s;
+        }
+
+        .btn-small:hover:not(:disabled) {
+          background: #5568d3;
+        }
+
+        .btn-small:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        .btn-promote {
+          background: #f59e0b;
+        }
+
+        .btn-promote:hover:not(:disabled) {
+          background: #d97706;
         }
       `}</style>
     </div>
