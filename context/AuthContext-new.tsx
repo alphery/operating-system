@@ -303,7 +303,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Authenticate with backend
             await authenticateWithBackend(idToken, credential.user);
         } catch (error) {
-            console.error('Google login failed:', error);
+            console.warn('Google login failed (handled by component):', error);
             throw error;
         }
     }
@@ -322,7 +322,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Authenticate with backend
             await authenticateWithBackend(idToken, credential.user);
         } catch (error) {
-            console.error('Email login failed:', error);
+            console.warn('Email login failed (handled by component):', error);
             throw error;
         }
     }
