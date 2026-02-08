@@ -38,7 +38,7 @@ interface AuthContextType {
     sessionToken: string | null;
     loading: boolean;
     loginWithGoogle: () => Promise<void>;
-    loginWithEmail: (email: string, password: string) => Promise<void>;
+    loginWithUserId: (customUid: string, password: string) => Promise<void>;
     signOut: () => Promise<void>;
     setCurrentTenant: (tenant: Tenant) => void;
     updatePlatformUser: (data: Partial<PlatformUser>) => Promise<void>;
@@ -415,7 +415,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         sessionToken,
         loading,
         loginWithGoogle,
-        loginWithEmail,
+        loginWithUserId,
         signOut,
         setCurrentTenant,
         updatePlatformUser,
