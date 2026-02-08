@@ -87,12 +87,12 @@ export default function Ubuntu() {
 		});
 
 		if (!user) {
-			console.log('[UBUNTU] No user (logged out), redirecting to login');
+			console.log('[UBUNTU] No user (logged out), showing auth screen');
 			setCurrentUser(null);
 			setDemoMode(false);
-			// Redirect to login page instead of showing Firebase auth
-			if (!bootingScreen && typeof window !== 'undefined') {
-				window.location.href = '/login';
+			// Show Firebase auth screen instead of redirecting
+			if (!bootingScreen) {
+				setShowFirebaseAuth(true);
 			}
 			return;
 		}
@@ -116,7 +116,7 @@ export default function Ubuntu() {
 			// 	setBgImageName(platformUser.settings.wallpaper);
 			// }
 		}
-	}, [user, platformUser, isApproved]);
+	}, [user, platformUser, isApproved, bootingScreen]);
 
 	const setTimeOutBootScreen = () => {
 		setTimeout(() => {

@@ -75,6 +75,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Listen to Firebase auth state (identity only)
     useEffect(() => {
+        // If Firebase auth is not configured, skip auth listener
+        if (!auth) {
+            console.warn('Firebase auth not configured, skipping auth state listener');
+            setLoading(false);
+            return;
+        }
+
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
             setUser(firebaseUser);
 
@@ -269,6 +276,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Login with Google
     async function loginWithGoogle() {
+        if (!auth) {
+            throw new Error('Firebase auth not configured');
+        }
         try {
             const provider = new GoogleAuthProvider();
             const credential = await signInWithPopup(auth, provider);
@@ -286,6 +296,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Login with Email/Password
     async function loginWithEmail(email: string, password: string) {
+        if (!auth) {
+            throw new Error('Firebase auth not configured');
+        }
         try {
             const credential = await signInWithEmailAndPassword(auth, email, password);
 
@@ -303,7 +316,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Sign Out
     async function signOut() {
         try {
-            await firebaseSignOut(auth);
+            if (auth) {
+                await firebaseSignOut(auth);
+            }
             localStorage.removeItem('alphery_session_token');
             localStorage.removeItem('alphery_current_tenant');
             setSessionToken(null);

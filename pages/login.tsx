@@ -45,6 +45,11 @@ export default function LoginPage() {
         setLoading(true);
 
         try {
+            // Check if Firebase is configured
+            if (!auth) {
+                throw new Error('Firebase authentication is not configured. Please contact support.');
+            }
+
             // Sign in with Firebase
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const idToken = await userCredential.user.getIdToken();
