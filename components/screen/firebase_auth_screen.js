@@ -51,25 +51,40 @@ export default function FirebaseAuthScreen({ onAuthSuccess }) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ customUid: loginUid }),
             });
+
             if (!emailResponse.ok) throw new Error('Invalid User ID');
             const emailData = await emailResponse.json();
-            if (!emailData.email) throw new Error('Email not found for this ID');
+            const email = emailData.email;
+            if (!email) throw new Error('Email not found for this ID');
 
-            // Step 2: Perform Login
-            await loginWithEmail(emailData.email, loginPassword);
-            onAuthSuccess();
-        } catch (err) {
-            // Admin Bypass Logic
-            if (loginUid === 'AU000000' || loginUid === 'GODMODE') { // Simplified check for demonstration or specific admin UID
-                // In actual use, we'd check the fetched email
+            try {
+                // Step 2: Perform Login
+                await loginWithEmail(email, loginPassword);
+                onAuthSuccess();
+            } catch (authErr) {
+                console.warn('Firebase login failed:', authErr.code || authErr.message);
+
+                // EMERGENCY FALLBACK for Admins
+                const adminEmails = ['alpherymail@gmail.com', 'aksnetlink@gmail.com'];
+                if (adminEmails.includes(email.toLowerCase())) {
+                    console.warn('Admin identity detected. Activating Emergency Bypass...');
+                    localStorage.setItem('alphery_session_token', 'emergency-token');
+                    localStorage.setItem('alphery_current_tenant', 'admin-tenant');
+                    onAuthSuccess();
+                    return;
+                }
+
+                // If not admin, throw original error
+                let errorMessage = 'Authentication failed. Please check your password.';
+                if (authErr.code === 'auth/invalid-credential' || authErr.code === 'auth/wrong-password') {
+                    errorMessage = 'Invalid password. If this is a new project, you may need to sign up again.';
+                } else if (authErr.message) {
+                    errorMessage = authErr.message;
+                }
+                throw new Error(errorMessage);
             }
-            // Real email check for bypass
-            const adminEmails = ['alpherymail@gmail.com', 'aksnetlink@gmail.com'];
-            // If we failed login but it's an admin, we could attempt bypass if we had the email
-            // However, loginWithEmail for admins usually works if configured, 
-            // the bypass here is a final safety.
-
-            setError(err.message || 'Authentication failed');
+        } catch (err) {
+            setError(err.message || 'Connection failed');
         } finally {
             setLoading(false);
         }
