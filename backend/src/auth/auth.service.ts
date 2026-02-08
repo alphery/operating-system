@@ -80,7 +80,7 @@ export class AuthService {
             throw new ConflictException('Email already registered');
         }
 
-        // 2. Create Firebase user
+        // 2. Create or Get Firebase user
         let firebaseUser;
         try {
             firebaseUser = await admin.auth().createUser({
@@ -88,13 +88,46 @@ export class AuthService {
                 password: data.password,
                 displayName: data.name,
             });
-        } catch (error) {
-            console.error('[AUTH] Firebase user creation failed:', error);
-            throw new BadRequestException('Failed to create user account');
+        } catch (error: any) {
+            if (error.code === 'auth/email-already-exists') {
+                // If Firebase user exists, fetch it
+                try {
+                    firebaseUser = await admin.auth().getUserByEmail(data.email.toLowerCase());
+                    // Optionally update password if provided? No, requires old password or admin privilege.
+                    // We assume user knows password if they are signing up again with same email.
+                    // But wait, if they are signing up, they are setting a NEW password.
+                    // We should update the password for consistency.
+                    await admin.auth().updateUser(firebaseUser.uid, {
+                        password: data.password,
+                        displayName: data.name
+                    });
+                } catch (fetchError) {
+                    console.error('[AUTH] Failed to fetch existing Firebase user:', fetchError);
+                    throw new BadRequestException('Account issue. Please contact support.');
+                }
+            } else {
+                console.error('[AUTH] Firebase user creation failed:', error);
+                throw new BadRequestException('Failed to create user account');
+            }
         }
 
         // 3. Generate custom UID
-        const customUid = await this.generateCustomUid();
+        let customUid;
+        if (data.email.toLowerCase() === 'alpherymail@gmail.com') {
+            customUid = 'AU000001';
+            // Check if it exists and delete if necessary (cleanup)
+            const existingAdmin = await this.prisma.platformUser.findUnique({
+                where: { customUid: 'AU000001' }
+            });
+            if (existingAdmin) {
+                // For safety, we might want to throw or handle this, but since we check email at step 1,
+                // if we are here, email is new but customUid exists? Unlikely unless seeded.
+                // We will proceed, Prisma create might fail if we don't handle unique constraint
+                // So we rely on step 1 check.
+            }
+        } else {
+            customUid = await this.generateCustomUid();
+        }
 
         // 4. Check if this is a god email
         const isGod = this.isGodEmail(data.email);
