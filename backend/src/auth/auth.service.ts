@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
-import admin from '../firebase/firebase.config';
+import admin, { isFirebaseMockMode } from '../firebase/firebase.config';
 
 interface FirebaseTokenPayload {
     uid: string;
@@ -248,7 +248,13 @@ export class AuthService {
         });
 
         // 7. Issue Firebase Custom Token for frontend syncing
-        const firebaseToken = await admin.auth().createCustomToken(platformUser.firebaseUid);
+        let firebaseToken: string;
+        if (isFirebaseMockMode) {
+            console.warn('⚠️ [AUTH] Running in Firebase MOCK mode - custom token will not work with real Firebase');
+            firebaseToken = `mock-token-${platformUser.id}`;
+        } else {
+            firebaseToken = await admin.auth().createCustomToken(platformUser.firebaseUid);
+        }
 
         return {
             sessionToken,
@@ -531,7 +537,7 @@ export class AuthService {
         if (!user) throw new UnauthorizedException('User not found');
 
         // PROACTIVE BRIDGE: Ensure claims are fresh whenever profile is fetched
-        if (user.firebaseUid && user.firebaseUid !== 'alpherymail-default-uid') {
+        if (!isFirebaseMockMode && user.firebaseUid && user.firebaseUid !== 'alpherymail-default-uid') {
             try {
                 await admin.auth().setCustomUserClaims(user.firebaseUid, {
                     customUid: user.customUid,

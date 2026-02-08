@@ -1,26 +1,40 @@
 import * as admin from 'firebase-admin';
 import * as crypto from 'crypto';
 
-// Check if we're in local development mode without Firebase credentials
+// Check if we have all required Firebase credentials
+const projectId = process.env.FIREBASE_PROJECT_ID;
+const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
 const privateKey = process.env.FIREBASE_PRIVATE_KEY;
-const isLocalDev = !privateKey || privateKey.length < 100;
+
+const hasAllCredentials = !!(projectId && clientEmail && privateKey && privateKey.length > 50);
+
+console.log('🔍 [FIREBASE] Credential check:', {
+    hasProjectId: !!projectId,
+    hasClientEmail: !!clientEmail,
+    hasPrivateKey: !!privateKey,
+    privateKeyLength: privateKey?.length || 0
+});
 
 if (!admin.apps.length) {
-    if (!isLocalDev) {
+    if (hasAllCredentials) {
         try {
+            // Replace escaped newlines in private key
+            const formattedKey = privateKey!.replace(/\\n/g, '\n');
+
             admin.initializeApp({
                 credential: admin.credential.cert({
-                    projectId: process.env.FIREBASE_PROJECT_ID || 'alphery-1',
-                    clientEmail: process.env.FIREBASE_CLIENT_EMAIL || '',
-                    privateKey: privateKey?.replace(/\\n/g, '\n') || '',
+                    projectId: projectId!,
+                    clientEmail: clientEmail!,
+                    privateKey: formattedKey,
                 }),
             });
             console.log('✅ [FIREBASE] Admin SDK initialized successfully with Production Credentials');
-        } catch (error) {
+        } catch (error: any) {
             console.error('❌ [FIREBASE] Admin SDK initialization FAILED:', error.message);
+            console.error('   Stack:', error.stack);
         }
     } else {
-        console.warn('⚠️ [FIREBASE] No private key found or key too short. Using MOCK mode.');
+        console.warn('⚠️ [FIREBASE] Missing credentials. Using MOCK mode for local development.');
     }
 }
 
@@ -49,6 +63,7 @@ const mockAuth = {
         return { uid };
     },
     createCustomToken: async (uid: string, additionalClaims?: any) => {
+        console.log(`🔧 [LOCAL DEV] Mock custom token created for ${uid}`);
         return `mock-custom-token-${uid}`;
     },
     verifyIdToken: async (token: string) => {
@@ -57,12 +72,13 @@ const mockAuth = {
 };
 
 // Export Firebase admin with mock auth in local dev mode
-const firebaseAdmin = isLocalDev
-    ? { ...admin, auth: () => mockAuth as any }
-    : admin;
+const firebaseAdmin = hasAllCredentials
+    ? admin
+    : { ...admin, auth: () => mockAuth as any };
 
-if (isLocalDev) {
+if (!hasAllCredentials) {
     console.log('🔧 [LOCAL DEV MODE] Using mock Firebase Auth');
 }
 
 export default firebaseAdmin;
+export const isFirebaseMockMode = !hasAllCredentials;
