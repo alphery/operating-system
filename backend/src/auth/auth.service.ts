@@ -198,6 +198,9 @@ export class AuthService {
         platformUser: any;
         tenants: any[];
     }> {
+        console.log('[Auth] ===== LOGIN ATTEMPT =====');
+        console.log('[Auth] Received data:', JSON.stringify(data, null, 2));
+
         // 1. Find user by custom UID
         const platformUser = await this.prisma.platformUser.findUnique({
             where: { customUid: data.customUid },
