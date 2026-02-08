@@ -220,8 +220,8 @@ const apps = [
     },
     {
         id: "realtime-demo",
-        title: "🔴 Realtime Demo",
-        icon: './themes/Yaru/apps/chrome.png',
+        title: "Realtime Demo",
+        icon: './themes/Yaru/apps/spotify.png',
         disabled: false,
         favourite: true,
         desktop_shortcut: false,

@@ -91,7 +91,7 @@ export class UbuntuApp extends Component {
                     }}
                 >
                     <img
-                        className={`mb-1 icon-dynamic pointer-events-none rounded-2xl`}
+                        className={`mb-1 icon-dynamic pointer-events-none rounded-2xl object-contain`}
                         src={this.props.icon}
                         alt={"Ubuntu " + this.props.name}
                     />
