@@ -68,11 +68,10 @@ export default function Ubuntu() {
 		getLocalData();
 	}, []);
 
-	// Memoize approval status check to prevent unnecessary re-renders
 	// In the new system, if we have a platformUser, they are basic-approved
 	const isApproved = useMemo(() => {
-		return !!user && !!platformUser;
-	}, [user, platformUser]);
+		return !!platformUser;
+	}, [platformUser]);
 
 	const isPending = useMemo(() => {
 		return !!user && !platformUser;
@@ -86,8 +85,8 @@ export default function Ubuntu() {
 			isPending
 		});
 
-		if (!user) {
-			console.log('[UBUNTU] No user (logged out), showing auth screen');
+		if (!user && !platformUser) {
+			console.log('[UBUNTU] No session detected, showing auth screen');
 			setCurrentUser(null);
 			setDemoMode(false);
 			// Show Firebase auth screen instead of redirecting
@@ -97,24 +96,19 @@ export default function Ubuntu() {
 			return;
 		}
 
-		if (user && platformUser && isApproved) {
+		if (platformUser && isApproved) {
 			// User is approved - proceed normally
 			const firebaseUser: LocalUser = {
 				uid: platformUser.id, // Use UUID from backend
 				username: platformUser.email,
-				displayName: platformUser.displayName || user.displayName,
-				image: platformUser.photoUrl || user.photoURL,
-				password: '' // Not needed for Firebase users
+				displayName: platformUser.displayName || (user ? user.displayName : 'Admin'),
+				image: platformUser.photoUrl || (user ? user.photoURL : null),
+				password: '' // Not needed
 			};
-			console.log('[UBUNTU] User approved, setting current user:', firebaseUser);
+			console.log('[UBUNTU] Session active, setting current user:', firebaseUser);
 			setCurrentUser(firebaseUser);
 			setScreenLocked(false);
 			setShowFirebaseAuth(false);
-
-			// Load user's wallpaper (Placeholder for now, could be in backend settings)
-			// if (platformUser.settings?.wallpaper) {
-			// 	setBgImageName(platformUser.settings.wallpaper);
-			// }
 		}
 	}, [user, platformUser, isApproved, bootingScreen]);
 
@@ -243,7 +237,7 @@ export default function Ubuntu() {
 			)}
 
 			{/* Lock Screen - for local users or locked Firebase users */}
-			{((!user && !showFirebaseAuth) || isApproved || demoMode) && (
+			{((!user && !platformUser && !showFirebaseAuth) || isApproved || demoMode) && (
 				<LockScreen
 					isLocked={screenLocked}
 					bgImgName={bgImageName}
@@ -257,7 +251,7 @@ export default function Ubuntu() {
 				isShutDown={shutDownScreen}
 				turnOn={turnOn}
 			/>
-			{(user || demoMode) && (
+			{(user || platformUser || demoMode) && (
 				<Navbar
 					lockScreen={lockScreen}
 					shutDown={shutDown}

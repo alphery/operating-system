@@ -66,7 +66,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (storedToken) {
             setSessionToken(storedToken);
-            // Verify token with backend
+
+            // EMERGENCY BYPASS MOUNT
+            if (storedToken === 'emergency-token') {
+                console.log('[Auth] Detected Emergency God Mode token on mount');
+                const mockPlatformUser: PlatformUser = {
+                    id: 'admin-bypass-id',
+                    email: 'alpherymail@gmail.com',
+                    displayName: 'Admin (Emergency Mode)',
+                    photoUrl: null,
+                    isGod: true
+                };
+                setPlatformUser(mockPlatformUser);
+                const mockTenant: Tenant = {
+                    id: 'admin-tenant',
+                    name: 'Admin Workspace',
+                    role: 'owner',
+                    subdomain: 'admin'
+                };
+                setTenants([mockTenant]);
+                setCurrentTenantState(mockTenant);
+                setLoading(false);
+                return;
+            }
+
+            // Verify normal token with backend
             verifySession(storedToken, storedTenant);
         } else {
             setLoading(false);
@@ -86,38 +110,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUser(firebaseUser);
 
             if (firebaseUser) {
-                // Check if we are in emergency mode
+                // If we have a real Firebase user, we usually want to verify it
+                // unless we're already in emergency mode and it matches an admin
                 const storedToken = localStorage.getItem('alphery_session_token');
                 if (storedToken === 'emergency-token') {
+                    // Keep emergency state if admin
                     if (firebaseUser.email === 'alpherymail@gmail.com' || firebaseUser.email === 'aksnetlink@gmail.com') {
-                        console.log('Restoring Emergency God Mode session');
-                        const mockPlatformUser: PlatformUser = {
-                            id: firebaseUser.uid,
-                            email: firebaseUser.email!,
-                            displayName: firebaseUser.displayName || 'Admin',
-                            photoUrl: firebaseUser.photoURL || null,
-                            isGod: true
-                        };
-                        setPlatformUser(mockPlatformUser);
-                        const mockTenant: Tenant = {
-                            id: 'admin-tenant',
-                            name: 'Admin Workspace',
-                            role: 'owner',
-                            subdomain: 'admin'
-                        };
-                        setTenants([mockTenant]);
-                        setCurrentTenantState(mockTenant);
-                        // session token is already set in state by the first effect, but ensure loading is false
                         setLoading(false);
-                    } else {
-                        // Invalid emergency token usage
-                        localStorage.removeItem('alphery_session_token');
-                        localStorage.removeItem('alphery_current_tenant');
-                        setSessionToken(null);
-                        setLoading(false);
+                        return;
                     }
                 }
             } else {
+                // NO FIREBASE USER detected
+                const storedToken = localStorage.getItem('alphery_session_token');
+
+                // If we are in emergency mode, DON'T wipe the session just because Firebase is null
+                if (storedToken === 'emergency-token') {
+                    console.log('[Auth] Keeping Emergency session (Firebase user is null)');
+                    setLoading(false);
+                    return;
+                }
+
+                // Normal logout flow
                 setPlatformUser(null);
                 setTenants([]);
                 setCurrentTenantState(null);
