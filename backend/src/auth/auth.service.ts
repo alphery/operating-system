@@ -211,30 +211,19 @@ export class AuthService {
             throw new UnauthorizedException('Account is disabled. Contact administrator.');
         }
 
-        // 3. Verify password with Firebase
-        try {
-            // We need to use Firebase Admin SDK to verify password
-            // Since Firebase doesn't have direct password verification,
-            // we'll use the signInWithEmailAndPassword from client SDK approach
-            // For now, we'll create a custom token and let frontend verify
+        // Verify Firebase user exists
+        const firebaseUser = await admin.auth().getUser(platformUser.firebaseUid);
 
-            // Get Firebase user
-            const firebaseUser = await admin.auth().getUser(platformUser.firebaseUid);
+        // Set custom claims to bridge identity for Firebase Security Rules
+        // This allows rules like: allow read: if request.auth.token.platformId == userId
+        await admin.auth().setCustomUserClaims(platformUser.firebaseUid, {
+            customUid: platformUser.customUid,
+            platformId: platformUser.id,
+            isGod: platformUser.isGod
+        });
 
-            // Create custom token for this user
-            const customToken = await admin.auth().createCustomToken(platformUser.firebaseUid, {
-                customUid: platformUser.customUid,
-                platformUserId: platformUser.id,
-            });
-
-            // Note: The actual password verification happens on the frontend
-            // This is a limitation of Firebase Admin SDK
-            // We'll need to pass the email to frontend for verification
-
-        } catch (error) {
-            console.error('[AUTH] Firebase verification failed:', error);
-            throw new UnauthorizedException('Invalid User ID or password');
-        }
+        // Create custom token for frontend sign-in if needed
+        // const customToken = await admin.auth().createCustomToken(platformUser.firebaseUid);
 
         // 4. Update last login
         await this.prisma.platformUser.update({
@@ -348,6 +337,13 @@ export class AuthService {
             if (!platformUser.isActive) {
                 throw new UnauthorizedException('User account is disabled');
             }
+
+            // BRIDGE IDENTITY: Set custom claims so Firestore knows who this Platform ID is
+            await admin.auth().setCustomUserClaims(decodedToken.uid, {
+                customUid: platformUser.customUid,
+                platformId: platformUser.id,
+                isGod: platformUser.isGod
+            });
 
             const tenants = await this.getUserTenants(platformUser.id);
 
