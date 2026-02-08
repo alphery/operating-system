@@ -30,6 +30,9 @@ export default function LoginPage() {
             }
 
             const data = await response.json();
+            if (!data.email) {
+                throw new Error('Could not find an email associated with this User ID.');
+            }
             setEmail(data.email);
             setStep('password');
         } catch (err: any) {
@@ -42,6 +45,12 @@ export default function LoginPage() {
     const handlePasswordSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
+
+        if (!password) {
+            setError('Please enter your password.');
+            return;
+        }
+
         setLoading(true);
 
         try {
@@ -51,6 +60,7 @@ export default function LoginPage() {
             }
 
             // Sign in with Firebase
+            console.log('Attempting Firebase login for email:', email);
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const idToken = await userCredential.user.getIdToken();
 
@@ -76,7 +86,20 @@ export default function LoginPage() {
             // Redirect to desktop
             window.location.href = '/';
         } catch (err: any) {
-            setError(err.message || 'Invalid password');
+            console.error('Login error detail:', err);
+            let errorMessage = 'Login failed. Please try again.';
+
+            if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+                errorMessage = 'Invalid password. Please try again.';
+            } else if (err.code === 'auth/user-not-found') {
+                errorMessage = 'No user found with this ID.';
+            } else if (err.code === 'auth/invalid-email') {
+                errorMessage = 'The email associated with this ID is invalid.';
+            } else if (err.message) {
+                errorMessage = err.message;
+            }
+
+            setError(errorMessage);
         } finally {
             setLoading(false);
         }
