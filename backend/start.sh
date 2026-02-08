@@ -10,16 +10,22 @@ if [ -z "$DATABASE_URL" ]; then
     exit 1
 fi
 
+# Convert pooler URL to direct URL for migrations
+# Pooler uses port 6543, direct uses port 5432
+# pgBouncer doesn't support transaction mode needed for migrations
+DIRECT_URL=$(echo "$DATABASE_URL" | sed 's/:6543/:5432/g' | sed 's/pgbouncer=true//')
+echo "🔧 Using direct connection for migrations (port 5432)"
+
 echo "🚀 Running database migrations..."
 if [ -d "prisma/migrations" ] && [ "$(ls -A prisma/migrations)" ]; then
-    echo "Applying migrations..."
-    npx prisma migrate deploy || {
+    echo "Applying migrations with direct connection..."
+    DATABASE_URL="$DIRECT_URL" npx prisma migrate deploy || {
         echo "⚠️  Migration failed, trying db push..."
-        npx prisma db push --accept-data-loss --skip-generate
+        DATABASE_URL="$DIRECT_URL" npx prisma db push --accept-data-loss --skip-generate
     }
 else
     echo "⚠ No migrations found. Pushing schema..."
-    npx prisma db push --accept-data-loss --skip-generate
+    DATABASE_URL="$DIRECT_URL" npx prisma db push --accept-data-loss --skip-generate
 fi
 
 # Only seed if explicitly enabled (to avoid timeouts on first deploy)
