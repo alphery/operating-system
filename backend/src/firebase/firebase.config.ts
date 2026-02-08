@@ -2,20 +2,25 @@ import * as admin from 'firebase-admin';
 import * as crypto from 'crypto';
 
 // Check if we're in local development mode without Firebase credentials
-const isLocalDev = !process.env.FIREBASE_PRIVATE_KEY;
+const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+const isLocalDev = !privateKey || privateKey.length < 100;
 
-if (!admin.apps.length && !isLocalDev) {
-    try {
-        admin.initializeApp({
-            credential: admin.credential.cert({
-                projectId: process.env.FIREBASE_PROJECT_ID || 'alphery-1',
-                clientEmail: process.env.FIREBASE_CLIENT_EMAIL || '',
-                privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n') || '',
-            }),
-        });
-        console.log('✅ Firebase Admin initialized');
-    } catch (error) {
-        console.error('❌ Firebase Admin initialization failed:', error);
+if (!admin.apps.length) {
+    if (!isLocalDev) {
+        try {
+            admin.initializeApp({
+                credential: admin.credential.cert({
+                    projectId: process.env.FIREBASE_PROJECT_ID || 'alphery-1',
+                    clientEmail: process.env.FIREBASE_CLIENT_EMAIL || '',
+                    privateKey: privateKey?.replace(/\\n/g, '\n') || '',
+                }),
+            });
+            console.log('✅ [FIREBASE] Admin SDK initialized successfully with Production Credentials');
+        } catch (error) {
+            console.error('❌ [FIREBASE] Admin SDK initialization FAILED:', error.message);
+        }
+    } else {
+        console.warn('⚠️ [FIREBASE] No private key found or key too short. Using MOCK mode.');
     }
 }
 
