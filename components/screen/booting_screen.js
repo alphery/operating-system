@@ -11,8 +11,8 @@ function BootingScreen(props) {
 
                 {/* Brand Identity */}
                 <div className="text-center transform transition-transform duration-700 hover:scale-105">
-                    <h1 className="text-5xl md:text-7xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-purple-600 to-blue-500 animate-gradient-x pb-4">
-                        ALPHERY OS
+                    <h1 className="text-5xl md:text-7xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 animate-gradient-x pb-4">
+                        ALPHERY WORKSPACE
                     </h1>
                     <p className="text-gray-400 text-sm md:text-base font-medium tracking-[0.2em] uppercase opacity-80 mt-2">
                         System Initializing
@@ -22,9 +22,12 @@ function BootingScreen(props) {
                 {/* Loading State */}
                 {!props.isShutDown && (
                     <div className="flex flex-col items-center space-y-4">
-                        <div className="relative w-12 h-12">
-                            <div className="absolute inset-0 border-4 border-blue-500/20 rounded-full"></div>
-                            <div className="absolute inset-0 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                        <div className="scale-loader">
+                            <div></div>
+                            <div></div>
+                            <div></div>
+                            <div></div>
+                            <div></div>
                         </div>
                     </div>
                 )}

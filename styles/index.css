@@ -4,8 +4,8 @@
     --ub-orange: #E95420;
 
     /* Theme Variables (Default Dark) */
-    --bg-primary: #201f1f;
-    --bg-secondary: #333333;
+    --bg-primary: #050505;
+    --bg-secondary: #0d0d0d;
     --text-primary: #F6F6F5;
     --text-secondary: #AEA79F;
 
@@ -26,6 +26,7 @@
 
 html {
     font-size: var(--base-font-size);
+    background-color: #050505;
 }
 
 body {
@@ -57,6 +58,9 @@ body {
     /* Apply theme variables */
     background-color: var(--bg-primary);
     color: var(--text-primary);
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
 }
 
 /* ===== APPEARANCE SETTINGS UTILITIES ===== */
@@ -347,6 +351,7 @@ body.medium-performance-mode .optimized-shadow-lg {
 input[type=range].ubuntu-slider {
     outline: none;
     -webkit-appearance: none;
+    appearance: none;
     background: linear-gradient(to right, rgba(175, 175, 175, 0.3) 0%, rgba(175, 175, 175, 0.3) 100%);
     background-position: center;
     background-size: 99% 3px;
@@ -652,4 +657,123 @@ input[type=range].ubuntu-slider::-webkit-slider-thumb {
 .backdrop-blur-xl {
     -webkit-backdrop-filter: blur(40px);
     backdrop-filter: blur(40px);
+}
+
+/* ===== AUTH CARD FLIP ANIMATION ===== */
+.perspective-auth {
+    perspective: 2000px;
+}
+
+.auth-card-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transform-style: preserve-3d;
+}
+
+.auth-card-flipped {
+    transform: rotateY(180deg);
+}
+
+.auth-card-front,
+.auth-card-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    top: 0;
+    left: 0;
+}
+
+.auth-card-back {
+    transform: rotateY(180deg);
+}
+
+/* Smooth shake for errors */
+@keyframes auth-shake {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    25% {
+        transform: translateX(-8px);
+    }
+
+    75% {
+        transform: translateX(8px);
+    }
+}
+
+/* ScaleLoader style */
+.scale-loader {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 40px;
+}
+
+.scale-loader>div {
+    background-color: #ffffff;
+    width: 4px;
+    height: 35px;
+    border-radius: 2px;
+    animation: scale-loader 1s infinite ease-in-out;
+}
+
+.scale-loader>div:nth-child(1) {
+    animation-delay: 0s;
+}
+
+.scale-loader>div:nth-child(2) {
+    animation-delay: 0.1s;
+}
+
+.scale-loader>div:nth-child(3) {
+    animation-delay: 0.2s;
+}
+
+.scale-loader>div:nth-child(4) {
+    animation-delay: 0.3s;
+}
+
+.scale-loader>div:nth-child(5) {
+    animation-delay: 0.4s;
+}
+
+@keyframes scale-loader {
+
+    0%,
+    40%,
+    100% {
+        transform: scaleY(1);
+    }
+
+    20% {
+        transform: scaleY(0.4);
+    }
+}
+
+@keyframes gradient-x {
+
+    0%,
+    100% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+}
+
+.animate-gradient-x {
+    background-size: 200% 200%;
+    animation: gradient-x 3s ease infinite;
+}
+
+.animate-shake {
+    animation: auth-shake 0.4s cubic-bezier(.36, .07, .19, .97) both;
 }
