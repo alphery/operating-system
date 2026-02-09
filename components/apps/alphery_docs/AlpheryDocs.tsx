@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Collaboration from '@tiptap/extension-collaboration';
-import CollaborationCursor from '@tiptap/extension-collaboration-cursor';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import Toolbar from './Toolbar'; // We'll create this next
@@ -43,17 +42,10 @@ const AlpheryDocs = () => {
     const editor = useEditor({
         extensions: [
             StarterKit.configure({
-                history: false, // Collaboration handles history
-            }),
+                history: false,
+            } as any),
             Collaboration.configure({
                 document: ydoc,
-            }),
-            CollaborationCursor.configure({
-                provider: provider,
-                user: {
-                    name: 'User ' + Math.floor(Math.random() * 100),
-                    color: '#' + Math.floor(Math.random() * 16777215).toString(16),
-                },
             }),
         ],
         content: '<p>Start typing...</p>',
