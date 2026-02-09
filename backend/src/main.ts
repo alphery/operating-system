@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
+  console.log('Starting Alphery OS Backend... (Build Triggered)');
   const app = await NestFactory.create(AppModule);
 
   // Enable CORS for development and production
