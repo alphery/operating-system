@@ -9,6 +9,7 @@ import { StorageModule } from './storage/storage.module';
 import { AuthModule } from './auth/auth.module';
 import { HealthController } from './health/health.controller';
 import { AdminController } from './admin/admin.controller';
+import { DiagnoseController } from './admin/diagnose.controller';
 import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
 import { ProjectsModule } from './projects/projects.module';
@@ -50,7 +51,7 @@ import { PlatformModule } from './platform/platform.module';
     RoleModule,
     FactoryModule,
   ],
-  controllers: [AppController, HealthController, AdminController],
+  controllers: [AppController, HealthController, AdminController, DiagnoseController],
   providers: [AppService],
 })
 export class AppModule { }
