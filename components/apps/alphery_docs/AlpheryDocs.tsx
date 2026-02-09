@@ -2,6 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Collaboration from '@tiptap/extension-collaboration';
+import TextAlign from '@tiptap/extension-text-align';
+import Underline from '@tiptap/extension-underline';
+import Image from '@tiptap/extension-image';
+import Link from '@tiptap/extension-link';
+import Placeholder from '@tiptap/extension-placeholder';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import Toolbar from './Toolbar'; // We'll create this next
@@ -20,7 +25,6 @@ const AlpheryDocs = () => {
     // Set up provider
     useEffect(() => {
         // Connect to local y-websocket server
-        // Make sure to run 'npm run start:collab' in backend
         const wsProvider = new WebsocketProvider(
             'ws://localhost:1234',
             docId,
@@ -46,6 +50,17 @@ const AlpheryDocs = () => {
             } as any),
             Collaboration.configure({
                 document: ydoc,
+            }),
+            TextAlign.configure({
+                types: ['heading', 'paragraph'],
+            }),
+            Underline,
+            Image,
+            Link.configure({
+                openOnClick: false,
+            }),
+            Placeholder.configure({
+                placeholder: 'Write something amazing...',
             }),
         ],
         content: '<p>Start typing...</p>',
