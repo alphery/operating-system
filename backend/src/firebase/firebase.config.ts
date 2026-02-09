@@ -2,40 +2,45 @@ import * as admin from 'firebase-admin';
 import * as crypto from 'crypto';
 
 // Check if we have all required Firebase credentials
+// Check if we have all required Firebase credentials
 const projectId = process.env.FIREBASE_PROJECT_ID;
 const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+const rawPrivateKey = process.env.FIREBASE_PRIVATE_KEY;
 
-const hasAllCredentials = !!(projectId && clientEmail && privateKey && privateKey.length > 50);
+let hasAllCredentials = !!(projectId && clientEmail && rawPrivateKey && rawPrivateKey.length > 50);
+let firebaseInitialized = false;
 
-console.log('🔍 [FIREBASE] Credential check:', {
-    hasProjectId: !!projectId,
-    hasClientEmail: !!clientEmail,
-    hasPrivateKey: !!privateKey,
-    privateKeyLength: privateKey?.length || 0
-});
-
-if (!admin.apps.length) {
-    if (hasAllCredentials) {
-        try {
-            // Replace escaped newlines in private key
-            const formattedKey = privateKey!.replace(/\\n/g, '\n');
-
-            admin.initializeApp({
-                credential: admin.credential.cert({
-                    projectId: projectId!,
-                    clientEmail: clientEmail!,
-                    privateKey: formattedKey,
-                }),
-            });
-            console.log('✅ [FIREBASE] Admin SDK initialized successfully with Production Credentials');
-        } catch (error: any) {
-            console.error('❌ [FIREBASE] Admin SDK initialization FAILED:', error.message);
-            console.error('   Stack:', error.stack);
+if (hasAllCredentials && !admin.apps.length) {
+    try {
+        // Robust Private Key Formatting:
+        // 1. Remove surrounding double quotes if present
+        let formattedKey = rawPrivateKey!.trim();
+        if (formattedKey.startsWith('"') && formattedKey.endsWith('"')) {
+            formattedKey = formattedKey.substring(1, formattedKey.length - 1);
         }
-    } else {
-        console.warn('⚠️ [FIREBASE] Missing credentials. Using MOCK mode for local development.');
+
+        // 2. Replace literal \n with actual newlines
+        formattedKey = formattedKey.replace(/\\n/g, '\n');
+
+        admin.initializeApp({
+            credential: admin.credential.cert({
+                projectId: projectId!,
+                clientEmail: clientEmail!,
+                privateKey: formattedKey,
+            }),
+        });
+        console.log('✅ [FIREBASE] Admin SDK initialized successfully with Production Credentials');
+        firebaseInitialized = true;
+    } catch (error: any) {
+        console.error('❌ [FIREBASE] Admin SDK initialization FAILED:', error.message);
+        console.error('   Stack:', error.stack);
+        // Fallback to mock mode if init fails
+        hasAllCredentials = false;
     }
+} else if (admin.apps.length) {
+    firebaseInitialized = true;
+} else {
+    console.warn('⚠️ [FIREBASE] Missing credentials. Using MOCK mode for local development.');
 }
 
 // Mock Firebase Auth for local development
@@ -71,14 +76,14 @@ const mockAuth = {
     },
 };
 
-// Export Firebase admin with mock auth in local dev mode
-const firebaseAdmin = hasAllCredentials
+// Export Firebase admin with mock auth in local dev mode or if init failed
+const firebaseAdmin = (hasAllCredentials && firebaseInitialized)
     ? admin
     : { ...admin, auth: () => mockAuth as any };
 
-if (!hasAllCredentials) {
-    console.log('🔧 [LOCAL DEV MODE] Using mock Firebase Auth');
+if (!hasAllCredentials || !firebaseInitialized) {
+    console.log('🔧 [LOCAL DEV MODE] Using mock Firebase Auth (Init failed or missing creds)');
 }
 
 export default firebaseAdmin;
-export const isFirebaseMockMode = !hasAllCredentials;
+export const isFirebaseMockMode = !hasAllCredentials || !firebaseInitialized;
