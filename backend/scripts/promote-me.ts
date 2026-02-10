@@ -2,11 +2,13 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-const USER_EMAIL = 'YOUR_EMAIL@HERE.COM'; // 👈 REPLACE THIS WITH YOUR EMAIL
+const args = process.argv.slice(2);
+const USER_EMAIL = args[0];
 
 async function promoteToGod() {
-    if (USER_EMAIL === 'YOUR_EMAIL@HERE.COM') {
-        console.error('❌ Please edit this script and set your USER_EMAIL first!');
+    if (!USER_EMAIL) {
+        console.error('❌ Usage: npx tsx scripts/promote-me.ts <email>');
+        console.error('Example: npx tsx scripts/promote-me.ts admin@google.com');
         process.exit(1);
     }
 
@@ -18,7 +20,7 @@ async function promoteToGod() {
         });
 
         if (!user) {
-            console.error(`❌ User not found! Please sign up first.`);
+            console.error(`❌ User not found (${USER_EMAIL})! Please sign up first.`);
             process.exit(1);
         }
 
