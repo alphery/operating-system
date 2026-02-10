@@ -23,7 +23,7 @@ async function bootstrap() {
     allowedHeaders: 'Content-Type, Accept, Authorization, X-Tenant-ID',
   });
 
-  const port = process.env.PORT || 3001;
+  const port = process.env.PORT || 10000;
   console.log(`📡 Attempting to start server on port: ${port}`);
   await app.listen(port);
 
