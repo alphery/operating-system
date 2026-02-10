@@ -173,17 +173,16 @@ export class Desktop extends Component {
 
         // --- AUTH SYNC FIX ---
         // If we are authenticated (have this.props.user) but the profile data (userData) 
-        // hasn't arrived yet, we should WAIT. Otherwise we might initialize with 'guest'
-        // or the wrong UID and show demo apps by mistake.
-        if (this.props.user && !this.props.userData) {
-            console.log("[Desktop] Authenticated but userData missing. Delaying apps fetch...");
-            return;
-        }
+        // hasn't arrived yet, we'll use the Firebase UID as a temporary identifier.
+        // This ensures apps load immediately on login while we wait for full profile data.
+        // When userData arrives later, componentDidUpdate will trigger a refresh.
 
         // Use the consistent UUID from platformUser if available, otherwise Firebase UID
         const userUid = (this.props.userData && this.props.userData.id)
             ? this.props.userData.id
             : ((this.props.user && this.props.user.uid) ? this.props.user.uid : 'guest');
+
+        console.log("[Desktop] Loading apps for user:", userUid, "userData loaded:", !!this.props.userData);
 
         // Bumped key to _v4 for clean state
         const storageKey = `disabled_apps_${userUid}_v4`;
