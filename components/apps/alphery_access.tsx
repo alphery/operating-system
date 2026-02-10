@@ -129,6 +129,12 @@ function GodDashboard() {
         >
           📱 Apps ({apps.length})
         </button>
+        <button
+          className={activeTab === 'analytics' ? 'active' : ''}
+          onClick={() => setActiveTab('analytics')}
+        >
+          📊 Analytics
+        </button>
       </nav>
 
       <div className="tab-content">
