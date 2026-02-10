@@ -190,6 +190,7 @@ function GodDashboard() {
           padding: 2rem;
           box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
           min-height: 400px;
+          color: #1a202c;
         }
       `}</style>
     </div>
@@ -660,6 +661,7 @@ function TenantsList({ tenants, users, onUpdate }: any) {
           border-radius: 20px;
           box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
           overflow: hidden;
+          color: #1a202c;
         }
 
         .modal-header {
@@ -685,6 +687,8 @@ function TenantsList({ tenants, users, onUpdate }: any) {
           width: 100%; padding: 0.75rem 1rem;
           border: 2px solid #e2e8f0; border-radius: 8px;
           font-size: 1rem; transition: all 0.2s;
+          color: #1a202c;
+          background: white;
         }
 
         input:focus, select:focus {
