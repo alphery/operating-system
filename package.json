@@ -21,6 +21,15 @@
   "dependencies": {
     "@emailjs/browser": "^3.11.0",
     "@supabase/supabase-js": "^2.93.3",
+    "@tiptap/extension-collaboration": "^2.12.2",
+    "@tiptap/extension-image": "^2.12.2",
+    "@tiptap/extension-link": "^2.12.2",
+    "@tiptap/extension-placeholder": "^2.12.2",
+    "@tiptap/extension-text-align": "^2.12.2",
+    "@tiptap/extension-underline": "^2.12.2",
+    "@tiptap/pm": "^2.12.2",
+    "@tiptap/react": "^2.12.2",
+    "@tiptap/starter-kit": "^2.12.2",
     "axios": "^1.13.4",
     "emoji-picker-react": "^4.16.1",
     "expr-eval": "^2.0.2",
@@ -34,11 +43,15 @@
     "react-ga": "^3.3.1",
     "react-rnd": "^10.5.2",
     "react-youtube": "^10.1.0",
-    "socket.io-client": "^4.8.3"
+    "socket.io-client": "^4.8.3",
+    "uuid": "^11.0.5",
+    "y-websocket": "^2.1.0",
+    "yjs": "^13.6.24"
   },
   "devDependencies": {
     "@types/node": "^25.0.7",
     "@types/react": "19.2.8",
+    "@types/uuid": "^10.0.0",
     "autoprefixer": "^10.4.13",
     "postcss": "^8.4.19",
     "postcss-nesting": "^14.0.0",
