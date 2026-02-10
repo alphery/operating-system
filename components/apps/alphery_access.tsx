@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth, useAuthenticatedFetch } from '../../context/AuthContext-new';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:10000';
 
 // ═══════════════════════════════════════════════════════════
 // ALPHERY ACCESS - ADMIN CONSOLE
@@ -132,9 +132,10 @@ function GodDashboard() {
       </nav>
 
       <div className="tab-content">
-        {activeTab === 'tenants' && <TenantsList tenants={tenants} onUpdate={loadPlatformData} />}
+        {activeTab === 'tenants' && <TenantsList tenants={tenants} users={users} onUpdate={loadPlatformData} />}
         {activeTab === 'users' && <UsersList users={users} onUpdate={loadPlatformData} />}
         {activeTab === 'apps' && <AppsList apps={apps} onUpdate={loadPlatformData} />}
+        {activeTab === 'analytics' && <AnalyticsDashboard />}
       </div>
 
       <style jsx>{`
@@ -173,6 +174,8 @@ function GodDashboard() {
         .tabs button.active {
           background: white;
           color: #667eea;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
 
         .tab-content {
@@ -180,10 +183,29 @@ function GodDashboard() {
           border-radius: 12px;
           padding: 2rem;
           box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+          min-height: 400px;
         }
       `}</style>
     </div>
   );
+}
+
+// ═══════════════════════════════════════════════════════════
+// NEW ANALYTICS DASHBOARD
+// ═══════════════════════════════════════════════════════════
+
+function AnalyticsDashboard() {
+  return (
+    <div className="analytics">
+      <div className="empty-state">
+        <h3>📊 Platform Analytics</h3>
+        <p>Coming soon: Usage stats, revenue metrics, and system health.</p>
+      </div>
+      <style jsx>{`
+        .empty-state { text-align: center; padding: 4rem; color: #666; }
+      `}</style>
+    </div>
+  )
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -296,14 +318,39 @@ function TenantAdminDashboard() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// TENANTS LIST (God Mode)
+// TENANTS LIST (God Mode) - ENHANCED WIZARD
 // ═══════════════════════════════════════════════════════════
 
-function TenantsList({ tenants, onUpdate }: any) {
+function TenantsList({ tenants, users, onUpdate }: any) {
   const [showCreate, setShowCreate] = useState(false);
   const [newTenant, setNewTenant] = useState({ name: '', subdomain: '', ownerEmail: '', plan: 'free' });
   const [loading, setLoading] = useState(false);
+  const [userSearch, setUserSearch] = useState('');
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
   const authenticatedFetch = useAuthenticatedFetch();
+
+  // Filter users for autocomplete
+  const filteredUsers = users?.filter((u: any) =>
+    u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
+    (u.displayName && u.displayName.toLowerCase().includes(userSearch.toLowerCase()))
+  ) || [];
+
+  const handleNameChange = (e: any) => {
+    const name = e.target.value;
+    // Auto-generate subdomain from name if subdomain is empty or matches previous auto-gen
+    const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+    setNewTenant(prev => ({
+      ...prev,
+      name,
+      subdomain: prev.subdomain ? prev.subdomain : slug
+    }));
+  };
+
+  const selectUser = (email: string) => {
+    setNewTenant({ ...newTenant, ownerEmail: email });
+    setUserSearch(email);
+    setShowUserDropdown(false);
+  };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -317,7 +364,9 @@ function TenantsList({ tenants, onUpdate }: any) {
       if (res.ok) {
         setShowCreate(false);
         setNewTenant({ name: '', subdomain: '', ownerEmail: '', plan: 'free' });
+        setUserSearch('');
         onUpdate();
+        alert('🎉 Tenant created successfully!');
       } else {
         const err = await res.json();
         alert(err.message || 'Failed to create tenant');
@@ -332,57 +381,111 @@ function TenantsList({ tenants, onUpdate }: any) {
   return (
     <div className="tenants-list">
       <div className="header">
-        <h2>🏢 All Tenants</h2>
-        <button className="btn-create" onClick={() => setShowCreate(true)}>+ Create Tenant</button>
+        <div>
+          <h2>🏢 All Tenants</h2>
+          <p className="subtitle">Manage organizations and workspaces</p>
+        </div>
+        <button className="btn-create" onClick={() => setShowCreate(true)}>
+          <span className="icon">+</span> New Tenant
+        </button>
       </div>
 
       {showCreate && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <h3>Create New Tenant</h3>
+        <div className="modal-overlay" onClick={(e) => {
+          if ((e.target as any).className === 'modal-overlay') setShowCreate(false);
+        }}>
+          <div className="modal animate-in">
+            <div className="modal-header">
+              <h3>🚀 Create New Organization</h3>
+              <button className="close-btn" onClick={() => setShowCreate(false)}>×</button>
+            </div>
+
             <form onSubmit={handleCreate}>
-              <div className="form-group">
-                <label>Organization Name</label>
+              <div className="form-grid">
+                <div className="form-group">
+                  <label>Organization Name</label>
+                  <input
+                    value={newTenant.name}
+                    onChange={handleNameChange}
+                    placeholder="e.g. Acme Industries"
+                    required
+                    autoFocus
+                  />
+                  <small>The display name of the company.</small>
+                </div>
+
+                <div className="form-group">
+                  <label>Subdomain (Unique ID)</label>
+                  <div className="input-prefix">
+                    <span>alphery.com/</span>
+                    <input
+                      value={newTenant.subdomain}
+                      onChange={e => setNewTenant({ ...newTenant, subdomain: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
+                      placeholder="acme"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="form-group relative">
+                <label>Owner (Admin)</label>
                 <input
-                  value={newTenant.name}
-                  onChange={e => setNewTenant({ ...newTenant, name: e.target.value })}
-                  placeholder="Acme Corp"
+                  type="text"
+                  value={userSearch}
+                  onChange={e => {
+                    setUserSearch(e.target.value);
+                    setShowUserDropdown(true);
+                    setNewTenant({ ...newTenant, ownerEmail: e.target.value });
+                  }}
+                  onFocus={() => setShowUserDropdown(true)}
+                  placeholder="Search user by email or name..."
                   required
                 />
+
+                {showUserDropdown && userSearch && filteredUsers.length > 0 && (
+                  <div className="user-dropdown">
+                    {filteredUsers.slice(0, 5).map((u: any) => (
+                      <div
+                        key={u.id}
+                        className="user-option"
+                        onClick={() => selectUser(u.email)}
+                      >
+                        <div className="user-avatar">{u.email[0].toUpperCase()}</div>
+                        <div className="user-info">
+                          <div className="user-name">{u.displayName || 'No Name'}</div>
+                          <div className="user-email">{u.email}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <small>The user who will own this workspace.</small>
               </div>
+
               <div className="form-group">
-                <label>Subdomain</label>
-                <input
-                  value={newTenant.subdomain}
-                  onChange={e => setNewTenant({ ...newTenant, subdomain: e.target.value.toLowerCase() })}
-                  placeholder="acme"
-                />
+                <label>Subscription Plan</label>
+                <div className="plan-selector">
+                  {['free', 'pro', 'enterprise'].map(plan => (
+                    <div
+                      key={plan}
+                      className={`plan-option ${newTenant.plan === plan ? 'selected' : ''}`}
+                      onClick={() => setNewTenant({ ...newTenant, plan })}
+                    >
+                      <div className="plan-name">{plan.charAt(0).toUpperCase() + plan.slice(1)}</div>
+                      <div className="plan-check">{newTenant.plan === plan && '✓'}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="form-group">
-                <label>Owner Email</label>
-                <input
-                  type="email"
-                  value={newTenant.ownerEmail}
-                  onChange={e => setNewTenant({ ...newTenant, ownerEmail: e.target.value })}
-                  placeholder="admin@acme.com"
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Plan</label>
-                <select
-                  value={newTenant.plan}
-                  onChange={e => setNewTenant({ ...newTenant, plan: e.target.value })}
-                >
-                  <option value="free">Free</option>
-                  <option value="pro">Pro</option>
-                  <option value="enterprise">Enterprise</option>
-                </select>
-              </div>
+
               <div className="modal-actions">
-                <button type="button" onClick={() => setShowCreate(false)}>Cancel</button>
+                <button type="button" className="btn-cancel" onClick={() => setShowCreate(false)}>Cancel</button>
                 <button type="submit" className="btn-submit" disabled={loading}>
-                  {loading ? 'Creating...' : 'Create Tenant'}
+                  {loading ? (
+                    <span className="flex-center">
+                      <span className="spinner"></span> Creating...
+                    </span>
+                  ) : 'Create Tenant'}
                 </button>
               </div>
             </form>
@@ -393,16 +496,44 @@ function TenantsList({ tenants, onUpdate }: any) {
       <div className="list">
         {tenants.map((tenant: any) => (
           <div key={tenant.id} className="card">
-            <h3>{tenant.name}</h3>
-            <p>ID: <span className="small-text">{tenant.id}</span></p>
-            <p>Owner: {tenant.owner?.email || 'N/A'}</p>
-            <p>Plan: <span className={`plan-badge ${tenant.plan}`}>{tenant.plan}</span></p>
-            <div className="meta">
-              <span>👥 {tenant._count?.members || 0}</span>
-              <span>📱 {tenant._count?.apps || 0}</span>
+            <div className="card-header">
+              <h3>{tenant.name}</h3>
+              <span className={`plan-badge ${tenant.plan}`}>{tenant.plan}</span>
+            </div>
+
+            <div className="card-body">
+              <div className="info-row">
+                <span className="label">ID:</span>
+                <span className="value code" title={tenant.id}>{tenant.id.substring(0, 8)}...</span>
+              </div>
+              <div className="info-row">
+                <span className="label">Owner:</span>
+                <span className="value">{tenant.owner?.email || 'N/A'}</span>
+              </div>
+              <div className="info-row">
+                <span className="label">Created:</span>
+                <span className="value">{new Date(tenant.createdAt).toLocaleDateString()}</span>
+              </div>
+            </div>
+
+            <div className="card-footer">
+              <div className="stat">
+                <span className="stat-val">👥 {tenant._count?.users || 0}</span>
+                <span className="stat-label">Users</span>
+              </div>
+              <div className="stat">
+                <span className="stat-val">📱 {tenant._count?.apps || 0}</span>
+                <span className="stat-label">Apps</span>
+              </div>
             </div>
           </div>
         ))}
+
+        {tenants.length === 0 && (
+          <div className="empty-state">
+            <p>No tenants found. Create one to get started!</p>
+          </div>
+        )}
       </div>
 
       <style jsx>{`
@@ -415,146 +546,224 @@ function TenantsList({ tenants, onUpdate }: any) {
 
         .tenants-list h2 {
           margin: 0;
-          color: #333;
+          color: #2d3748;
+          font-size: 1.5rem;
         }
 
+        .subtitle { color: #718096; margin: 0.25rem 0 0; font-size: 0.9rem; }
+
         .btn-create {
-          background: #667eea;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
           color: white;
           padding: 0.75rem 1.5rem;
-          border-radius: 8px;
+          border-radius: 99px;
           border: none;
-          font-weight: 700;
+          font-weight: 600;
           cursor: pointer;
           transition: all 0.3s;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
         }
 
         .btn-create:hover {
-          background: #5568d3;
           transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+          box-shadow: 0 8px 20px rgba(102, 126, 234, 0.5);
         }
 
         .list {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
           gap: 1.5rem;
         }
 
         .card {
           background: white;
-          padding: 1.5rem;
-          border-radius: 12px;
-          border: 1px solid #e5e7eb;
-          box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+          border-radius: 16px;
+          border: 1px solid #e2e8f0;
           transition: all 0.3s;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
         }
 
         .card:hover {
           transform: translateY(-4px);
-          box-shadow: 0 12px 20px rgba(0,0,0,0.1);
+          box-shadow: 0 15px 30px rgba(0,0,0,0.08);
           border-color: #667eea;
         }
 
-        .card h3 {
-          margin: 0 0 1rem 0;
-          color: #1a202c;
-          font-size: 1.25rem;
+        .card-header {
+          padding: 1.5rem;
+          border-bottom: 1px solid #f7fafc;
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
         }
 
-        .card p {
-          margin: 0.5rem 0;
-          font-size: 0.875rem;
-          color: #4a5568;
+        .card h3 { margin: 0; font-size: 1.15rem; color: #2d3748; font-weight: 700; }
+
+        .card-body { padding: 1.25rem 1.5rem; flex: 1; }
+
+        .info-row {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 0.5rem;
+          font-size: 0.9rem;
         }
 
-        .small-text {
-          font-family: monospace;
-          font-size: 0.75rem;
-          opacity: 0.7;
+        .label { color: #718096; }
+        .value { color: #2d3748; font-weight: 500; }
+        .code { font-family: monospace; background: #edf2f7; padding: 0.1rem 0.3rem; border-radius: 4px; }
+
+        .card-footer {
+          padding: 1rem 1.5rem;
+          background: #f8fafc;
+          display: flex;
+          gap: 1.5rem;
+          border-top: 1px solid #edf2f7;
         }
+
+        .stat { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; color: #4a5568; font-weight: 600; }
 
         .plan-badge {
-          padding: 0.2rem 0.6rem;
-          border-radius: 4px;
-          font-size: 0.75rem;
-          font-weight: 700;
+          padding: 0.25rem 0.75rem;
+          border-radius: 99px;
+          font-size: 0.7rem;
+          font-weight: 800;
           text-transform: uppercase;
+          letter-spacing: 0.05em;
         }
-
-        .plan-badge.free { background: #edf2f7; color: #4a5568; }
+        .plan-badge.free { background: #edf2f7; color: #718096; }
         .plan-badge.pro { background: #ebf8ff; color: #3182ce; }
         .plan-badge.enterprise { background: #faf5ff; color: #805ad5; }
 
-        .meta {
-          margin-top: 1.5rem;
-          display: flex;
-          gap: 1rem;
-          font-size: 0.875rem;
-          color: #718096;
-        }
-
         /* Modal Styles */
         .modal-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0,0,0,0.5);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 1000;
-          backdrop-filter: blur(4px);
+          position: fixed; inset: 0;
+          background: rgba(0,0,0,0.6);
+          backdrop-filter: blur(5px);
+          display: flex; align-items: center; justify-content: center;
+          z-index: 9999;
         }
 
         .modal {
           background: white;
-          padding: 2rem;
-          border-radius: 16px;
-          width: 100%;
-          max-width: 450px;
-          color: #333;
+          width: 100%; max-width: 550px;
+          border-radius: 20px;
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+          overflow: hidden;
         }
 
-        .form-group {
-          margin-bottom: 1.25rem;
+        .modal-header {
+          padding: 1.5rem 2rem;
+          border-bottom: 1px solid #e2e8f0;
+          display: flex; justify-content: space-between; align-items: center;
+          background: #f8fafc;
         }
 
-        .form-group label {
-          display: block;
-          margin-bottom: 0.5rem;
-          font-size: 0.875rem;
-          font-weight: 600;
+        .modal-header h3 { margin: 0; color: #2d3748; }
+        .close-btn { background: none; border: none; font-size: 1.5rem; color: #a0aec0; cursor: pointer; }
+        .close-btn:hover { color: #2d3748; }
+
+        form { padding: 2rem; }
+
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+
+        .form-group { margin-bottom: 1.5rem; position: relative; }
+        .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 600; font-size: 0.9rem; color: #4a5568; }
+        .form-group small { display: block; margin-top: 0.35rem; color: #a0aec0; font-size: 0.8rem; }
+        
+        input, select {
+          width: 100%; padding: 0.75rem 1rem;
+          border: 2px solid #e2e8f0; border-radius: 8px;
+          font-size: 1rem; transition: all 0.2s;
         }
 
-        .form-group input, .form-group select {
-          width: 100%;
-          padding: 0.75rem;
+        input:focus, select:focus {
+          border-color: #667eea; outline: none;
+          box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .input-prefix {
+          display: flex; align-items: center;
+          border: 2px solid #e2e8f0; border-radius: 8px;
+          background: #f7fafc;
+        }
+        .input-prefix span { padding-left: 1rem; color: #a0aec0; font-weight: 500; }
+        .input-prefix input { border: none; background: transparent; padding-left: 0.25rem; }
+        .input-prefix:focus-within { border-color: #667eea; }
+
+        /* User Dropdown */
+        .user-dropdown {
+          position: absolute; top: 100%; left: 0; right: 0;
+          background: white; border-radius: 8px;
+          box-shadow: 0 10px 25px rgba(0,0,0,0.1);
           border: 1px solid #e2e8f0;
-          border-radius: 8px;
-          font-size: 1rem;
+          z-index: 10; margin-top: 0.5rem;
+          max-height: 200px; overflow-y: auto;
         }
+        .user-option {
+          padding: 0.75rem 1rem;
+          display: flex; align-items: center; gap: 0.75rem;
+          cursor: pointer; transition: background 0.1s;
+        }
+        .user-option:hover { background: #f7fafc; }
+        .user-avatar {
+          width: 32px; h-32px; border-radius: 50%; background: #667eea; color: white;
+          display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.9rem;
+        }
+        .user-name { font-weight: 600; color: #2d3748; font-size: 0.9rem; }
+        .user-email { color: #718096; font-size: 0.8rem; }
+
+        /* Plan Selector */
+        .plan-selector { display: flex; gap: 1rem; }
+        .plan-option {
+          flex: 1; border: 2px solid #e2e8f0; padding: 1rem;
+          border-radius: 10px; cursor: pointer; text-align: center;
+          transition: all 0.2s; position: relative;
+        }
+        .plan-option:hover { border-color: #cbd5e0; }
+        .plan-option.selected {
+          border-color: #667eea; background: #ebf4ff; color: #5a67d8;
+        }
+        .plan-name { font-weight: 700; font-size: 0.9rem; }
+        .plan-check { position: absolute; top: 5px; right: 5px; font-weight: bold; color: #667eea; font-size: 0.8rem; }
 
         .modal-actions {
-          display: flex;
-          gap: 1rem;
-          margin-top: 2rem;
+          display: flex; gap: 1rem; margin-top: 2rem;
         }
-
         .modal-actions button {
-          flex: 1;
-          padding: 0.75rem;
-          border-radius: 8px;
-          font-weight: 600;
-          cursor: pointer;
+          flex: 1; padding: 1rem; border-radius: 10px; font-weight: 700; cursor: pointer; border: none; font-size: 1rem;
         }
-
+        .btn-cancel { background: #edf2f7; color: #4a5568; }
+        .btn-cancel:hover { background: #e2e8f0; }
+        
         .btn-submit {
-          background: #667eea;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
           color: white;
-          border: none;
+          box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+        .btn-submit:hover:not(:disabled) {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+        .btn-submit:disabled { opacity: 0.7; cursor: not-allowed; }
+
+        .spinner {
+          display: inline-block; width: 1rem; height: 1rem;
+          border: 2px solid rgba(255,255,255,0.3); border-radius: 50%;
+          border-top-color: white; animation: spin 0.8s linear infinite;
+          margin-right: 0.5rem;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .flex-center { display: flex; align-items: center; justify-content: center; }
+
+        .animate-in { animation: slideUp 0.3s ease-out; }
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
     </div>
