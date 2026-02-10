@@ -33,6 +33,7 @@
     "axios": "^1.13.4",
     "emoji-picker-react": "^4.16.1",
     "expr-eval": "^2.0.2",
+    "fabric": "^6.5.2",
     "firebase": "^12.7.0",
     "jquery": "^3.6.1",
     "jszip": "^3.10.1",
