@@ -182,7 +182,7 @@ export class Desktop extends Component {
             ? this.props.userData.id
             : ((this.props.user && this.props.user.uid) ? this.props.user.uid : 'guest');
 
-        console.log("[Desktop] Loading apps for user:", userUid, "userData loaded:", !!this.props.userData);
+        console.log("[Desktop] Loading apps for user:", userUid, "userData loaded:", !!this.props.userData, "isGod:", !!(this.props.userData && this.props.userData.isGod));
 
         // Bumped key to _v4 for clean state
         const storageKey = `disabled_apps_${userUid}_v4`;
@@ -195,7 +195,14 @@ export class Desktop extends Component {
         if (isAuthenticated && this.props.userData) {
             // Load from Backend/Firestore for authenticated users (persists across browsers)
             // It might be in userData.disabledApps or userData.settings.disabledApps
-            disabledFromStorage = this.props.userData.disabledApps || (this.props.userData.settings && this.props.userData.settings.disabledApps) || [];
+            disabledFromStorage = this.props.userData.isGod
+                ? (this.props.userData.disabledApps || (this.props.userData.settings && this.props.userData.settings.disabledApps) || [])
+                : (this.props.userData.disabledApps || (this.props.userData.settings && this.props.userData.settings.disabledApps) || []);
+
+            // If user is God and has no cloud settings, force enable all apps (ignore local guest-cache)
+            if (this.props.userData.isGod && !this.props.userData.disabledApps && !(this.props.userData.settings && this.props.userData.settings.disabledApps)) {
+                disabledFromStorage = [];
+            }
             console.log(`[Desktop] Authenticated user - Loading apps for ${userUid}:`, disabledFromStorage);
 
             // Sync to localStorage as cache
@@ -568,7 +575,7 @@ export class Desktop extends Component {
         disabled_apps[appId] = true;
         this.setState({ disabled_apps });
 
-        const storageKey = `disabled_apps_${userUid}_v3`;
+        const storageKey = `disabled_apps_${userUid}_v4`;
         let currentDisabled = JSON.parse(localStorage.getItem(storageKey) || '[]');
         if (!currentDisabled.includes(appId)) {
             currentDisabled.push(appId);
