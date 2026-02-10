@@ -110,13 +110,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     async function verifySession(token: string, tenantId: string | null) {
         if (token === 'emergency-token') {
-            console.warn('[Auth] Activating Emergency God Mode from saved token');
+            const savedSettings = JSON.parse(localStorage.getItem('system_settings') || '{}');
+            console.warn('[Auth] Activating Emergency God Mode from saved token', { hasSettings: !!savedSettings.wallpaper });
             const mockUser: PlatformUser = {
                 id: 'emergency-admin',
                 email: 'admin@alphery.os',
                 displayName: 'God Admin (Emergency)',
                 photoUrl: null,
-                isGod: true
+                isGod: true,
+                settings: savedSettings
             };
             const mockTenant: Tenant = {
                 id: 'admin-tenant',
@@ -189,12 +191,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     async function emergencyLogin(email: string) {
         console.warn('[Auth] Manual Emergency Bypass triggered for:', email);
+        const savedSettings = JSON.parse(localStorage.getItem('system_settings') || '{}');
         const mockUser: PlatformUser = {
             id: 'emergency-admin',
             email: email,
             displayName: 'God Admin (Simulation)',
             photoUrl: null,
-            isGod: true
+            isGod: true,
+            settings: savedSettings
         };
         const mockTenant: Tenant = {
             id: 'admin-tenant',
@@ -243,7 +247,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     async function updatePlatformUser(data: Partial<PlatformUser>) {
-        if (!sessionToken || sessionToken === 'emergency-token') return;
+        if (!sessionToken) return;
+
+        // Emergency Mode: Save to local simulation only
+        if (sessionToken === 'emergency-token') {
+            if (data.settings) {
+                const currentSettings = JSON.parse(localStorage.getItem('system_settings') || '{}');
+                const merged = { ...currentSettings, ...data.settings };
+                localStorage.setItem('system_settings', JSON.stringify(merged));
+                // Update local state so UI reacts immediately
+                setPlatformUser(prev => prev ? { ...prev, settings: merged } : null);
+            }
+            return;
+        }
         try {
             const response = await fetch(`${BACKEND_URL}/auth/me`, {
                 method: 'POST',

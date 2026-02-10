@@ -232,12 +232,12 @@ export default function Ubuntu() {
 		// Also sync system_settings for the Settings app to prevent override on open
 		try {
 			const savedSettings = localStorage.getItem('system_settings');
-			if (savedSettings) {
-				const settings = JSON.parse(savedSettings);
-				settings.wallpaper = imgName;
-				localStorage.setItem('system_settings', JSON.stringify(settings));
-			}
-		} catch (e) { }
+			const settings = savedSettings ? JSON.parse(savedSettings) : {};
+			settings.wallpaper = imgName;
+			localStorage.setItem('system_settings', JSON.stringify(settings));
+		} catch (e) {
+			console.error("[Ubuntu] Failed to sync settings:", e);
+		}
 
 		// Save to backend if user is logged in
 		if (user && platformUser) {
