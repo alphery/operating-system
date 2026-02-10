@@ -42,7 +42,7 @@ export default class CRM extends Component {
             ...this.state,
             isAuthenticated: true, // Forcing true for now to show the design, user can still logout
             authToken: 'demo',
-            backendUrl: process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:10000',
+            backendUrl: process.env.NEXT_PUBLIC_BACKEND_URL || 'https://alphery-os-backend.onrender.com',
             authError: null,
             isLoading: false
         };

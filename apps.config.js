@@ -20,18 +20,12 @@ import { displayTodo } from './components/apps/todo';
 import { displayWeather } from './components/apps/weather';
 import { displayCalendar } from './components/apps/calendar';
 import { displayAboutAlphery } from './components/apps/about_alphery';
-import { displayAlpheryDocs } from './components/apps/alphery_docs';
-import { displayAlpherySheets } from './components/apps/alphery_sheets';
-import { displayAlpherySlides } from './components/apps/alphery_slides';
 import RealtimeDemo from './components/apps/realtime_demo';
 
 // Default installed apps for all new users
 const DEFAULT_INSTALLED_APPS = [
     'chrome',
     'messenger',
-    'alphery-docs',
-    'alphery-sheets',
-    'alphery-slides',
     'calendar',
     'weather',
     'settings',
@@ -69,33 +63,6 @@ const apps = [
         favourite: true,
         desktop_shortcut: false,
         screen: displayProject,
-    },
-    {
-        id: "alphery-docs",
-        title: "Alphery Docs",
-        icon: './themes/Yaru/apps/gedit.png',
-        disabled: false,
-        favourite: true,
-        desktop_shortcut: true,
-        screen: displayAlpheryDocs,
-    },
-    {
-        id: "alphery-sheets",
-        title: "Alphery Sheets",
-        icon: './themes/Yaru/apps/calc.png', // Or libreoffice-calc.png if available
-        disabled: false,
-        favourite: true,
-        desktop_shortcut: true,
-        screen: displayAlpherySheets,
-    },
-    {
-        id: "alphery-slides",
-        title: "Alphery Slides",
-        icon: './themes/Yaru/apps/libreoffice-impress.png', // Fallback to compatible icon if needed
-        disabled: false,
-        favourite: true,
-        desktop_shortcut: true,
-        screen: displayAlpherySlides,
     },
     {
         id: "files",

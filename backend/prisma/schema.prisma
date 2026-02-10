@@ -41,12 +41,6 @@ model PlatformUser {
   notifications     Notification[]
   timesheets        Timesheet[]    @relation("UserTimesheets")
   assignedTasks     Task[]         @relation("TaskAssignee")
-  
-  // Office Suite Relations
-  ownedDocuments    Document[]     @relation("DocumentOwner")
-  collaborations    DocumentCollaborator[]
-  activeSessions    ActiveSession[]
-  documentVersions  DocumentVersion[]
 
   @@unique([email], map: "unique_email_case_insensitive")
   @@index([customUid])
@@ -84,7 +78,6 @@ model Tenant {
   entityRecords     EntityRecord[]
   workflows         Workflow[]
   dashboards        Dashboard[]
-  documents         Document[]
 
   @@index([ownerUserId])
   @@index([subdomain], map: "idx_tenants_subdomain")
@@ -350,96 +343,16 @@ model CRMActivity {
 }
 
 model Document {
-  id            String   @id @default(uuid())
-  title         String
-  // Core fields
-  type          String   @default("File") // "File", "DOCUMENT", "SPREADSHEET", "PRESENTATION"
-  content       Json?    // Stores document content for Office apps
-  version       Int      @default(1)
-  
-  // File Storage info
-  url           String?  // Optional for db-stored docs, required for uploaded files
-  fileSize      Int      @default(0)
-  mimeType      String?
-  storagePath   String?  // Path in Supabase Storage
-  
-  // Ownership & Tenants
-  ownerId       String?   @map("owner_id")
-  owner         PlatformUser? @relation("DocumentOwner", fields: [ownerId], references: [id])
-  tenantId      String?   @map("tenant_id")
-  tenant        Tenant?   @relation(fields: [tenantId], references: [id])
-  
-  // Legacy Project Relation (Keep for backward compatibility)
-  projectId     String?  @map("project_id")
-  project       Project? @relation(fields: [projectId], references: [id])
-  uploadedBy    String?  @map("uploaded_by") // Legacy string field
-  
-  // Collaboration
-  shareLink     String?  @unique
-  isPublic      Boolean  @default(false)
-  collaborators DocumentCollaborator[]
-  
-  // Metadata
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
-  lastEditedBy  String?  @map("last_edited_by")
-  
-  // Version history
-  versions      DocumentVersion[]
-  activeSessions ActiveSession[]
+  id         String   @id @default(uuid())
+  title      String
+  url        String
+  type       String   @default("File")
+  projectId  String?  @map("project_id")
+  project    Project? @relation(fields: [projectId], references: [id])
+  uploadedBy String?  @map("uploaded_by")
+  createdAt  DateTime @default(now()) @map("created_at")
 
-  @@index([ownerId])
-  @@index([tenantId])
-  @@index([type])
   @@map("documents")
-}
-
-model DocumentCollaborator {
-  id           String       @id @default(uuid())
-  documentId   String       @map("document_id")
-  document     Document     @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  userId       String       @map("user_id")
-  user         PlatformUser @relation(fields: [userId], references: [id], onDelete: Cascade)
-  permission   String       @default("VIEW") // VIEW, COMMENT, EDIT
-  
-  createdAt    DateTime     @default(now()) @map("created_at")
-  
-  @@unique([documentId, userId])
-  @@index([documentId])
-  @@index([userId])
-  @@map("document_collaborators")
-}
-
-model DocumentVersion {
-  id           String       @id @default(uuid())
-  documentId   String       @map("document_id")
-  document     Document     @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  version      Int
-  content      Json
-  
-  createdBy    String       @map("created_by")
-  creator      PlatformUser @relation(fields: [createdBy], references: [id])
-  createdAt    DateTime     @default(now()) @map("created_at")
-  
-  @@unique([documentId, version])
-  @@index([documentId])
-  @@map("document_versions")
-}
-
-model ActiveSession {
-  id           String       @id @default(uuid())
-  documentId   String       @map("document_id")
-  document     Document     @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  userId       String       @map("user_id")
-  user         PlatformUser @relation(fields: [userId], references: [id], onDelete: Cascade)
-  cursor       Json?        // Cursor position for collaboration
-  color        String?      // Cursor color
-  
-  lastActive   DateTime     @default(now()) @map("last_active")
-  
-  @@unique([documentId, userId])
-  @@index([documentId])
-  @@map("active_sessions")
 }
 
 model Timesheet {

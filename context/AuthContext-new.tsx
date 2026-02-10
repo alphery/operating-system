@@ -4,7 +4,6 @@ import {
     signInWithPopup,
     GoogleAuthProvider,
     signInWithEmailAndPassword,
-    signInWithCustomToken,
     createUserWithEmailAndPassword,
     signOut as firebaseSignOut,
     onAuthStateChanged,
@@ -38,7 +37,7 @@ interface AuthContextType {
     sessionToken: string | null;
     loading: boolean;
     loginWithGoogle: () => Promise<void>;
-    loginWithUserId: (customUid: string, password: string) => Promise<void>;
+    loginWithEmail: (email: string, password: string) => Promise<void>;
     signOut: () => Promise<void>;
     setCurrentTenant: (tenant: Tenant) => void;
     updatePlatformUser: (data: Partial<PlatformUser>) => Promise<void>;
@@ -148,7 +147,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return unsubscribe;
     }, []);
 
-    const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:10000';
+    const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
 
     // Verify session with backend
     async function verifySession(token: string, tenantId: string | null) {
@@ -191,35 +190,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } finally {
             setLoading(false);
         }
-    }
-
-    // Shared logic to finalize session after backend authentication
-    async function finalizeSession(data: any) {
-        // Store session token
-        localStorage.setItem('alphery_session_token', data.sessionToken);
-        setSessionToken(data.sessionToken);
-
-        // Set platform user and tenants
-        setPlatformUser(data.platformUser);
-        setTenants(data.tenants);
-
-        // Bridge Sync: Sign in to Firebase with custom token
-        if (data.firebaseToken && auth) {
-            try {
-                console.log('[Auth] Syncing Firebase identity with backend custom token...');
-                await signInWithCustomToken(auth, data.firebaseToken);
-            } catch (e) {
-                console.error('[Auth] Firebase sync failed:', e);
-            }
-        }
-
-        if (data.tenants && data.tenants.length > 0) {
-            const firstTenant = data.tenants[0];
-            setCurrentTenantState(firstTenant);
-            localStorage.setItem('alphery_current_tenant', firstTenant.id);
-        }
-
-        return data;
     }
 
     // Backend authentication with fallback
@@ -267,11 +237,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
 
             const data = await response.json();
-            return finalizeSession(data);
+
+            // Store session token
+            localStorage.setItem('alphery_session_token', data.sessionToken);
+            setSessionToken(data.sessionToken);
+
+            // Set platform user and tenants
+            setPlatformUser(data.platformUser);
+            setTenants(data.tenants);
+
+            // Set first tenant as current
+            if (data.tenants.length > 0) {
+                const firstTenant = data.tenants[0];
+                setCurrentTenantState(firstTenant);
+                localStorage.setItem('alphery_current_tenant', firstTenant.id);
+            }
+
+            return data;
         } catch (error) {
             console.error('Backend authentication error:', error);
 
-            // Retry fallback logic
+            // Retry fallback logic (repetitive but safe if network error instead of 404)
             if (firebaseUser) {
                 const email = firebaseUser.email;
                 if (email === 'alpherymail@gmail.com' || email === 'aksnetlink@gmail.com') {
@@ -284,6 +270,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         isGod: true
                     };
                     setPlatformUser(mockPlatformUser);
+                    // Mock tenant for context
                     const mockTenant: Tenant = {
                         id: 'admin-tenant',
                         name: 'Admin Workspace',
@@ -292,6 +279,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     };
                     setTenants([mockTenant]);
                     setCurrentTenantState(mockTenant);
+                    // Set dummy session
                     localStorage.setItem('alphery_session_token', 'emergency-token');
                     localStorage.setItem('alphery_current_tenant', 'admin-tenant');
                     setSessionToken('emergency-token');
@@ -322,34 +310,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }
 
-    // Login with User ID
-    async function loginWithUserId(customUid: string, password: string) {
+    // Login with Email/Password
+    async function loginWithEmail(email: string, password: string) {
+        if (!auth) {
+            throw new Error('Firebase auth not configured');
+        }
         try {
-            const response = await fetch(`${BACKEND_URL}/auth/login`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ customUid, password }),
-            });
+            const credential = await signInWithEmailAndPassword(auth, email, password);
 
-            if (!response.ok) {
-                throw new Error('Invalid User ID or password');
-            }
+            // Get Firebase ID token
+            const idToken = await credential.user.getIdToken();
 
-            const data = await response.json();
-
-            // Finalize session with the data returned from custom login
-            await finalizeSession(data);
-
-            // Re-fetch me to ensure full profile if needed (finalizeSession already set most of it)
-            // verifySession(data.sessionToken, null);
+            // Authenticate with backend
+            await authenticateWithBackend(idToken, credential.user);
         } catch (error) {
-            console.error('User ID login failed:', error);
+            console.warn('Email login failed (handled by component):', error);
             throw error;
         }
     }
-
 
     // Sign Out
     async function signOut() {
@@ -407,7 +385,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         sessionToken,
         loading,
         loginWithGoogle,
-        loginWithUserId,
+        loginWithEmail,
         signOut,
         setCurrentTenant,
         updatePlatformUser,
