@@ -47,7 +47,7 @@ export class PlatformController {
     // CREATE TENANT
     @Post('tenants')
     async createTenant(
-        @Body() data: { name: string; ownerEmail: string; subdomain?: string },
+        @Body() data: { name: string; ownerEmail: string; subdomain?: string; plan?: string; allowedApps?: string[] },
     ) {
         // Find or create owner
         let owner = await this.prisma.platformUser.findFirst({
@@ -64,6 +64,8 @@ export class PlatformController {
                 name: data.name,
                 subdomain: data.subdomain,
                 ownerUserId: owner.id,
+                plan: data.plan || 'free',
+                allowedApps: data.allowedApps || [],
             },
         });
 
