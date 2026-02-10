@@ -39,6 +39,7 @@ interface AuthContextType {
     loading: boolean;
     loginWithGoogle: () => Promise<void>;
     loginWithEmail: (email: string, password: string) => Promise<void>;
+    emergencyLogin: (email: string) => Promise<void>;
     signOut: () => Promise<void>;
     setCurrentTenant: (tenant: Tenant) => void;
     updatePlatformUser: (data: Partial<PlatformUser>) => Promise<void>;
@@ -70,6 +71,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const storedToken = localStorage.getItem(SESSION_KEY);
         const storedTenantId = localStorage.getItem(TENANT_KEY);
 
+        console.log('[Auth] Booting session:', { hasToken: !!storedToken });
+
         if (storedToken) {
             setSessionToken(storedToken);
             verifySession(storedToken, storedTenantId);
@@ -85,15 +88,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+            console.log('[Auth] Firebase state:', { hasUser: !!firebaseUser });
             setUser(firebaseUser);
             if (!firebaseUser) {
-                // Clear state on logout
-                setPlatformUser(null);
-                setTenants([]);
-                setCurrentTenantState(null);
-                setSessionToken(null);
-                localStorage.removeItem(SESSION_KEY);
-                localStorage.removeItem(TENANT_KEY);
+                // Only clear if we aren't in emergency mode
+                const token = localStorage.getItem(SESSION_KEY);
+                if (token !== 'emergency-token') {
+                    setPlatformUser(null);
+                    setTenants([]);
+                    setCurrentTenantState(null);
+                    setSessionToken(null);
+                    localStorage.removeItem(SESSION_KEY);
+                    localStorage.removeItem(TENANT_KEY);
+                }
             }
             setLoading(false);
         });
@@ -102,6 +109,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     async function verifySession(token: string, tenantId: string | null) {
+        if (token === 'emergency-token') {
+            console.warn('[Auth] Activating Emergency God Mode from saved token');
+            const mockUser: PlatformUser = {
+                id: 'emergency-admin',
+                email: 'admin@alphery.os',
+                displayName: 'God Admin (Emergency)',
+                photoUrl: null,
+                isGod: true
+            };
+            const mockTenant: Tenant = {
+                id: 'admin-tenant',
+                name: 'Emergency Workspace',
+                role: 'owner',
+                subdomain: 'admin'
+            };
+            setPlatformUser(mockUser);
+            setTenants([mockTenant]);
+            setCurrentTenantState(mockTenant);
+            setLoading(false);
+            return;
+        }
+
         try {
             const response = await fetch(`${BACKEND_URL}/auth/me`, {
                 headers: {
@@ -122,11 +151,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     setCurrentTenantState(data.tenants[0]);
                 }
             } else {
-                // Token invalid
+                console.warn('[Auth] Session invalid, clearing');
                 handleSignOut();
             }
         } catch (error) {
             console.error('[Auth] Session verification failed:', error);
+            // Don't sign out on network error
         } finally {
             setLoading(false);
         }
@@ -155,6 +185,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             localStorage.setItem(TENANT_KEY, firstTenant.id);
         }
         return data;
+    }
+
+    async function emergencyLogin(email: string) {
+        console.warn('[Auth] Manual Emergency Bypass triggered for:', email);
+        const mockUser: PlatformUser = {
+            id: 'emergency-admin',
+            email: email,
+            displayName: 'God Admin (Simulation)',
+            photoUrl: null,
+            isGod: true
+        };
+        const mockTenant: Tenant = {
+            id: 'admin-tenant',
+            name: 'Emergency Workspace',
+            role: 'owner',
+            subdomain: 'admin'
+        };
+
+        localStorage.setItem(SESSION_KEY, 'emergency-token');
+        localStorage.setItem(TENANT_KEY, mockTenant.id);
+
+        setSessionToken('emergency-token');
+        setPlatformUser(mockUser);
+        setTenants([mockTenant]);
+        setCurrentTenantState(mockTenant);
     }
 
     async function loginWithGoogle() {
@@ -188,7 +243,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     async function updatePlatformUser(data: Partial<PlatformUser>) {
-        if (!sessionToken) return;
+        if (!sessionToken || sessionToken === 'emergency-token') return;
         try {
             const response = await fetch(`${BACKEND_URL}/auth/me`, {
                 method: 'POST',
@@ -216,6 +271,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loading,
         loginWithGoogle,
         loginWithEmail,
+        emergencyLogin,
         signOut: handleSignOut,
         setCurrentTenant,
         updatePlatformUser,

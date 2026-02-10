@@ -10,7 +10,7 @@ export default function FirebaseAuthScreen({ onAuthSuccess }) {
     const [error, setError] = useState('');
 
     // Auth Hook
-    const { loginWithEmail } = useAuth();
+    const { loginWithEmail, emergencyLogin } = useAuth();
 
     // Login State
     const [loginUid, setLoginUid] = useState('');
@@ -90,8 +90,7 @@ export default function FirebaseAuthScreen({ onAuthSuccess }) {
                         else if (docElm.msRequestFullscreen) docElm.msRequestFullscreen();
                     } catch (e) { }
 
-                    localStorage.setItem('alphery_session_token', 'emergency-token');
-                    localStorage.setItem('alphery_current_tenant', 'admin-tenant');
+                    await emergencyLogin(email);
                     onAuthSuccess();
                     return;
                 }
