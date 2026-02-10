@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth, useAuthenticatedFetch } from '../../context/AuthContext-new';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:10000';
 
 // ═══════════════════════════════════════════════════════════
 // ALPHERY ACCESS - ADMIN CONSOLE

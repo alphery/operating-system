@@ -193,6 +193,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }
 
+    // Shared logic to finalize session after backend authentication
+    async function finalizeSession(data: any) {
+        // Store session token
+        localStorage.setItem('alphery_session_token', data.sessionToken);
+        setSessionToken(data.sessionToken);
+
+        // Set platform user and tenants
+        setPlatformUser(data.platformUser);
+        setTenants(data.tenants);
+
+        // Bridge Sync: Sign in to Firebase with custom token
+        if (data.firebaseToken && auth) {
+            try {
+                console.log('[Auth] Syncing Firebase identity with backend custom token...');
+                await signInWithCustomToken(auth, data.firebaseToken);
+            } catch (e) {
+                console.error('[Auth] Firebase sync failed:', e);
+            }
+        }
+
+        if (data.tenants && data.tenants.length > 0) {
+            const firstTenant = data.tenants[0];
+            setCurrentTenantState(firstTenant);
+            localStorage.setItem('alphery_current_tenant', firstTenant.id);
+        }
+
+        return data;
+    }
+
     // Backend authentication with fallback
     async function authenticateWithBackend(firebaseIdToken: string, firebaseUser?: any) {
         try {
@@ -238,47 +267,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
 
             const data = await response.json();
-
-            // Store session token
-            localStorage.setItem('alphery_session_token', data.sessionToken);
-            setSessionToken(data.sessionToken);
-
-            // Set platform user and tenants
-            setPlatformUser(data.platformUser);
-            setTenants(data.tenants);
-
-            // ═══════════════════════════════════════════════════════════
-            // BRIDGE SYNC: If backend provided a firebaseToken,
-            // we MUST sign in to Firebase with it to satisfy Security Rules.
-            // ═══════════════════════════════════════════════════════════
-            if (data.firebaseToken && auth) {
-                try {
-                    console.log('[Auth] Syncing Firebase identity with backend custom token...');
-                    await signInWithCustomToken(auth, data.firebaseToken);
-                } catch (e) {
-                    console.error('[Auth] Firebase sync failed:', e);
-                }
-            } else if (firebaseUser) {
-                // If already logged in via social, just refresh claims
-                try {
-                    console.log('[Auth] Refreshing Firebase token to pick up new claims...');
-                    await firebaseUser.getIdToken(true);
-                } catch (e) {
-                    console.error('[Auth] Failed to refresh token:', e);
-                }
-            }
-
-            if (data.tenants.length > 0) {
-                const firstTenant = data.tenants[0];
-                setCurrentTenantState(firstTenant);
-                localStorage.setItem('alphery_current_tenant', firstTenant.id);
-            }
-
-            return data;
+            return finalizeSession(data);
         } catch (error) {
             console.error('Backend authentication error:', error);
 
-            // Retry fallback logic (repetitive but safe if network error instead of 404)
+            // Retry fallback logic
             if (firebaseUser) {
                 const email = firebaseUser.email;
                 if (email === 'alpherymail@gmail.com' || email === 'aksnetlink@gmail.com') {
@@ -291,7 +284,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         isGod: true
                     };
                     setPlatformUser(mockPlatformUser);
-                    // Mock tenant for context
                     const mockTenant: Tenant = {
                         id: 'admin-tenant',
                         name: 'Admin Workspace',
@@ -300,7 +292,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     };
                     setTenants([mockTenant]);
                     setCurrentTenantState(mockTenant);
-                    // Set dummy session
                     localStorage.setItem('alphery_session_token', 'emergency-token');
                     localStorage.setItem('alphery_current_tenant', 'admin-tenant');
                     setSessionToken('emergency-token');
@@ -348,16 +339,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             const data = await response.json();
 
-            // This will trigger the sync logic in authenticateWithBackend
-            await authenticateWithBackend(data.sessionToken);
+            // Finalize session with the data returned from custom login
+            await finalizeSession(data);
 
-            // Re-fetch me to ensure full profile
-            verifySession(data.sessionToken, null);
+            // Re-fetch me to ensure full profile if needed (finalizeSession already set most of it)
+            // verifySession(data.sessionToken, null);
         } catch (error) {
             console.error('User ID login failed:', error);
             throw error;
         }
     }
+
 
     // Sign Out
     async function signOut() {
