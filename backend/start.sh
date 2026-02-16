@@ -16,25 +16,18 @@ fi
 DIRECT_URL=$(echo "$DATABASE_URL" | sed 's/:6543/:5432/g' | sed 's/pgbouncer=true//')
 echo "🔧 Using direct connection for migrations (port 5432)"
 
-echo "🚀 Running database migrations..."
-if [ -d "prisma/migrations" ] && [ "$(ls -A prisma/migrations)" ]; then
-    echo "Applying migrations with direct connection..."
-    DATABASE_URL="$DIRECT_URL" npx prisma migrate deploy || {
-        echo "⚠️  Migration failed, trying db push..."
-        DATABASE_URL="$DIRECT_URL" npx prisma db push --accept-data-loss --skip-generate
-    }
-else
-    echo "⚠ No migrations found. Pushing schema..."
-    DATABASE_URL="$DIRECT_URL" npx prisma db push --accept-data-loss --skip-generate
-fi
+echo "🚀 Running database schema push..."
+DATABASE_URL="$DIRECT_URL" npx prisma db push --accept-data-loss --skip-generate || {
+    echo "⚠️  Schema push failed, trying migrate deploy..."
+    DATABASE_URL="$DIRECT_URL" npx prisma migrate deploy || echo "⚠️  Migration also failed, continuing..."
+}
 
-# Only seed if explicitly enabled (to avoid timeouts on first deploy)
-if [ "$ENABLE_SEED" = "true" ]; then
-    echo "🌱 Seeding default data..."
-    node prisma/seed.js || echo "⚠️  Seeding failed, continuing anyway..."
-else
-    echo "⏭️  Skipping seed (set ENABLE_SEED=true to enable)"
-fi
+# Always seed - uses upsert so it's safe to run multiple times
+echo "🌱 Seeding super admin (AA000001)..."
+DATABASE_URL="$DIRECT_URL" node dist/prisma/seed.js || {
+    echo "⚠️  Compiled seed not found, trying ts-node..."
+    DATABASE_URL="$DIRECT_URL" npx ts-node prisma/seed.ts || echo "⚠️  Seeding failed, continuing anyway..."
+}
 
 echo "✅ Ready. Starting server..."
 node dist/main.js
