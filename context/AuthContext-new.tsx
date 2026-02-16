@@ -231,6 +231,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await authenticateWithBackend(idToken);
     }
 
+    /**
+     * NEW: Direct login with AA/AT/AU ID + password (no Firebase)
+     */
+    async function loginDirect(customUid: string, password: string) {
+        const response = await fetch(`${BACKEND_URL}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ customUid, password }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || 'Invalid User ID or password');
+        }
+
+        const data = await response.json();
+        localStorage.setItem(SESSION_KEY, data.sessionToken);
+        setSessionToken(data.sessionToken);
+        setPlatformUser(data.platformUser);
+        setTenants(data.tenants);
+
+        if (data.tenants.length > 0) {
+            const firstTenant = data.tenants[0];
+            setCurrentTenantState(firstTenant);
+            localStorage.setItem(TENANT_KEY, firstTenant.id);
+        }
+        return data;
+    }
+
     async function handleSignOut() {
         if (auth) await firebaseSignOut(auth);
         localStorage.removeItem(SESSION_KEY);
@@ -287,6 +316,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loading,
         loginWithGoogle,
         loginWithEmail,
+        loginDirect,
         emergencyLogin,
         signOut: handleSignOut,
         setCurrentTenant,

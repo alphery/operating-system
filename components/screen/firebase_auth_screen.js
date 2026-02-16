@@ -1,86 +1,54 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext-new';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
-
 export default function FirebaseAuthScreen({ onAuthSuccess }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    // Auth Hook
-    const { loginWithEmail, emergencyLogin } = useAuth();
+    // Auth Hook - use loginDirect for AA/AT/AU system
+    const { loginDirect, emergencyLogin } = useAuth();
 
     // Login State
     const [loginUid, setLoginUid] = useState('');
     const [loginPassword, setLoginPassword] = useState('');
 
-    // --- Login Handler (Integrated) ---
+    // --- Login Handler (Direct - No Firebase) ---
     const handleLoginSubmit = async (e) => {
         e.preventDefault();
         setError('');
         setLoading(true);
         try {
-            // Step 1: Get email by custom UID
-            const emailResponse = await fetch(`${BACKEND_URL}/auth/get-email`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ customUid: loginUid }),
-            });
+            // Direct login with AA/AT/AU ID + Password
+            await loginDirect(loginUid.trim(), loginPassword);
 
-            if (!emailResponse.ok) throw new Error('Invalid User ID');
-            const emailData = await emailResponse.json();
-            const email = emailData.email;
-            if (!email) throw new Error('Email not found for this ID');
-
+            // Auto fullscreen on login
             try {
-                // Step 2: Perform Login
-                await loginWithEmail(email, loginPassword);
+                const docElm = document.documentElement;
+                if (docElm.requestFullscreen) docElm.requestFullscreen();
+                else if (docElm.mozRequestFullScreen) docElm.mozRequestFullScreen();
+                else if (docElm.webkitRequestFullScreen) docElm.webkitRequestFullScreen();
+                else if (docElm.msRequestFullscreen) docElm.msRequestFullscreen();
+            } catch (e) {
+                console.log("Fullscreen request failed:", e);
+            }
 
-                // --- AUTO FULLSCREEN ON LOGIN ---
+            onAuthSuccess();
+        } catch (err) {
+            console.warn('Login failed:', err.message);
+
+            // Emergency fallback for admin IDs
+            if (loginUid.trim() === 'AA000001') {
+                console.warn('Admin ID detected. Activating Emergency Bypass...');
                 try {
                     const docElm = document.documentElement;
                     if (docElm.requestFullscreen) docElm.requestFullscreen();
-                    else if (docElm.mozRequestFullScreen) docElm.mozRequestFullScreen();
-                    else if (docElm.webkitRequestFullScreen) docElm.webkitRequestFullScreen();
-                    else if (docElm.msRequestFullscreen) docElm.msRequestFullscreen();
-                } catch (e) {
-                    console.log("Fullscreen request failed:", e);
-                }
-
+                } catch (e) { }
+                await emergencyLogin('alpherymail@gmail.com');
                 onAuthSuccess();
-            } catch (authErr) {
-                console.warn('Firebase login failed:', authErr.code || authErr.message);
-
-                // EMERGENCY FALLBACK for Admins
-                const adminEmails = ['alpherymail@gmail.com', 'aksnetlink@gmail.com'];
-                if (adminEmails.includes(email.toLowerCase())) {
-                    console.warn('Admin identity detected. Activating Emergency Bypass...');
-
-                    // Trigger Fullscreen
-                    try {
-                        const docElm = document.documentElement;
-                        if (docElm.requestFullscreen) docElm.requestFullscreen();
-                        else if (docElm.mozRequestFullScreen) docElm.mozRequestFullScreen();
-                        else if (docElm.webkitRequestFullScreen) docElm.webkitRequestFullScreen();
-                        else if (docElm.msRequestFullscreen) docElm.msRequestFullscreen();
-                    } catch (e) { }
-
-                    await emergencyLogin(email);
-                    onAuthSuccess();
-                    return;
-                }
-
-                // If not admin, throw original error
-                let errorMessage = 'Authentication failed. Please check your password.';
-                if (authErr.code === 'auth/invalid-credential' || authErr.code === 'auth/wrong-password') {
-                    errorMessage = 'Invalid password. If this is a new project, you may need to sign up again.';
-                } else if (authErr.message) {
-                    errorMessage = authErr.message;
-                }
-                throw new Error(errorMessage);
+                return;
             }
-        } catch (err) {
-            setError(err.message || 'Connection failed');
+
+            setError(err.message || 'Connection failed. Check your credentials.');
         } finally {
             setLoading(false);
         }
@@ -148,7 +116,6 @@ export default function FirebaseAuthScreen({ onAuthSuccess }) {
                             <button
                                 type="button"
                                 onClick={() => {
-                                    // Trigger Fullscreen
                                     try {
                                         const docElm = document.documentElement;
                                         if (docElm.requestFullscreen) docElm.requestFullscreen();
