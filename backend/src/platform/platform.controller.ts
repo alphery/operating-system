@@ -110,6 +110,33 @@ export class PlatformController {
         return tenant;
     }
 
+    // UPDATE TENANT
+    @Patch('tenants/:id')
+    async updateTenant(
+        @Param('id') id: string,
+        @Body() data: { name?: string; plan?: string; isActive?: boolean },
+    ) {
+        return this.prisma.tenant.update({
+            where: { id },
+            data,
+        });
+    }
+
+    // DELETE TENANT
+    @Delete('tenants/:id')
+    async deleteTenant(@Param('id') id: string) {
+        // Find if tenant exists
+        const tenant = await this.prisma.tenant.findUnique({
+            where: { id },
+        });
+
+        if (!tenant) throw new BadRequestException('Tenant not found');
+
+        return this.prisma.tenant.delete({
+            where: { id },
+        });
+    }
+
     // Helper for UID generation
     private async generateNextUid(prefix: string): Promise<string> {
         const lastUser = await this.prisma.platformUser.findFirst({

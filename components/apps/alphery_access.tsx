@@ -407,6 +407,7 @@ function TenantAdminDashboard() {
 function TenantsList({ tenants, users, onUpdate }: any) {
   const [showCreate, setShowCreate] = useState(false);
   const [newTenant, setNewTenant] = useState({ name: '', ownerEmail: '' });
+  const [editingTenant, setEditingTenant] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const authenticatedFetch = useAuthenticatedFetch();
 
@@ -433,6 +434,55 @@ function TenantsList({ tenants, users, onUpdate }: any) {
       }
     } catch (error) {
       alert('Error creating tenant');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const res = await authenticatedFetch(`${BACKEND_URL}/platform/tenants/${editingTenant.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editingTenant.name,
+          plan: editingTenant.plan,
+        }),
+      });
+      if (res.ok) {
+        setEditingTenant(null);
+        onUpdate();
+        alert('✅ Tenant updated!');
+      } else {
+        const err = await res.json();
+        alert(err.message || 'Failed to update tenant');
+      }
+    } catch (err) {
+      alert('Error updating tenant');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('🚨 ARE YOU SURE? This will permanently delete this organization and ALL its data!')) return;
+
+    setLoading(true);
+    try {
+      const res = await authenticatedFetch(`${BACKEND_URL}/platform/tenants/${id}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        setEditingTenant(null);
+        onUpdate();
+        alert('🗑️ Tenant deleted successfully');
+      } else {
+        alert('Failed to delete tenant');
+      }
+    } catch (err) {
+      alert('Error deleting tenant');
     } finally {
       setLoading(false);
     }
@@ -496,9 +546,72 @@ function TenantsList({ tenants, users, onUpdate }: any) {
         </div>
       )}
 
+      {editingTenant && (
+        <div className="modal-overlay" onClick={(e) => {
+          if ((e.target as any).className === 'modal-overlay') setEditingTenant(null);
+        }}>
+          <div className="modal animate-in">
+            <div className="modal-header">
+              <h3>🛠️ Edit Organization</h3>
+              <button className="close-btn" onClick={() => setEditingTenant(null)}>×</button>
+            </div>
+
+            <form onSubmit={handleUpdate}>
+              <div className="form-group">
+                <label>Organization Name</label>
+                <input
+                  value={editingTenant.name}
+                  onChange={e => setEditingTenant({ ...editingTenant, name: e.target.value })}
+                  placeholder="Organization Name"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Subscription Plan</label>
+                <select
+                  value={editingTenant.plan}
+                  onChange={e => setEditingTenant({ ...editingTenant, plan: e.target.value })}
+                >
+                  <option value="free">Free</option>
+                  <option value="pro">Pro</option>
+                  <option value="enterprise">Enterprise</option>
+                </select>
+              </div>
+
+              <div className="info-section">
+                <div className="info-row">
+                  <span className="label">Unique ID:</span>
+                  <span className="value code">{editingTenant.id}</span>
+                </div>
+                <div className="info-row">
+                  <span className="label">Subdomain:</span>
+                  <span className="value">{editingTenant.subdomain}.alphery.com</span>
+                </div>
+              </div>
+
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="btn-delete"
+                  onClick={() => handleDelete(editingTenant.id)}
+                  disabled={loading}
+                >
+                  🗑️ Delete Tenant
+                </button>
+                <div style={{ flex: 1 }} />
+                <button type="button" className="btn-cancel" onClick={() => setEditingTenant(null)}>Cancel</button>
+                <button type="submit" className="btn-submit" disabled={loading}>
+                  {loading ? 'Saving...' : '💾 Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       <div className="list">
         {tenants.map((tenant: any) => (
-          <div key={tenant.id} className="card">
+          <div key={tenant.id} className="card clickable" onClick={() => setEditingTenant({ ...tenant })}>
             <div className="card-header">
               <h3>{tenant.name}</h3>
               <span className={`plan-badge ${tenant.plan}`}>{tenant.plan}</span>
@@ -595,6 +708,34 @@ function TenantsList({ tenants, users, onUpdate }: any) {
           transform: translateY(-4px);
           box-shadow: 0 15px 30px rgba(0,0,0,0.08);
           border-color: #667eea;
+        }
+
+        .card.clickable {
+          cursor: pointer;
+        }
+
+        .info-section {
+          background: #f7fafc;
+          padding: 1rem;
+          border-radius: 8px;
+          margin-bottom: 1.5rem;
+          border: 1px solid #edf2f7;
+        }
+
+        .btn-delete {
+          padding: 0.75rem 1.25rem;
+          border-radius: 8px;
+          border: 1px solid #feb2b2;
+          background: #fff5f5;
+          color: #c53030;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .btn-delete:hover {
+          background: #c53030;
+          color: white;
         }
 
         .card-header {
