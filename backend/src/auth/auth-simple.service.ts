@@ -150,7 +150,7 @@ export class AuthService {
         const passwordHash = await bcrypt.hash(data.password, 10);
 
         // 4. Create tenant admin user
-        const tenantAdmin = await prisma.platformUser.create({
+        const tenantAdmin = await this.prisma.platformUser.create({
             data: {
                 customUid,
                 email: data.email.toLowerCase(),
@@ -160,7 +160,7 @@ export class AuthService {
                 isGod: false,
                 isActive: true,
                 createdBy: createdBy,
-                firebaseUid: null,
+
             },
         });
 
@@ -252,7 +252,7 @@ export class AuthService {
                 isGod: false,
                 isActive: true,
                 createdBy: createdBy,
-                firebaseUid: null,
+
             },
         });
 
