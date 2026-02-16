@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
-import { AuthService } from './auth.service';
-import { AuthController } from './auth.controller';
+import { AuthService } from './auth-simple.service';
+import { AuthController } from './auth-simple.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { PlatformGuard, TenantGuard, AppPermissionGuard } from './guards';
 

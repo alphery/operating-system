@@ -17,21 +17,24 @@ datasource db {
 // ═══════════════════════════════════════════════════════════
 
 model PlatformUser {
-  id          String    @id @default(uuid())
-  customUid   String    @unique @map("custom_uid") // AUxxxxxx - User's login ID
-  firebaseUid String    @unique @map("firebase_uid") // NEVER use as FK
-  email       String // Display only, indexed for search
-  mobile      String?   @map("mobile_number") // Optional mobile number
-  displayName String?   @map("display_name")
-  firstName   String?   @map("first_name")
-  lastName    String?   @map("last_name")
-  photoUrl    String?   @map("photo_url")
-  isGod       Boolean   @default(false) @map("is_god") // Platform owner
-  isActive    Boolean   @default(true) @map("is_active")
-  settings    Json      @default("{}")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-  lastLoginAt DateTime? @map("last_login_at")
+  id           String    @id @default(uuid())
+  customUid    String    @unique @map("custom_uid") // AA000001, AT000001, AU000001
+  firebaseUid  String?   @unique @map("firebase_uid") // Optional - for legacy Firebase users
+  passwordHash String?   @map("password_hash") // bcrypt hash for AA/AT/AU users
+  email        String // Display only, indexed for search
+  mobile       String?   @map("mobile_number") // Optional mobile number
+  displayName  String?   @map("display_name")
+  firstName    String?   @map("first_name")
+  lastName     String?   @map("last_name")
+  photoUrl     String?   @map("photo_url")
+  role         String    @default("user") // super_admin, tenant_admin, user
+  isGod        Boolean   @default(false) @map("is_god") // Platform owner (super_admin)
+  isActive     Boolean   @default(true) @map("is_active")
+  createdBy    String?   @map("created_by") // Who created this user (AA/AT ID)
+  settings     Json      @default("{}")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  lastLoginAt  DateTime? @map("last_login_at")
 
   // Relations
   ownedTenants      Tenant[]       @relation("TenantOwner")
@@ -46,6 +49,7 @@ model PlatformUser {
   @@index([customUid])
   @@index([firebaseUid])
   @@index([email])
+  @@index([role])
   @@index([isGod], map: "idx_platform_users_is_god")
   @@map("platform_users")
 }
