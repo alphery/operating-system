@@ -14,19 +14,16 @@ fi
 # Pooler uses port 6543, direct uses port 5432
 # pgBouncer doesn't support transaction mode needed for migrations
 DIRECT_URL=$(echo "$DATABASE_URL" | sed 's/:6543/:5432/g' | sed 's/pgbouncer=true//')
-echo "🔧 Using direct connection for migrations (port 5432)"
+echo "🔧 Using direct connection for schema push (port 5432)"
 
-echo "🚀 Running database schema push..."
+echo "🔄 Pushing database schema..."
 DATABASE_URL="$DIRECT_URL" npx prisma db push --accept-data-loss --skip-generate || {
-    echo "⚠️  Schema push failed, trying migrate deploy..."
-    DATABASE_URL="$DIRECT_URL" npx prisma migrate deploy || echo "⚠️  Migration also failed, continuing..."
+    echo "⚠️  Schema push failed, continuing anyway..."
 }
 
-# Always seed - uses upsert so it's safe to run multiple times
 echo "🌱 Seeding super admin (AA000001)..."
-DATABASE_URL="$DIRECT_URL" node dist/prisma/seed.js || {
-    echo "⚠️  Compiled seed not found, trying ts-node..."
-    DATABASE_URL="$DIRECT_URL" npx ts-node prisma/seed.ts || echo "⚠️  Seeding failed, continuing anyway..."
+DATABASE_URL="$DIRECT_URL" node prisma/seed.js || {
+    echo "⚠️  Seeding failed, continuing anyway..."
 }
 
 echo "✅ Ready. Starting server..."

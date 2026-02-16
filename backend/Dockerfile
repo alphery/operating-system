@@ -23,9 +23,6 @@ RUN npx prisma generate
 # Build the app
 RUN npm run build
 
-# Compile the seed file to JS so it can run without ts-node
-RUN npx tsc prisma/seed.ts --outDir dist/prisma --esModuleInterop --resolveJsonModule --skipLibCheck || echo "Seed compilation optional"
-
 # DEBUG: List all files in dist to ensure build worked
 RUN ls -R dist/
 
