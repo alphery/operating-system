@@ -12,7 +12,7 @@ import {
 // ALPHERY ACCESS - STABLE AUTH CONTEXT
 // ═══════════════════════════════════════════════════════════
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:10000';
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://alphery-os-backend.onrender.com';
 
 interface PlatformUser {
     id: string; // UUID
