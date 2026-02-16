@@ -8,6 +8,7 @@ import {
     Param,
     UseGuards,
     Request,
+    BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PlatformGuard, TenantGuard } from '../auth/guards';
@@ -55,7 +56,7 @@ export class PlatformController {
         });
 
         if (!owner) {
-            throw new Error(`User with email ${data.ownerEmail} not found`);
+            throw new BadRequestException(`User with email ${data.ownerEmail} not found`);
         }
 
         // Create tenant
