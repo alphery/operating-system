@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, BadRequestException, OnModuleInit, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
@@ -32,11 +32,78 @@ interface CreateUserDto {
 }
 
 @Injectable()
-export class AuthService {
+export class AuthService implements OnModuleInit {
+    private readonly logger = new Logger(AuthService.name);
+
     constructor(
         private prisma: PrismaService,
         private jwtService: JwtService,
     ) { }
+
+    async onModuleInit() {
+        await this.seedSuperAdmin();
+        await this.seedApps();
+    }
+
+    private async seedSuperAdmin() {
+        const superAdminExists = await this.prisma.platformUser.findUnique({
+            where: { customUid: 'AA000001' },
+        });
+
+        if (!superAdminExists) {
+            this.logger.log('🌱 Creating Super Admin (AA000001)...');
+            const passwordHash = await bcrypt.hash('ALPHERY25@it', 10);
+            await this.prisma.platformUser.create({
+                data: {
+                    customUid: 'AA000001',
+                    email: 'alpherymail@gmail.com',
+                    displayName: 'Super Admin',
+                    passwordHash,
+                    role: 'super_admin',
+                    isGod: true,
+                    isActive: true,
+                },
+            });
+            this.logger.log('✅ Super Admin created successfully');
+        } else {
+            // Ensure password hash is correct (in case old seed used wrong hash)
+            // Only update if passwordHash is missing or looks like SHA256 (64 chars hex string vs bcrypt starts with $2b$)
+            const currentHash = superAdminExists.passwordHash;
+            if (!currentHash || !currentHash.startsWith('$2b$')) {
+                this.logger.log('🔄 Updating Super Admin password hash...');
+                const passwordHash = await bcrypt.hash('ALPHERY25@it', 10);
+                await this.prisma.platformUser.update({
+                    where: { customUid: 'AA000001' },
+                    data: { passwordHash },
+                });
+                this.logger.log('✅ Super Admin password hash updated');
+            }
+        }
+    }
+
+    private async seedApps() {
+        const apps = [
+            { id: 'alphery-access', name: 'Alphery Access', icon: '🔐', description: 'User & tenant management', category: 'admin', isActive: true },
+            { id: 'crm-pro', name: 'CRM Pro', icon: '📊', description: 'Customer Relationship Manager', category: 'business', isActive: true },
+            { id: 'office-word', name: 'Office Word', icon: '📝', description: 'Word Processor', category: 'productivity', isActive: true },
+            { id: 'office-excel', name: 'Office Excel', icon: '📈', description: 'Spreadsheet', category: 'productivity', isActive: true },
+            { id: 'office-ppt', name: 'Office PPT', icon: '📽️', description: 'Presentations', category: 'productivity', isActive: true },
+            { id: 'alphery-mail', name: 'Alphery Mail', icon: '📧', description: 'Email Client', category: 'communication', isActive: true },
+            { id: 'alphery-meet', name: 'Alphery Meet', icon: '📹', description: 'Video Conferencing', category: 'communication', isActive: true },
+            { id: 'file-manager', name: 'File Manager', icon: '📁', description: 'File Management', category: 'system', isActive: true },
+            { id: 'terminal', name: 'Terminal', icon: '💻', description: 'Command Line', category: 'system', isActive: true },
+            { id: 'settings', name: 'Settings', icon: '⚙️', description: 'System Settings', category: 'system', isActive: true },
+        ];
+
+        for (const app of apps) {
+            await this.prisma.app.upsert({
+                where: { id: app.id },
+                update: { name: app.name, isActive: app.isActive },
+                create: app,
+            });
+        }
+        this.logger.log(`✅ ${apps.length} apps verified/seeded`);
+    }
 
     /**
      * SIMPLE LOGIN: AA/AT/AU + Password

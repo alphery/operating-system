@@ -10,21 +10,17 @@ if [ -z "$DATABASE_URL" ]; then
     exit 1
 fi
 
-# Convert pooler URL to direct URL for migrations
+# Convert pooler URL to direct URL for schema push
 # Pooler uses port 6543, direct uses port 5432
-# pgBouncer doesn't support transaction mode needed for migrations
 DIRECT_URL=$(echo "$DATABASE_URL" | sed 's/:6543/:5432/g' | sed 's/pgbouncer=true//')
-echo "🔧 Using direct connection for schema push (port 5432)"
 
-echo "🔄 Pushing database schema..."
+echo "🔄 Pushing database schema (using port 5432)..."
 DATABASE_URL="$DIRECT_URL" npx prisma db push --accept-data-loss --skip-generate || {
-    echo "⚠️  Schema push failed, continuing anyway..."
+    echo "⚠️  Schema push failed, continuing anyway (schema might be outdated)..."
 }
 
-echo "🌱 Seeding super admin (AA000001)..."
-DATABASE_URL="$DIRECT_URL" node prisma/seed.js || {
-    echo "⚠️  Seeding failed, continuing anyway..."
-}
+# NOTE: Seeding is now handled inside NestJS AuthService.onModuleInit()
+# This ensures it uses the app's bcrypt logic and connection pool properly.
 
 echo "✅ Ready. Starting server..."
 node dist/main.js
