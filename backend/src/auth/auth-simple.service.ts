@@ -123,16 +123,16 @@ export class AuthService implements OnModuleInit {
 
     private async seedApps() {
         const apps = [
-            { id: 'alphery-access', code: 'ACCESS', name: 'Alphery Access', icon: '🔐', description: 'User & tenant management', category: 'admin', isActive: true },
-            { id: 'crm-pro', code: 'CRM', name: 'CRM Pro', icon: '📊', description: 'Customer Relationship Manager', category: 'business', isActive: true },
-            { id: 'office-word', code: 'WORD', name: 'Office Word', icon: '📝', description: 'Word Processor', category: 'productivity', isActive: true },
-            { id: 'office-excel', code: 'EXCEL', name: 'Office Excel', icon: '📈', description: 'Spreadsheet', category: 'productivity', isActive: true },
-            { id: 'office-ppt', code: 'PPT', name: 'Office PPT', icon: '📽️', description: 'Presentations', category: 'productivity', isActive: true },
-            { id: 'alphery-mail', code: 'MAIL', name: 'Alphery Mail', icon: '📧', description: 'Email Client', category: 'communication', isActive: true },
-            { id: 'alphery-meet', code: 'MEET', name: 'Alphery Meet', icon: '📹', description: 'Video Conferencing', category: 'communication', isActive: true },
-            { id: 'file-manager', code: 'FILES', name: 'File Manager', icon: '📁', description: 'File Management', category: 'system', isActive: true },
-            { id: 'terminal', code: 'TERM', name: 'Terminal', icon: '💻', description: 'Command Line', category: 'system', isActive: true },
-            { id: 'settings', code: 'SETTINGS', name: 'Settings', icon: '⚙️', description: 'System Settings', category: 'system', isActive: true },
+            { id: 'alphery-access', code: 'ACCESS', name: 'Alphery Access', iconUrl: '🔐', description: 'User & tenant management', category: 'admin', isActive: true },
+            { id: 'crm-pro', code: 'CRM', name: 'CRM Pro', iconUrl: '📊', description: 'Customer Relationship Manager', category: 'business', isActive: true },
+            { id: 'office-word', code: 'WORD', name: 'Office Word', iconUrl: '📝', description: 'Word Processor', category: 'productivity', isActive: true },
+            { id: 'office-excel', code: 'EXCEL', name: 'Office Excel', iconUrl: '📈', description: 'Spreadsheet', category: 'productivity', isActive: true },
+            { id: 'office-ppt', code: 'PPT', name: 'Office PPT', iconUrl: '📽️', description: 'Presentations', category: 'productivity', isActive: true },
+            { id: 'alphery-mail', code: 'MAIL', name: 'Alphery Mail', iconUrl: '📧', description: 'Email Client', category: 'communication', isActive: true },
+            { id: 'alphery-meet', code: 'MEET', name: 'Alphery Meet', iconUrl: '📹', description: 'Video Conferencing', category: 'communication', isActive: true },
+            { id: 'file-manager', code: 'FILES', name: 'File Manager', iconUrl: '📁', description: 'File Management', category: 'system', isActive: true },
+            { id: 'terminal', code: 'TERM', name: 'Terminal', iconUrl: '💻', description: 'Command Line', category: 'system', isActive: true },
+            { id: 'settings', code: 'SETTINGS', name: 'Settings', iconUrl: '⚙️', description: 'System Settings', category: 'system', isActive: true },
         ];
 
         for (const app of apps) {
