@@ -45,32 +45,45 @@ export class PlatformController {
         });
     }
 
-    // CREATE TENANT
+    // CREATE TENANT (Simplified: Only Name & Email)
     @Post('tenants')
     async createTenant(
-        @Body() data: { name: string; ownerEmail: string; subdomain?: string; plan?: string; allowedApps?: string[] },
+        @Body() data: { name: string; ownerEmail: string },
     ) {
-        // Find or create owner
+        const email = data.ownerEmail.toLowerCase();
+
+        // 1. Find or auto-create owner
         let owner = await this.prisma.platformUser.findFirst({
-            where: { email: data.ownerEmail.toLowerCase() },
+            where: { email },
         });
 
         if (!owner) {
-            throw new BadRequestException(`User with email ${data.ownerEmail} not found`);
+            // Auto-create platform user placeholder
+            owner = await this.prisma.platformUser.create({
+                data: {
+                    customUid: await this.generateNextUid('AU'),
+                    email: email,
+                    role: 'user',
+                    isActive: true,
+                }
+            });
         }
 
-        // Create tenant
+        // 2. Auto-generate subdomain
+        const subdomain = data.name.toLowerCase().replace(/[^a-z0-9]/g, '') + '-' + Math.random().toString(36).substring(2, 5);
+
+        // 3. Create tenant
         const tenant = await this.prisma.tenant.create({
             data: {
                 name: data.name,
-                subdomain: data.subdomain,
+                subdomain: subdomain,
                 ownerUserId: owner.id,
-                plan: data.plan || 'free',
-                allowedApps: data.allowedApps || [],
+                plan: 'free',
+                allowedApps: [],
             },
         });
 
-        // Add owner as tenant member
+        // 4. Add owner as tenant member
         await this.prisma.tenantUser.create({
             data: {
                 tenantId: tenant.id,
@@ -79,7 +92,7 @@ export class PlatformController {
             },
         });
 
-        // Enable core apps for new tenant
+        // 5. Enable core apps for new tenant
         const coreApps = await this.prisma.app.findMany({
             where: { isCore: true },
         });
@@ -95,6 +108,20 @@ export class PlatformController {
         }
 
         return tenant;
+    }
+
+    // Helper for UID generation
+    private async generateNextUid(prefix: string): Promise<string> {
+        const lastUser = await this.prisma.platformUser.findFirst({
+            where: { customUid: { startsWith: prefix } },
+            orderBy: { customUid: 'desc' }
+        });
+        let nextNum = 1;
+        if (lastUser) {
+            const numPart = parseInt(lastUser.customUid.replace(prefix, ''));
+            if (!isNaN(numPart)) nextNum = numPart + 1;
+        }
+        return `${prefix}${nextNum.toString().padStart(6, '0')}`;
     }
 
     // LIST ALL PLATFORM USERS

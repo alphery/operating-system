@@ -406,34 +406,12 @@ function TenantAdminDashboard() {
 
 function TenantsList({ tenants, users, onUpdate }: any) {
   const [showCreate, setShowCreate] = useState(false);
-  const [newTenant, setNewTenant] = useState({ name: '', subdomain: '', ownerEmail: '', plan: 'free' });
+  const [newTenant, setNewTenant] = useState({ name: '', ownerEmail: '' });
   const [loading, setLoading] = useState(false);
-  const [userSearch, setUserSearch] = useState('');
-  const [showUserDropdown, setShowUserDropdown] = useState(false);
   const authenticatedFetch = useAuthenticatedFetch();
 
-  // Filter users for autocomplete
-  const filteredUsers = users?.filter((u: any) =>
-    u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
-    (u.displayName && u.displayName.toLowerCase().includes(userSearch.toLowerCase()))
-  ) || [];
 
-  const handleNameChange = (e: any) => {
-    const name = e.target.value;
-    // Auto-generate subdomain from name if subdomain is empty or matches previous auto-gen
-    const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '');
-    setNewTenant(prev => ({
-      ...prev,
-      name,
-      subdomain: prev.subdomain ? prev.subdomain : slug
-    }));
-  };
 
-  const selectUser = (email: string) => {
-    setNewTenant({ ...newTenant, ownerEmail: email });
-    setUserSearch(email);
-    setShowUserDropdown(false);
-  };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -446,10 +424,9 @@ function TenantsList({ tenants, users, onUpdate }: any) {
       });
       if (res.ok) {
         setShowCreate(false);
-        setNewTenant({ name: '', subdomain: '', ownerEmail: '', plan: 'free' });
-        setUserSearch('');
+        setNewTenant({ name: '', ownerEmail: '' });
         onUpdate();
-        alert('🎉 Tenant created successfully!');
+        alert('🎉 Tenant AND Workspace created successfully!');
       } else {
         const err = await res.json();
         alert(err.message || 'Failed to create tenant');
@@ -484,91 +461,34 @@ function TenantsList({ tenants, users, onUpdate }: any) {
             </div>
 
             <form onSubmit={handleCreate}>
-              <div className="form-grid">
-                <div className="form-group">
-                  <label>Organization Name</label>
-                  <input
-                    value={newTenant.name}
-                    onChange={handleNameChange}
-                    placeholder="e.g. Acme Industries"
-                    required
-                    autoFocus
-                  />
-                  <small>The display name of the company.</small>
-                </div>
-
-                <div className="form-group">
-                  <label>Subdomain (Unique ID)</label>
-                  <div className="input-prefix">
-                    <span>alphery.com/</span>
-                    <input
-                      value={newTenant.subdomain}
-                      onChange={e => setNewTenant({ ...newTenant, subdomain: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
-                      placeholder="acme"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="form-group relative">
-                <label>Owner (Admin)</label>
+              <div className="form-group">
+                <label>Organization Name</label>
                 <input
-                  type="text"
-                  value={userSearch}
-                  onChange={e => {
-                    setUserSearch(e.target.value);
-                    setShowUserDropdown(true);
-                    setNewTenant({ ...newTenant, ownerEmail: e.target.value });
-                  }}
-                  onFocus={() => setShowUserDropdown(true)}
-                  placeholder="Search user by email or name..."
+                  value={newTenant.name}
+                  onChange={e => setNewTenant({ ...newTenant, name: e.target.value })}
+                  placeholder="e.g. Acme Industries"
                   required
+                  autoFocus
                 />
-
-                {showUserDropdown && userSearch && filteredUsers.length > 0 && (
-                  <div className="user-dropdown">
-                    {filteredUsers.slice(0, 5).map((u: any) => (
-                      <div
-                        key={u.id}
-                        className="user-option"
-                        onClick={() => selectUser(u.email)}
-                      >
-                        <div className="user-avatar">{u.email[0].toUpperCase()}</div>
-                        <div className="user-info">
-                          <div className="user-name">{u.displayName || 'No Name'}</div>
-                          <div className="user-email">{u.email}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <small>The user who will own this workspace.</small>
+                <small>The display name of the company.</small>
               </div>
 
               <div className="form-group">
-                <label>Subscription Plan</label>
-                <div className="plan-selector">
-                  {['free', 'pro', 'enterprise'].map(plan => (
-                    <div
-                      key={plan}
-                      className={`plan-option ${newTenant.plan === plan ? 'selected' : ''}`}
-                      onClick={() => setNewTenant({ ...newTenant, plan })}
-                    >
-                      <div className="plan-name">{plan.charAt(0).toUpperCase() + plan.slice(1)}</div>
-                      <div className="plan-check">{newTenant.plan === plan && '✓'}</div>
-                    </div>
-                  ))}
-                </div>
+                <label>Owner Gmail ID</label>
+                <input
+                  type="email"
+                  value={newTenant.ownerEmail}
+                  onChange={e => setNewTenant({ ...newTenant, ownerEmail: e.target.value.toLowerCase() })}
+                  placeholder="user@gmail.com"
+                  required
+                />
+                <small>The user will be automatically registered if they don't exist.</small>
               </div>
 
               <div className="modal-actions">
                 <button type="button" className="btn-cancel" onClick={() => setShowCreate(false)}>Cancel</button>
                 <button type="submit" className="btn-submit" disabled={loading}>
-                  {loading ? (
-                    <span className="flex-center">
-                      <span className="spinner"></span> Creating...
-                    </span>
-                  ) : 'Create Tenant'}
+                  {loading ? 'Creating...' : '🚀 Create Tenant & Workspace'}
                 </button>
               </div>
             </form>
