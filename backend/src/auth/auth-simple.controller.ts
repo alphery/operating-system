@@ -1,6 +1,6 @@
 import { Controller, Post, Body, Get, UseGuards, Request } from '@nestjs/common';
 import { AuthService } from './auth-simple.service';
-import { TenantGuard, PlatformGuard } from './guards';
+import { TenantGuard, PlatformGuard, AuthGuard } from './guards';
 import { Public } from './decorators';
 
 @Controller('auth')
@@ -77,6 +77,7 @@ export class AuthController {
      * Get current user info
      */
     @Get('me')
+    @UseGuards(AuthGuard)
     async getMe(@Request() req) {
         const userId = req.user.sub;
 
@@ -122,6 +123,7 @@ export class AuthController {
      * Update user profile settings
      */
     @Post('me')
+    @UseGuards(AuthGuard)
     async updateMe(@Request() req, @Body() body: any) {
         const userId = req.user.sub;
         return this.authService.updateUser(userId, body);

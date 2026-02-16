@@ -204,3 +204,27 @@ export class AppPermissionGuard implements CanActivate {
         return true;
     }
 }
+
+// ═══════════════════════════════════════════════════════════
+// AUTH GUARD: Basic JWT Verification
+// ═══════════════════════════════════════════════════════════
+
+@Injectable()
+export class AuthGuard implements CanActivate {
+    constructor(private jwtService: JwtService) { }
+
+    async canActivate(context: ExecutionContext): Promise<boolean> {
+        const request = context.switchToHttp().getRequest();
+        const authHeader = request.headers.authorization;
+        if (!authHeader) throw new UnauthorizedException('No token provided');
+
+        const token = authHeader.replace('Bearer ', '');
+        try {
+            const payload = this.jwtService.verify(token);
+            request.user = payload;
+            return true;
+        } catch {
+            throw new UnauthorizedException('Invalid or expired token');
+        }
+    }
+}

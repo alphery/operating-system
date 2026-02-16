@@ -12,7 +12,7 @@ import {
 // ALPHERY ACCESS - STABLE AUTH CONTEXT
 // ═══════════════════════════════════════════════════════════
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:10000';
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://127.0.0.1:10000';
 
 interface PlatformUser {
     id: string; // UUID
@@ -134,6 +134,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         try {
+            console.log('[Auth] Fetching /auth/me from:', `${BACKEND_URL}/auth/me`);
             const response = await fetch(`${BACKEND_URL}/auth/me`, {
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -142,6 +143,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             if (response.ok) {
                 const data = await response.json();
+                console.log('[Auth] Me Response:', data);
                 setPlatformUser(data.user);
                 setTenants(data.tenants);
 
@@ -153,7 +155,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     setCurrentTenantState(data.tenants[0]);
                 }
             } else {
-                console.warn('[Auth] Session invalid, clearing');
+                console.warn('[Auth] Session invalid (Status: ' + response.status + '), clearing');
+                if (response.status !== 401) {
+                    const errorText = await response.text();
+                    console.warn('[Auth] Error details:', errorText);
+                }
                 handleSignOut();
             }
         } catch (error) {
