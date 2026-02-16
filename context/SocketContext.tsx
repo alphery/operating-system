@@ -20,6 +20,11 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
         const socketInstance = io(process.env.NEXT_PUBLIC_BACKEND_URL || 'https://alphery-os-backend.onrender.com', {
             transports: ['websocket', 'polling'],
             autoConnect: true,
+            reconnection: true,
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
+            timeout: 20000, // Increased timeout for Render cold starts
         });
 
         socketInstance.on('connect', () => {
@@ -33,7 +38,10 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
         });
 
         socketInstance.on('connect_error', (error) => {
-            console.error('[SocketContext] Connection error:', error.message);
+            // Reduce console noise - only log first error
+            if (!socketInstance.recovered) {
+                console.warn('[SocketContext] Connection error:', error.message);
+            }
         });
 
         setSocket(socketInstance);

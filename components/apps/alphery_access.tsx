@@ -82,15 +82,21 @@ export default function AlpheryAccess() {
 // ═══════════════════════════════════════════════════════════
 
 function GodDashboard() {
+  const { sessionToken, signOut } = useAuth();
   const [tenants, setTenants] = useState([]);
   const [users, setUsers] = useState([]);
   const [apps, setApps] = useState([]);
   const [activeTab, setActiveTab] = useState('tenants');
   const authenticatedFetch = useAuthenticatedFetch();
 
+  // Check if we're in emergency mode
+  const isEmergencyMode = sessionToken === 'emergency-token';
+
   useEffect(() => {
-    loadPlatformData();
-  }, []);
+    if (!isEmergencyMode) {
+      loadPlatformData();
+    }
+  }, [isEmergencyMode]);
 
   async function loadPlatformData() {
     try {
@@ -110,6 +116,23 @@ function GodDashboard() {
 
   return (
     <div className="god-dashboard">
+      {isEmergencyMode && (
+        <div className="emergency-banner">
+          <div className="emergency-content">
+            <span>⚠️ <strong>Emergency Mode</strong>: You're running in offline mode. To create tenants and access backend features, please log in properly.</span>
+            <button
+              onClick={async () => {
+                await signOut();
+                window.location.reload();
+              }}
+              className="emergency-logout-btn"
+            >
+              Exit & Login
+            </button>
+          </div>
+        </div>
+      )}
+
       <nav className="tabs">
         <button
           className={activeTab === 'tenants' ? 'active' : ''}
@@ -148,6 +171,59 @@ function GodDashboard() {
         .god-dashboard {
           max-width: 1200px;
           margin: 0 auto;
+        }
+
+        .emergency-banner {
+          background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+          color: white;
+          padding: 1rem 1.5rem;
+          border-radius: 12px;
+          margin-bottom: 1.5rem;
+          box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+          animation: pulse-warning 2s ease-in-out infinite;
+        }
+
+        .emergency-content {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 1rem;
+          flex-wrap: wrap;
+        }
+
+        .emergency-content span {
+          flex: 1;
+          min-width: 250px;
+          font-size: 0.95rem;
+        }
+
+        .emergency-logout-btn {
+          background: white;
+          color: #ef4444;
+          padding: 0.6rem 1.5rem;
+          border-radius: 8px;
+          border: none;
+          font-weight: 700;
+          font-size: 0.9rem;
+          cursor: pointer;
+          transition: all 0.3s;
+          white-space: nowrap;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .emergency-logout-btn:hover {
+          background: #fee2e2;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .emergency-logout-btn:active {
+          transform: translateY(0);
+        }
+
+        @keyframes pulse-warning {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.95; }
         }
 
         .tabs {
