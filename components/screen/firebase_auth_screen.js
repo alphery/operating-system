@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext-new';
 
@@ -6,20 +7,14 @@ export default function FirebaseAuthScreen({ onAuthSuccess }) {
     const [error, setError] = useState('');
 
     // Auth Hook - use loginDirect for AA/AT/AU system
-    const { loginDirect, emergencyLogin } = useAuth();
+    const { loginWithGoogle } = useAuth();
 
-    // Login State
-    const [loginUid, setLoginUid] = useState('');
-    const [loginPassword, setLoginPassword] = useState('');
-
-    // --- Login Handler (Direct - No Firebase) ---
-    const handleLoginSubmit = async (e) => {
-        e.preventDefault();
+    // --- Login Handler (Google - No Firebase) ---
+    const handleGoogleLogin = async () => {
         setError('');
         setLoading(true);
         try {
-            // Direct login with AA/AT/AU ID + Password
-            await loginDirect(loginUid.trim(), loginPassword);
+            await loginWithGoogle();
 
             // Auto fullscreen on login
             try {
@@ -35,19 +30,6 @@ export default function FirebaseAuthScreen({ onAuthSuccess }) {
             onAuthSuccess();
         } catch (err) {
             console.warn('Login failed:', err.message);
-
-            // Emergency fallback for admin IDs
-            if (loginUid.trim() === 'AA000001') {
-                console.warn('Admin ID detected. Activating Emergency Bypass...');
-                try {
-                    const docElm = document.documentElement;
-                    if (docElm.requestFullscreen) docElm.requestFullscreen();
-                } catch (e) { }
-                await emergencyLogin('alpherymail@gmail.com');
-                onAuthSuccess();
-                return;
-            }
-
             setError(err.message || 'Connection failed. Check your credentials.');
         } finally {
             setLoading(false);
@@ -75,41 +57,16 @@ export default function FirebaseAuthScreen({ onAuthSuccess }) {
                         <p className="text-[0.6em] text-gray-500 uppercase tracking-[0.3em] font-bold mt-[0.5em]">An Enterprise grade workspace</p>
                     </div>
 
-                    <form onSubmit={handleLoginSubmit} className="space-y-[1.5em]">
-                        <div className="space-y-[1em]">
-                            <div className="space-y-[0.4em]">
-                                <label className="text-[0.6em] font-black text-gray-500 uppercase tracking-[0.2em] ml-[0.5em]">User ID</label>
-                                <input
-                                    type="text"
-                                    value={loginUid}
-                                    onChange={(e) => setLoginUid(e.target.value.toUpperCase())}
-                                    placeholder="AA000001 / AT000001 / AU000001"
-                                    className="w-full px-[1.5em] py-[1em] bg-white/5 border border-white/10 rounded-[1.2em] text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50 font-mono tracking-widest text-[1.1em] transition-all"
-                                    required
-                                />
-                            </div>
-
-                            <div className="space-y-[0.4em]">
-                                <label className="text-[0.6em] font-black text-gray-500 uppercase tracking-[0.2em] ml-[0.5em]">Password</label>
-                                <input
-                                    type="password"
-                                    value={loginPassword}
-                                    onChange={(e) => setLoginPassword(e.target.value)}
-                                    placeholder="••••••••"
-                                    className="w-full px-[1.5em] py-[1em] bg-white/5 border border-white/10 rounded-[1.2em] text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-[1.1em] transition-all"
-                                    required
-                                />
-                            </div>
-                        </div>
-
+                    <div className="space-y-[1.5em]">
                         {error && <div className="text-red-400 text-[0.6em] font-bold uppercase tracking-wider text-center animate-shake">{error}</div>}
 
                         <button
-                            type="submit"
+                            onClick={handleGoogleLogin}
                             disabled={loading}
-                            className="w-full bg-white text-black py-[1em] rounded-[1.2em] font-black uppercase tracking-widest hover:bg-gray-100 active:scale-[0.98] transition-all shadow-[0_10px_20px_rgba(255,255,255,0.05)] text-[1em]"
+                            className="w-full bg-white text-black py-[1em] rounded-[1.2em] font-black uppercase tracking-widest hover:bg-gray-100 active:scale-[0.98] transition-all shadow-[0_10px_20px_rgba(255,255,255,0.05)] text-[1em] flex items-center justify-center gap-2"
                         >
-                            {loading ? 'Authenticating...' : 'Enter Workspace'}
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" className="w-[1.2em] h-[1.2em]" alt="Google Logo" />
+                            {loading ? 'Authenticating...' : 'Sign in with Google'}
                         </button>
 
                         <div className="pt-[0.5em] text-center">
@@ -130,7 +87,7 @@ export default function FirebaseAuthScreen({ onAuthSuccess }) {
                                 Explore as Guest
                             </button>
                         </div>
-                    </form>
+                    </div>
                 </div>
 
                 {/* Branding Footer */}

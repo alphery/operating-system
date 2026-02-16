@@ -165,7 +165,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     async function authenticateWithBackend(firebaseIdToken: string) {
-        const response = await fetch(`${BACKEND_URL}/auth/login`, {
+        const response = await fetch(`${BACKEND_URL}/auth/login-google`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ idToken: firebaseIdToken }),

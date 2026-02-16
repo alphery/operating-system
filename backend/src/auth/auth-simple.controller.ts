@@ -21,6 +21,16 @@ export class AuthController {
     }
 
     /**
+     * POST /auth/login-google
+     * Login with Google ID Token (Firebase)
+     */
+    @Public()
+    @Post('login-google')
+    async loginGoogle(@Body() body: { idToken: string }) {
+        return this.authService.loginWithGoogle(body.idToken);
+    }
+
+    /**
      * POST /auth/get-email
      * Get email by custom UID (for backward compatibility)
      */

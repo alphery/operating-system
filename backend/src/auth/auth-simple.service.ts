@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException, ConflictException, BadRequestExcepti
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
+import * as admin from 'firebase-admin';
 
 interface SessionTokenPayload {
     sub: string; // platform_user.id (UUID)
@@ -41,22 +42,70 @@ export class AuthService implements OnModuleInit {
     ) { }
 
     async onModuleInit() {
+        await this.initializeFirebase();
         await this.seedSuperAdmin();
         await this.seedApps();
     }
 
-    private async seedSuperAdmin() {
-        const superAdminExists = await this.prisma.platformUser.findUnique({
-            where: { customUid: 'AA000001' },
-        });
+    private async initializeFirebase() {
+        if (!admin.apps.length) {
+            try {
+                admin.initializeApp({
+                    credential: admin.credential.cert({
+                        projectId: process.env.FIREBASE_PROJECT_ID,
+                        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+                        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+                    }),
+                });
+                this.logger.log('🔥 Firebase Admin initialized');
+            } catch (error) {
+                this.logger.error('Failed to initialize Firebase Admin', error);
+            }
+        }
+    }
 
-        if (!superAdminExists) {
-            this.logger.log('🌱 Creating Super Admin (AA000001)...');
-            const passwordHash = await bcrypt.hash('ALPHERY25@it', 10);
-            await this.prisma.platformUser.create({
-                data: {
-                    customUid: 'AA000001',
-                    email: 'alpherymail@gmail.com',
+    private async seedSuperAdmin() {
+        const email = 'alpherymail@gmail.com';
+        const customUid = 'AA000001';
+        const passwordHash = await bcrypt.hash('ALPHERY25@it', 10);
+
+        // 1. Check for constraints
+        const userByEmail = await this.prisma.platformUser.findUnique({ where: { email } });
+        const userByUid = await this.prisma.platformUser.findUnique({ where: { customUid } });
+
+        try {
+            if (userByUid) {
+                if (userByEmail && userByEmail.id !== userByUid.id) {
+                    // Conflict: Two different users exist. 
+                    // User A has the Email. User B has the UID.
+                    // We delete User B (stale UID) so User A can claim it.
+                    this.logger.warn(`⚠️ Conflict: User ${userByUid.id} has ${customUid} (wrong email). Deleting...`);
+                    await this.prisma.platformUser.delete({ where: { id: userByUid.id } });
+                } else if (!userByEmail) {
+                    // Only User B exists (Has UID, but wrong Email).
+                    // We update User B to have the correct email so the upsert below (on email) finds and updates it.
+                    this.logger.log(`🔄 Updating existing UID ${customUid} to use correct email...`);
+                    await this.prisma.platformUser.update({
+                        where: { id: userByUid.id },
+                        data: { email }
+                    });
+                }
+            }
+
+            // Now safely upsert on email
+            const user = await this.prisma.platformUser.upsert({
+                where: { email },
+                update: {
+                    customUid,
+                    passwordHash,
+                    role: 'super_admin',
+                    isGod: true,
+                    isActive: true,
+                    displayName: 'Super Admin',
+                },
+                create: {
+                    customUid,
+                    email,
                     displayName: 'Super Admin',
                     passwordHash,
                     role: 'super_admin',
@@ -64,20 +113,11 @@ export class AuthService implements OnModuleInit {
                     isActive: true,
                 },
             });
-            this.logger.log('✅ Super Admin created successfully');
-        } else {
-            // Ensure password hash is correct (in case old seed used wrong hash)
-            // Only update if passwordHash is missing or looks like SHA256 (64 chars hex string vs bcrypt starts with $2b$)
-            const currentHash = superAdminExists.passwordHash;
-            if (!currentHash || !currentHash.startsWith('$2b$')) {
-                this.logger.log('🔄 Updating Super Admin password hash...');
-                const passwordHash = await bcrypt.hash('ALPHERY25@it', 10);
-                await this.prisma.platformUser.update({
-                    where: { customUid: 'AA000001' },
-                    data: { passwordHash },
-                });
-                this.logger.log('✅ Super Admin password hash updated');
-            }
+
+            this.logger.log(`✅ Super Admin synced: ${user.customUid} (${user.email})`);
+        } catch (error) {
+            this.logger.error('Failed to seed Super Admin', error);
+            // Don't crash the app, just log
         }
     }
 
@@ -504,5 +544,146 @@ export class AuthService implements OnModuleInit {
             where: { id },
             data: data,
         });
+    }
+
+    /**
+     * GOOGLE LOGIN: Verify Firebase Token + Auto-Sync User
+     */
+    async loginWithGoogle(idToken: string) {
+        try {
+            const decodedToken = await admin.auth().verifyIdToken(idToken);
+            const { email, uid, name, picture } = decodedToken;
+
+            if (!email) throw new BadRequestException('Email is required from Google Auth');
+
+            // Find or Create User
+            let user = await this.prisma.platformUser.findFirst({
+                where: { OR: [{ email }, { firebaseUid: uid }] }
+            });
+
+            // Special handling for Super Admin (God)
+            const isGod = email === 'alpherymail@gmail.com';
+
+            if (!user) {
+                // Should we link to existing customUid 'AA000001' if just seeded?
+                if (isGod) {
+                    const seededAdmin = await this.prisma.platformUser.findUnique({ where: { customUid: 'AA000001' } });
+                    if (seededAdmin) {
+                        // Link to seeded admin
+                        user = await this.prisma.platformUser.update({
+                            where: { id: seededAdmin.id },
+                            data: {
+                                firebaseUid: uid,
+                                email, // Ensure email matches
+                                photoUrl: picture,
+                                displayName: name || 'Super Admin',
+                                lastLoginAt: new Date()
+                            }
+                        });
+                    }
+                }
+
+                if (!user) {
+                    // Create new user
+                    // Default role 'user'. Staff/God roles assigned manually or by specific logic.
+                    // But 'alpherymail@gmail.com' is FORCE God.
+                    const role = isGod ? 'super_admin' : 'user';
+
+                    // Generate ID
+                    let customUid = '';
+                    if (isGod) customUid = 'AA000001';
+                    else customUid = await this.generateNextUid('AU');
+
+                    user = await this.prisma.platformUser.create({
+                        data: {
+                            customUid,
+                            email,
+                            firebaseUid: uid,
+                            displayName: name,
+                            photoUrl: picture,
+                            role,
+                            isGod,
+                            isActive: true,
+                            lastLoginAt: new Date()
+                        }
+                    });
+                }
+            } else {
+                // Update existing user
+                let updates: any = {
+                    firebaseUid: uid,
+                    photoUrl: picture || user.photoUrl,
+                    lastLoginAt: new Date()
+                };
+
+                // Force God privileges if email matches
+                if (isGod && (!user.isGod || user.role !== 'super_admin')) {
+                    updates = { ...updates, isGod: true, role: 'super_admin' };
+                    if (user.customUid !== 'AA000001') {
+                        // We might want to fix customUid too, but be careful of collisions
+                        // For now, let's just ensure role/isGod
+                    }
+                }
+
+                user = await this.prisma.platformUser.update({
+                    where: { id: user.id },
+                    data: updates
+                });
+            }
+
+            // Generate Session Response
+            const tenants = await this.getUserTenants(user.id);
+            const sessionPayload: SessionTokenPayload = {
+                sub: user.id,
+                customUid: user.customUid,
+                email: user.email,
+                role: user.role,
+                isGod: user.isGod,
+            };
+
+            const sessionToken = this.jwtService.sign(sessionPayload, {
+                expiresIn: '7d',
+                secret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
+            });
+
+            return {
+                sessionToken,
+                platformUser: {
+                    id: user.id,
+                    customUid: user.customUid,
+                    email: user.email,
+                    role: user.role,
+                    isGod: user.isGod,
+                    photoUrl: user.photoUrl,
+                    settings: user.settings,
+                },
+                tenants: tenants.map((t) => ({
+                    id: t.tenant.id,
+                    name: t.tenant.name,
+                    role: t.role,
+                    subdomain: t.tenant.subdomain,
+                })),
+            };
+
+        } catch (error) {
+            this.logger.error(`Google Login Failed: ${error.message}`);
+            throw new UnauthorizedException('Google authentication failed');
+        }
+    }
+
+    private async generateNextUid(prefix: string): Promise<string> {
+        // Simple sequential ID generator
+        const lastUser = await this.prisma.platformUser.findFirst({
+            where: { customUid: { startsWith: prefix } },
+            orderBy: { customUid: 'desc' }
+        });
+
+        let nextNum = 1;
+        if (lastUser) {
+            const numPart = parseInt(lastUser.customUid.replace(prefix, ''));
+            if (!isNaN(numPart)) nextNum = numPart + 1;
+        }
+
+        return `${prefix}${nextNum.toString().padStart(6, '0')}`;
     }
 }
