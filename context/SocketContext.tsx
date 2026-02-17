@@ -18,13 +18,14 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
         console.log('[SocketContext] Initializing Socket.IO connection...');
 
         const socketInstance = io(process.env.NEXT_PUBLIC_BACKEND_URL || 'https://alphery-os-backend.onrender.com', {
-            transports: ['websocket', 'polling'],
+            transports: ['polling', 'websocket'], // Use polling first for reliability
+            path: '/socket.io/',
             autoConnect: true,
             reconnection: true,
-            reconnectionAttempts: 5,
-            reconnectionDelay: 1000,
-            reconnectionDelayMax: 5000,
-            timeout: 20000, // Increased timeout for Render cold starts
+            reconnectionAttempts: 10,
+            reconnectionDelay: 2000,
+            reconnectionDelayMax: 10000,
+            timeout: 60000,
         });
 
         socketInstance.on('connect', () => {
