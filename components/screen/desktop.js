@@ -647,68 +647,67 @@ export class Desktop extends Component {
                 <BackgroundImage img={this.props.bg_image_name} />
 
                 {/* --- MOBILE LAYOUT (< md) --- */}
-                <div className="flex md:hidden flex-col w-full h-full pt-8 pb-4 px-4 justify-between z-20">
-                    {/* Mobile App Grid */}
-                    <div className="grid grid-cols-4 gap-4 content-start overflow-y-auto pb-4">
-                        {apps.filter(app => !this.state.disabled_apps[app.id] && !['settings', 'messenger', 'files', 'app-store'].includes(app.id)).map(app => (
+                <div className="flex md:hidden flex-col w-full h-full pt-14 pb-4 px-2 justify-between z-0 absolute inset-0">
+                    {/* Mobile App Grid - Scrollable Home Screen */}
+                    <div className="grid grid-cols-4 gap-x-2 gap-y-6 content-start overflow-y-auto px-2" style={{ maxHeight: 'calc(100% - 100px)' }}>
+                        {apps.filter(app => !this.state.disabled_apps[app.id] && !['settings', 'messenger', 'files', 'app-store', 'chrome'].includes(app.id)).map(app => (
                             <div key={app.id}
-                                className="flex flex-col items-center gap-1 active:opacity-70 transition-opacity"
+                                className="flex flex-col items-center gap-1 active:opacity-60 transition-opacity cursor-pointer group"
                                 onClick={() => this.handleMobileAppClick(app.id)}
-                                onTouchStart={(e) => this.handleTouchStart(e, app.id)}
-                                onTouchEnd={this.handleTouchEnd}
-                                onTouchMove={this.handleTouchMove}
                             >
-                                <div className="w-14 h-14 bg-white bg-opacity-10 backdrop-blur-md rounded-2xl flex items-center justify-center shadow-lg border border-white border-opacity-20">
-                                    <img src={app.icon} alt={app.title} className="w-9 h-9 drop-shadow-md" />
+                                <div className="w-16 h-16 bg-white/10 backdrop-blur-md rounded-[1.2rem] flex items-center justify-center shadow-lg border border-white/20 group-active:scale-95 transition-transform">
+                                    <img src={app.icon} alt={app.title} className="w-10 h-10 drop-shadow-md object-contain" />
                                 </div>
-                                <span className="text-xs text-white text-center font-medium drop-shadow-md line-clamp-1 w-full">{app.title}</span>
+                                <span className="text-[11px] text-white text-center font-medium drop-shadow-md line-clamp-1 w-full tracking-tight leading-tight px-1">{app.title}</span>
                             </div>
                         ))}
                     </div>
 
-                    {/* Mobile Dock (Fixed 4 Apps) */}
-                    <div className="mx-2 mb-2 bg-white bg-opacity-20 backdrop-blur-xl rounded-2xl p-3 flex justify-evenly items-center shadow-2xl border border-white border-opacity-10">
-                        {apps.filter(app => ['settings', 'messenger', 'files', 'app-store'].includes(app.id) && !this.state.disabled_apps[app.id]).map(app => (
+                    {/* Mobile Floating Dock (iOS/Android Hybrid Style) */}
+                    <div className="mx-4 mb-2 h-24 bg-white/20 backdrop-blur-3xl rounded-[2.5rem] px-6 flex justify-between items-center shadow-[0_20px_40px_rgba(0,0,0,0.3)] border border-white/10 ring-1 ring-white/5">
+                        {apps.filter(app => ['chrome', 'messenger', 'files', 'app-store'].includes(app.id) && !this.state.disabled_apps[app.id]).map(app => (
                             <div key={app.id}
                                 onClick={() => this.handleMobileAppClick(app.id)}
-                                onTouchStart={(e) => this.handleTouchStart(e, app.id)}
-                                onTouchEnd={this.handleTouchEnd}
-                                onTouchMove={this.handleTouchMove}
-                                className="w-12 h-12 flex items-center justify-center active:scale-95 transition-transform"
+                                className="w-14 h-14 flex items-center justify-center active:scale-90 transition-transform cursor-pointer relative"
                             >
-                                <img src={app.icon} alt={app.title} className="w-10 h-10 drop-shadow-lg" />
+                                <div className="absolute inset-0 bg-white/10 rounded-2xl blur-md opacity-0 active:opacity-100 transition-opacity"></div>
+                                <img src={app.icon} alt={app.title} className="w-12 h-12 drop-shadow-xl object-contain z-10" />
                             </div>
                         ))}
+                        {/* App Drawer Button (Middle or End? - Keeping simple 4 apps for now) */}
                     </div>
                 </div>
 
                 {/* --- DESKTOP LAYOUT (>= md) --- */}
-                <div className="hidden md:block">
-                    <SideBar apps={apps}
-                        hide={this.state.hideSideBar}
-                        hideSideBar={this.hideSideBar}
-                        favourite_apps={this.state.favourite_apps}
-                        showAllApps={this.showAllApps}
-                        allAppsView={this.state.allAppsView}
-                        closed_windows={this.state.closed_windows}
-                        focused_windows={this.state.focused_windows}
-                        isMinimized={this.state.minimized_windows}
-                        openAppByAppId={this.openApp}
-                        openContextMenu={this.handleAppContextMenu}
-                        disabled_apps={this.state.disabled_apps}
-                    />
+                <div className="hidden md:block absolute inset-0 pointer-events-none">
+                    {/* Sidebar and other desktop elements need pointer-events-auto for children */}
+                    <div className="pointer-events-auto h-full w-full">
+                        <SideBar apps={apps}
+                            hide={this.state.hideSideBar}
+                            hideSideBar={this.hideSideBar}
+                            favourite_apps={this.state.favourite_apps}
+                            showAllApps={this.showAllApps}
+                            allAppsView={this.state.allAppsView}
+                            closed_windows={this.state.closed_windows}
+                            focused_windows={this.state.focused_windows}
+                            isMinimized={this.state.minimized_windows}
+                            openAppByAppId={this.openApp}
+                            openContextMenu={this.handleAppContextMenu}
+                            disabled_apps={this.state.disabled_apps}
+                        />
 
-                    {this.renderDesktopApps()}
+                        {this.renderDesktopApps()}
 
-                    <DesktopMenu
-                        active={this.state.context_menus.desktop}
-                        openApp={this.openApp}
-                        addNewFolder={this.addNewFolder}
-                        changeSortOrder={this.changeSortOrder}
-                        changeDisplaySize={this.changeDisplaySize}
-                        sortOrder={this.state.sortOrder}
-                        displaySize={this.state.displaySize}
-                    />
+                        <DesktopMenu
+                            active={this.state.context_menus.desktop}
+                            openApp={this.openApp}
+                            addNewFolder={this.addNewFolder}
+                            changeSortOrder={this.changeSortOrder}
+                            changeDisplaySize={this.changeDisplaySize}
+                            sortOrder={this.state.sortOrder}
+                            displaySize={this.state.displaySize}
+                        />
+                    </div>
                 </div>
                 {/* DISABLED: Default context menu removed */}
                 {/* <DefaultMenu active={this.state.context_menus.default} /> */}

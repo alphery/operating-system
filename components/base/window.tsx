@@ -28,10 +28,11 @@ const Window: React.FC<WindowProps> = (props) => {
     const getInitialDimensions = () => {
         if (typeof window === 'undefined') return { width: 800, height: 600, x: 60, y: 30, isMax: false };
 
+        // MOBILE OPTIMIZATION: Force full screen for apps on small devices
         if (window.innerWidth < 640) {
             return {
                 width: window.innerWidth,
-                height: window.innerHeight - 32,
+                height: window.innerHeight, // Full height
                 x: 0,
                 y: 0,
                 isMax: true
@@ -63,22 +64,26 @@ const Window: React.FC<WindowProps> = (props) => {
     const windowRef = useRef<any>(null);
 
     // Calculate content scale to prevent congestion
-    // Adaptive Scaling: Simulates a 1280px viewport minimum.
-    // If the window/screen is smaller than 1280px, we zoom out the content 
-    // so the layout (designed for desktop) fits perfectly without wrapping/congestion.
-    const contentScale = Math.max(0.5, Math.min(1, size.width / 1280));
+    // On Mobile: Disable scaling, let CSS responsive media queries handle layout
+    // On Desktop: Keep generic scaling for windowed mode
+    const contentScale = window.innerWidth < 640
+        ? 1
+        : Math.max(0.5, Math.min(1, size.width / 1280));
 
     useEffect(() => {
         const handleResize = () => {
-            if (window.innerWidth < 640 && !isMaximized) {
-                maximizeWindow();
+            if (window.innerWidth < 640) {
+                // Force full maximize on mobile resize
+                setIsMaximized(true);
+                setSize({ width: window.innerWidth, height: window.innerHeight });
+                setPosition({ x: 0, y: 0 });
             }
         }
 
         window.addEventListener('resize', handleResize);
         ReactGA.pageview(`/${id}`);
         return () => window.removeEventListener('resize', handleResize);
-    }, [id, isMaximized]);
+    }, [id]);
 
     const handleDragStart = () => {
         focusWindow();
@@ -113,7 +118,7 @@ const Window: React.FC<WindowProps> = (props) => {
             setPrevPosition(position);
 
             setIsMaximized(true);
-            setSize({ width: window.innerWidth, height: window.innerHeight - 32 }); // Subtract navbar height
+            setSize({ width: window.innerWidth, height: window.innerHeight });
             setPosition({ x: 0, y: 0 });
 
             props.hideSideBar(id, true);
@@ -121,6 +126,9 @@ const Window: React.FC<WindowProps> = (props) => {
     };
 
     const restoreWindow = () => {
+        // Prevent restoring on mobile
+        if (window.innerWidth < 640) return;
+
         setIsMaximized(false);
         setSize(prevSize);
         setPosition(prevPosition);
@@ -141,6 +149,8 @@ const Window: React.FC<WindowProps> = (props) => {
         }, 300);
     };
 
+    const isMobile = window.innerWidth < 640;
+
     return (
         <Rnd
             size={size}
@@ -159,10 +169,10 @@ const Window: React.FC<WindowProps> = (props) => {
             bounds="parent"
             dragHandleClassName="window-title-bar"
             cancel=".window-controls"
-            enableResizing={!isMaximized}
-            disableDragging={isMaximized}
+            enableResizing={!isMaximized && !isMobile}
+            disableDragging={isMaximized || isMobile}
             scale={props.scaleFactor || 1}
-            className={`absolute window-container hw-accelerated-transition ${isClosed ? "scale-0 opacity-0" : "scale-100 opacity-100"}`}
+            className={`absolute window-container hw-accelerated-transition ${isClosed ? "scale-0 opacity-0" : "scale-100 opacity-100"} ${isMobile ? 'fixed !top-10 !left-0 !right-0 !bottom-0 !transform-none !w-full !h-[calc(100%-2.5rem)]' : ''}`}
             style={{
                 zIndex: props.isFocused ? 30 : 20,
                 display: props.minimized ? 'none' : 'block',
@@ -176,58 +186,68 @@ const Window: React.FC<WindowProps> = (props) => {
             >
                 {/* Title Bar - Draggable Handle/Mobile Header */}
                 <div
-                    className={`window-title-bar relative bg-white/10 backdrop-blur-xl flex justify-center items-center select-none text-sm font-semibold text-white/90 border-b border-white/5 cursor-move z-10 transition-colors
-                    ${isMaximized && window.innerWidth < 640 ? 'h-12 text-base' : 'h-10 hover:bg-white/20'}`}
+                    className={`window-title-bar relative flex justify-center items-center select-none text-sm font-semibold text-white/90 border-b border-white/5 cursor-move z-10 transition-colors
+                    ${isMobile
+                            ? 'h-14 text-lg bg-[#0a0f1c] shadow-md' // Mobile App Header Style
+                            : 'h-10 bg-white/10 backdrop-blur-xl hover:bg-white/20' // Desktop Window Header
+                        }`}
                     onDoubleClick={maximizeWindow}
                 >
-                    {/* Mobile Back Button - Only on mobile */}
-                    {isMaximized && window.innerWidth < 640 && (
+                    {/* Mobile Back Button - Native App Feel */}
+                    {isMobile && (
                         <button
-                            className="absolute left-0 top-0 h-full px-4 flex items-center text-white"
+                            className="absolute left-0 top-0 h-full px-5 flex items-center text-white active:bg-white/10 transition-colors"
                             onClick={(e) => { e.stopPropagation(); closeWindow(); }}
                         >
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7"></path>
+                            </svg>
                         </button>
                     )}
 
-                    <span className="truncate max-w-[60%] tracking-tight">{props.title}</span>
+                    <span className="truncate max-w-[60%] tracking-tight flex items-center gap-2">
+                        {/* Application Icon (Optional placeholder if you have app icons available) */}
+                        {props.title}
+                    </span>
 
-                    {/* Windows 11 Style Window Controls */}
-                    <div className={`window-controls absolute right-0 top-0 h-full items-center ${window.innerWidth < 640 ? 'hidden' : 'flex'}`}>
-                        {/* Minimize */}
-                        <button
-                            className="w-12 h-full flex items-center justify-center hover:bg-white/10 transition-colors group"
-                            onClick={(e) => { e.stopPropagation(); minimizeWindow(); }}
-                        >
-                            <svg className="w-2.5 h-2.5 opacity-70 group-hover:opacity-100" viewBox="0 0 10 1"><rect width="10" height="1" fill="currentColor" /></svg>
-                        </button>
+                    {/* Desktop Window Controls */}
+                    {!isMobile && (
+                        <div className="window-controls absolute right-0 top-0 h-full flex items-center">
+                            {/* Minimize */}
+                            <button
+                                className="w-12 h-full flex items-center justify-center hover:bg-white/10 transition-colors group"
+                                onClick={(e) => { e.stopPropagation(); minimizeWindow(); }}
+                            >
+                                <svg className="w-2.5 h-2.5 opacity-70 group-hover:opacity-100" viewBox="0 0 10 1"><rect width="10" height="1" fill="currentColor" /></svg>
+                            </button>
 
-                        {/* Maximize / Restore */}
-                        <button
-                            className="w-12 h-full flex items-center justify-center hover:bg-white/10 transition-colors group"
-                            onClick={(e) => { e.stopPropagation(); maximizeWindow(); }}
-                        >
-                            {isMaximized ? (
+                            {/* Maximize / Restore */}
+                            <button
+                                className="w-12 h-full flex items-center justify-center hover:bg-white/10 transition-colors group"
+                                onClick={(e) => { e.stopPropagation(); maximizeWindow(); }}
+                            >
+                                {isMaximized ? (
+                                    <svg className="w-2.5 h-2.5 opacity-70 group-hover:opacity-100" viewBox="0 0 10 10">
+                                        <path d="M2.1,0v2H0v8.1h8.2v-2h2V0H2.1z M7.2,9.1H1.1V3.1h6.1V9.1z M9.1,7.1h-1V2.1H3.1v-1h6V7.1z" fill="currentColor" />
+                                    </svg>
+                                ) : (
+                                    <svg className="w-2.5 h-2.5 opacity-70 group-hover:opacity-100" viewBox="0 0 10 10">
+                                        <path d="M0,0v10h10V0H0z M9,9H1V1h8V9z" fill="currentColor" />
+                                    </svg>
+                                )}
+                            </button>
+
+                            {/* Close */}
+                            <button
+                                className="w-12 h-full flex items-center justify-center hover:bg-[#C42B1C] transition-colors group rounded-tr-lg"
+                                onClick={(e) => { e.stopPropagation(); closeWindow(); }}
+                            >
                                 <svg className="w-2.5 h-2.5 opacity-70 group-hover:opacity-100" viewBox="0 0 10 10">
-                                    <path d="M2.1,0v2H0v8.1h8.2v-2h2V0H2.1z M7.2,9.1H1.1V3.1h6.1V9.1z M9.1,7.1h-1V2.1H3.1v-1h6V7.1z" fill="currentColor" />
+                                    <path d="M10,0.7L9.3,0L5,4.3L0.7,0L0,0.7L4.3,5L0,9.3L0.7,10L5,5.7l4.3,4.3l0.7-0.7L5.7,5L10,0.7z" fill="currentColor" />
                                 </svg>
-                            ) : (
-                                <svg className="w-2.5 h-2.5 opacity-70 group-hover:opacity-100" viewBox="0 0 10 10">
-                                    <path d="M0,0v10h10V0H0z M9,9H1V1h8V9z" fill="currentColor" />
-                                </svg>
-                            )}
-                        </button>
-
-                        {/* Close */}
-                        <button
-                            className="w-12 h-full flex items-center justify-center hover:bg-[#C42B1C] transition-colors group rounded-tr-lg"
-                            onClick={(e) => { e.stopPropagation(); closeWindow(); }}
-                        >
-                            <svg className="w-2.5 h-2.5 opacity-70 group-hover:opacity-100" viewBox="0 0 10 10">
-                                <path d="M10,0.7L9.3,0L5,4.3L0.7,0L0,0.7L4.3,5L0,9.3L0.7,10L5,5.7l4.3,4.3l0.7-0.7L5.7,5L10,0.7z" fill="currentColor" />
-                            </svg>
-                        </button>
-                    </div>
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 {/* Content Area - Memoized to prevent re-renders on drag */}
