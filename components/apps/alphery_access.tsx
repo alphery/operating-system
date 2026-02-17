@@ -14,7 +14,7 @@ export default function AlpheryAccess() {
 
   // God sees everything, others see their tenant
   // Only alpherymail@gmail.com can be God
-  const isGod = (platformUser?.isGod && platformUser?.email === 'alpherymail@gmail.com') || false;
+  const isGod = platformUser?.isGod || false;
 
   return (
     <div className="alphery-access">
@@ -1164,7 +1164,7 @@ function UsersList({ users, onUpdate }: any) {
           <p className="subtitle">Manage all users across the platform</p>
         </div>
         <button className="btn-create" onClick={() => setShowInvite(true)}>
-          <span className="icon">+</span> Invite Staff/User
+          <span className="icon">+</span> Add User / Admin
         </button>
       </div>
 
@@ -1352,10 +1352,18 @@ function InvitePlatformUserModal({ onClose, onUpdate }: any) {
     e.preventDefault();
     setLoading(true);
     try {
+      // Determine isGod based on selected role
+      const isGod = role === 'super_admin';
+
       const res = await authenticatedFetch(`${BACKEND_URL}/platform/users`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, displayName, role }),
+        body: JSON.stringify({
+          email,
+          displayName,
+          role,
+          isGod
+        }),
       });
       if (res.ok) {
         onUpdate();
@@ -1376,7 +1384,7 @@ function InvitePlatformUserModal({ onClose, onUpdate }: any) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal animate-in" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>👥 Pre-approve Staff / User</h3>
+          <h3>👥 Add Platform User</h3>
           <button className="close-btn" onClick={onClose}>×</button>
         </div>
         <form onSubmit={handleInvite}>
@@ -1411,19 +1419,22 @@ function InvitePlatformUserModal({ onClose, onUpdate }: any) {
                   onChange={e => setRole(e.target.value)}
                   style={{ width: '100%', padding: '0.75rem', border: '1px solid #e2e8f0', borderRadius: '8px' }}
                 >
-                  <option value="user">Platform Staff / Member</option>
-                  <option value="tenant_admin">Tenant Owner / Admin</option>
+                  <option value="user">Alphery Staff / Platform Member</option>
+                  <option value="tenant_admin">Tenant Organization Owner</option>
+                  <option value="super_admin">⚡ Super Admin (God Mode)</option>
                 </select>
               </div>
             </div>
-            <p style={{ fontSize: '0.8rem', color: '#666', marginBottom: '1rem' }}>
-              Note: This user will be set to **Active** immediately. They will bypass the approval screen when they sign in.
+            <p style={{ fontSize: '0.8rem', color: '#666', marginBottom: '1rem', background: '#f8fafc', padding: '0.5rem', borderRadius: '4px' }}>
+              {role === 'super_admin'
+                ? '⚠️ <strong>WARNING:</strong> "Super Admin" has complete control over specific tenants, users, and apps. Use with caution.'
+                : 'Note: This user will be set to **Active** immediately and can bypass the approval queue.'}
             </p>
           </div>
           <div className="modal-actions">
             <button type="button" className="btn-cancel" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn-submit" disabled={loading}>
-              {loading ? 'Adding...' : '✅ Pre-approve & Add'}
+              {loading ? 'Adding...' : '✅ Add User'}
             </button>
           </div>
         </form>
