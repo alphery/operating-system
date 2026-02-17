@@ -1111,6 +1111,7 @@ function TenantsList({ tenants, users, allPlatformApps, onUpdate }: any) {
 function UsersList({ users, onUpdate }: any) {
   const authenticatedFetch = useAuthenticatedFetch();
   const [loading, setLoading] = useState<string | null>(null);
+  const [showInvite, setShowInvite] = useState(false);
 
   const toggleUserStatus = async (userId: string, currentStatus: boolean) => {
     setLoading(userId);
@@ -1154,9 +1155,21 @@ function UsersList({ users, onUpdate }: any) {
   return (
     <div className="users-list">
       <div className="header">
-        <h2>👥 Platform Users</h2>
-        <p className="subtitle">Manage all users across the platform</p>
+        <div>
+          <h2>👥 Platform Users</h2>
+          <p className="subtitle">Manage all users across the platform</p>
+        </div>
+        <button className="btn-create" onClick={() => setShowInvite(true)}>
+          <span className="icon">+</span> Invite Staff/User
+        </button>
       </div>
+
+      {showInvite && (
+        <InvitePlatformUserModal
+          onClose={() => setShowInvite(false)}
+          onUpdate={onUpdate}
+        />
+      )}
 
       <div className="user-table-container">
         <table>
@@ -1323,6 +1336,97 @@ function UsersList({ users, onUpdate }: any) {
 // ═══════════════════════════════════════════════════════════
 // APPS LIST (God Mode)
 // ═══════════════════════════════════════════════════════════
+
+function InvitePlatformUserModal({ onClose, onUpdate }: any) {
+  const [email, setEmail] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [role, setRole] = useState('user');
+  const [loading, setLoading] = useState(false);
+  const authenticatedFetch = useAuthenticatedFetch();
+
+  const handleInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const res = await authenticatedFetch(`${BACKEND_URL}/platform/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, displayName, role }),
+      });
+      if (res.ok) {
+        onUpdate();
+        onClose();
+        alert('🎉 User pre-approved and added successfully!');
+      } else {
+        const err = await res.json();
+        alert(err.message || 'Failed to add user');
+      }
+    } catch (err) {
+      alert('Error adding user');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal animate-in" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <h3>👥 Pre-approve Staff / User</h3>
+          <button className="close-btn" onClick={onClose}>×</button>
+        </div>
+        <form onSubmit={handleInvite}>
+          <div className="form-group" style={{ padding: '2rem' }}>
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>Email Address (Must match their sign-in mail)</label>
+              <input
+                type="email"
+                placeholder="user@gmail.com"
+                value={email}
+                onChange={e => setEmail(e.target.value.toLowerCase())}
+                style={{ width: '100%', padding: '0.75rem', border: '1px solid #e2e8f0', borderRadius: '8px' }}
+                required
+                autoFocus
+              />
+            </div>
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>Full Name (Optional)</label>
+              <input
+                type="text"
+                placeholder="John Doe"
+                value={displayName}
+                onChange={e => setDisplayName(e.target.value)}
+                style={{ width: '100%', padding: '0.75rem', border: '1px solid #e2e8f0', borderRadius: '8px' }}
+              />
+            </div>
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>Access Role</label>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <select
+                  value={role}
+                  onChange={e => setRole(e.target.value)}
+                  style={{ width: '100%', padding: '0.75rem', border: '1px solid #e2e8f0', borderRadius: '8px' }}
+                >
+                  <option value="user">Platform Staff / Member</option>
+                  <option value="tenant_admin">Tenant Owner / Admin</option>
+                </select>
+              </div>
+            </div>
+            <p style={{ fontSize: '0.8rem', color: '#666', marginBottom: '1rem' }}>
+              Note: This user will be set to **Active** immediately. They will bypass the approval screen when they sign in.
+            </p>
+          </div>
+          <div className="modal-actions">
+            <button type="button" className="btn-cancel" onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn-submit" disabled={loading}>
+              {loading ? 'Adding...' : '✅ Pre-approve & Add'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 function AppsList({ apps, onSelect, onUpdate }: any) {
   return (

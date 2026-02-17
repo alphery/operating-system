@@ -262,6 +262,44 @@ export class PlatformController {
         });
     }
 
+    // CREATE PLATFORM USER (Pre-approve Staff/Tenants)
+    @Post('users')
+    async createUser(
+        @Body() data: {
+            email: string;
+            displayName?: string;
+            role?: string;
+            isGod?: boolean;
+        }
+    ) {
+        const email = data.email.toLowerCase();
+
+        // 1. Check if user already exists
+        const existing = await this.prisma.platformUser.findUnique({
+            where: { email },
+        });
+
+        if (existing) {
+            throw new BadRequestException('User with this email already exists');
+        }
+
+        // 2. Generate UID
+        const prefix = data.role === 'tenant_admin' ? 'AT' : 'AU';
+        const customUid = await this.generateNextUid(prefix);
+
+        // 3. Create User (Approved by default)
+        return this.prisma.platformUser.create({
+            data: {
+                customUid,
+                email,
+                displayName: data.displayName || email.split('@')[0],
+                role: data.role || 'user',
+                isGod: data.isGod || false,
+                isActive: true, // PRE-APPROVED
+            },
+        });
+    }
+
     // LIST ALL APPS
     @Get('apps')
     async getAllApps() {
