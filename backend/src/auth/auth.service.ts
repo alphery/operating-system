@@ -451,7 +451,6 @@ export class AuthService {
     private isGodEmail(email: string): boolean {
         const godEmails = [
             'alpherymail@gmail.com',
-            'aksnetlink@gmail.com',
         ];
         return godEmails.includes(email.toLowerCase());
     }

@@ -31,6 +31,32 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
         socketInstance.on('connect', () => {
             console.log('✅ [SocketContext] Connected to backend!', socketInstance.id);
             setConnected(true);
+
+            // AUTO-JOIN USER ROOM
+            try {
+                const savedSession = localStorage.getItem('session_payload');
+                if (savedSession) {
+                    const payload = JSON.parse(savedSession);
+                    if (payload.sub) {
+                        socketInstance.emit('join-user', payload.sub);
+                        console.log('👤 [SocketContext] Joined user room:', payload.sub);
+                    }
+                }
+            } catch (e) {
+                console.error('[SocketContext] Failed to join user room:', e);
+            }
+        });
+
+        socketInstance.on('force_logout', (data: any) => {
+            console.warn('⚠️ [SocketContext] Force logout requested:', data?.reason);
+            alert(`Session Terminated: ${data?.reason || 'Account access revoked'}`);
+
+            localStorage.removeItem('session_token');
+            localStorage.removeItem('session_payload');
+            localStorage.removeItem('user_tenants');
+
+            // Force hard reload to login
+            window.location.href = '/login';
         });
 
         socketInstance.on('disconnect', () => {

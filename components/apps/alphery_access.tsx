@@ -1272,9 +1272,34 @@ function UsersList({ users, onUpdate }: any) {
       </div>
 
       <style jsx>{`
-        .users-list .header { margin-bottom: 2rem; }
+        .users-list .header { 
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 2rem;
+        }
         .users-list h2 { margin: 0; color: #2d3748; }
         .subtitle { color: #718096; margin-top: 0.25rem; }
+
+        .btn-create {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          padding: 0.75rem 1.5rem;
+          border-radius: 99px;
+          border: none;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.3s;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-create:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 20px rgba(102, 126, 234, 0.5);
+        }
 
         .user-table-container {
           background: #f8fafc;

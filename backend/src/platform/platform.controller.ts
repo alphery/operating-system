@@ -11,6 +11,7 @@ import {
     BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { PlatformGuard, TenantGuard } from '../auth/guards';
 
 // ═══════════════════════════════════════════════════════════
@@ -20,7 +21,10 @@ import { PlatformGuard, TenantGuard } from '../auth/guards';
 @Controller('platform')
 @UseGuards(PlatformGuard)
 export class PlatformController {
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        private prisma: PrismaService,
+        private realtimeGateway: RealtimeGateway
+    ) { }
 
     // EMERGENCY DB REPAIR
     @Post('repair-db')
@@ -237,9 +241,15 @@ export class PlatformController {
 
         if (!user) throw new BadRequestException('User not found');
 
+        const newStatus = !user.isActive;
+
+        if (!newStatus) {
+            this.realtimeGateway.emitToUser(userId, 'force_logout', { reason: 'Account deactivated' });
+        }
+
         return this.prisma.platformUser.update({
             where: { id: userId },
-            data: { isActive: !user.isActive },
+            data: { isActive: newStatus },
         });
     }
 
@@ -256,6 +266,8 @@ export class PlatformController {
         if (user.email === 'alpherymail@gmail.com' || user.isGod) {
             throw new BadRequestException('Cannot delete the primary platform administrator');
         }
+
+        this.realtimeGateway.emitToUser(userId, 'force_logout', { reason: 'Account deleted' });
 
         return this.prisma.platformUser.delete({
             where: { id: userId },

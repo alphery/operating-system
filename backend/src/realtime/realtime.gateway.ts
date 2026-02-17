@@ -34,4 +34,13 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     handleMessage(client: Socket, payload: any): void {
         this.server.emit('message', payload);
     }
+    @SubscribeMessage('join-user')
+    handleJoinUser(client: Socket, userId: string): void {
+        client.join(`user:${userId}`);
+        console.log(`👤 Client ${client.id} joined user room: ${userId}`);
+    }
+
+    emitToUser(userId: string, event: string, payload: any) {
+        this.server.to(`user:${userId}`).emit(event, payload);
+    }
 }
