@@ -55,9 +55,15 @@ model PlatformUser {
 }
 
 model Tenant {
-  id          String       @id @default(uuid())
-  name        String
-  subdomain   String?      @unique // For future: tenant.alphery.com
+  id                String       @id @default(uuid())
+  customShortId     String?      @unique @map("custom_short_id") // AT01, AT02, etc.
+  name              String       // Organization Name
+  organizationEmail String?      @map("organization_email") // Organization Mail ID
+  businessType      String?      @map("business_type") // Business Type
+  mobile            String?      @map("mobile_number")
+  address           String?      @map("address")
+  personalEmail     String?      @map("personal_email")
+  subdomain         String?      @unique // For future: tenant.alphery.com
   ownerUserId String       @map("owner_user_id")
   owner       PlatformUser @relation("TenantOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
   plan        String       @default("free") // free, pro, enterprise

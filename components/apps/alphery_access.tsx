@@ -12,7 +12,8 @@ export default function AlpheryAccess() {
   const authenticatedFetch = useAuthenticatedFetch();
 
   // God sees everything, others see their tenant
-  const isGod = platformUser?.isGod || false;
+  // Only alpherymail@gmail.com can be God
+  const isGod = (platformUser?.isGod && platformUser?.email === 'alpherymail@gmail.com') || false;
 
   return (
     <div className="alphery-access">
@@ -406,7 +407,12 @@ function TenantAdminDashboard() {
 
 function TenantsList({ tenants, users, allPlatformApps, onUpdate }: any) {
   const [showCreate, setShowCreate] = useState(false);
-  const [newTenant, setNewTenant] = useState({ name: '', ownerEmail: '' });
+  const [newTenant, setNewTenant] = useState({
+    name: '',
+    ownerEmail: '',
+    organizationEmail: '',
+    businessType: ''
+  });
   const [editingTenant, setEditingTenant] = useState<any>(null);
   const [managingAppsTenant, setManagingAppsTenant] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -426,9 +432,9 @@ function TenantsList({ tenants, users, allPlatformApps, onUpdate }: any) {
       });
       if (res.ok) {
         setShowCreate(false);
-        setNewTenant({ name: '', ownerEmail: '' });
+        setNewTenant({ name: '', ownerEmail: '', organizationEmail: '', businessType: '' });
         onUpdate();
-        alert('🎉 Tenant AND Workspace created successfully!');
+        alert('🎉 Organization Workspace created successfully!');
       } else {
         const err = await res.json();
         alert(err.message || 'Failed to create tenant');
@@ -450,12 +456,17 @@ function TenantsList({ tenants, users, allPlatformApps, onUpdate }: any) {
         body: JSON.stringify({
           name: editingTenant.name,
           plan: editingTenant.plan,
+          organizationEmail: editingTenant.organizationEmail,
+          businessType: editingTenant.businessType,
+          mobile: editingTenant.mobile,
+          address: editingTenant.address,
+          personalEmail: editingTenant.personalEmail,
         }),
       });
       if (res.ok) {
         setEditingTenant(null);
         onUpdate();
-        alert('✅ Tenant updated!');
+        alert('✅ Organization profile updated!');
       } else {
         const err = await res.json();
         alert(err.message || 'Failed to update tenant');
@@ -525,15 +536,41 @@ function TenantsList({ tenants, users, allPlatformApps, onUpdate }: any) {
               </div>
 
               <div className="form-group">
-                <label>Owner Gmail ID</label>
+                <label>Organization Mail ID</label>
+                <input
+                  type="email"
+                  value={newTenant.organizationEmail}
+                  onChange={e => setNewTenant({ ...newTenant, organizationEmail: e.target.value.toLowerCase() })}
+                  placeholder="contact@company.com"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Business Type</label>
+                <select
+                  value={newTenant.businessType}
+                  onChange={e => setNewTenant({ ...newTenant, businessType: e.target.value })}
+                >
+                  <option value="">Select Type</option>
+                  <option value="SaaS">SaaS</option>
+                  <option value="Service">Service Based</option>
+                  <option value="Manufacturing">Manufacturing</option>
+                  <option value="Retail">Retail</option>
+                  <option value="Healthcare">Healthcare</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Owner Admin Email (Login ID)</label>
                 <input
                   type="email"
                   value={newTenant.ownerEmail}
                   onChange={e => setNewTenant({ ...newTenant, ownerEmail: e.target.value.toLowerCase() })}
-                  placeholder="user@gmail.com"
+                  placeholder="owner@gmail.com"
                   required
                 />
-                <small>The user will be automatically registered if they don't exist.</small>
+                <small>This user will be granted Tenant Admin status.</small>
               </div>
 
               <div className="modal-actions">
@@ -565,6 +602,46 @@ function TenantsList({ tenants, users, allPlatformApps, onUpdate }: any) {
                   onChange={e => setEditingTenant({ ...editingTenant, name: e.target.value })}
                   placeholder="Organization Name"
                   required
+                />
+              </div>
+
+              <div className="form-grid">
+                <div className="form-group">
+                  <label>Organization Mail</label>
+                  <input
+                    value={editingTenant.organizationEmail || ''}
+                    onChange={e => setEditingTenant({ ...editingTenant, organizationEmail: e.target.value })}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Business Type</label>
+                  <input
+                    value={editingTenant.businessType || ''}
+                    onChange={e => setEditingTenant({ ...editingTenant, businessType: e.target.value })}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Mobile No</label>
+                  <input
+                    value={editingTenant.mobile || ''}
+                    onChange={e => setEditingTenant({ ...editingTenant, mobile: e.target.value })}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Personal Mail</label>
+                  <input
+                    value={editingTenant.personalEmail || ''}
+                    onChange={e => setEditingTenant({ ...editingTenant, personalEmail: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Office Address</label>
+                <textarea
+                  value={editingTenant.address || ''}
+                  onChange={e => setEditingTenant({ ...editingTenant, address: e.target.value })}
+                  rows={2}
                 />
               </div>
 
@@ -614,14 +691,21 @@ function TenantsList({ tenants, users, allPlatformApps, onUpdate }: any) {
         {tenants.map((tenant: any) => (
           <div key={tenant.id} className="card">
             <div className="card-header" onClick={() => setEditingTenant({ ...tenant })} style={{ cursor: 'pointer' }}>
-              <h3>{tenant.name}</h3>
+              <div className="tenant-title-row">
+                <h3>{tenant.name}</h3>
+                <span className="tenant-id-tag">{tenant.customShortId || 'AT--'}</span>
+              </div>
               <span className={`plan-badge ${tenant.plan}`}>{tenant.plan}</span>
             </div>
 
             <div className="card-body" onClick={() => setEditingTenant({ ...tenant })} style={{ cursor: 'pointer' }}>
               <div className="info-row">
-                <span className="label">ID:</span>
-                <span className="value code" title={tenant.id}>{tenant.id.substring(0, 8)}...</span>
+                <span className="label">Biz Type:</span>
+                <span className="value">{tenant.businessType || 'General'}</span>
+              </div>
+              <div className="info-row">
+                <span className="label">Org Mail:</span>
+                <span className="value">{tenant.organizationEmail || 'N/A'}</span>
               </div>
               <div className="info-row">
                 <span className="label">Owner:</span>
@@ -922,6 +1006,28 @@ function TenantsList({ tenants, users, allPlatformApps, onUpdate }: any) {
         @keyframes spin { to { transform: rotate(360deg); } }
         .flex-center { display: flex; align-items: center; justify-content: center; }
 
+        .form-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 1rem;
+        }
+        .tenant-title-row {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+        }
+        .tenant-id-tag {
+          background: #edf2f7;
+          color: #4a5568;
+          padding: 0.15rem 0.5rem;
+          border-radius: 4px;
+          font-size: 0.7rem;
+          font-weight: 800;
+          font-family: monospace;
+          border: 1px solid #e2e8f0;
+          text-transform: uppercase;
+        }
+
         .animate-in { animation: slideUp 0.3s ease-out; }
         @keyframes slideUp {
           from { opacity: 0; transform: translateY(20px); }
@@ -955,22 +1061,7 @@ function UsersList({ users, onUpdate }: any) {
     }
   };
 
-  const promoteToGod = async (userId: string) => {
-    if (!confirm('Are you sure you want to promote this user to God status?')) return;
-
-    setLoading(userId);
-    try {
-      await authenticatedFetch(`${BACKEND_URL}/platform/users/${userId}/promote-god`, {
-        method: 'PATCH',
-      });
-      onUpdate();
-    } catch (error) {
-      console.error('Failed to promote user:', error);
-      alert('Failed to promote user');
-    } finally {
-      setLoading(null);
-    }
-  };
+  // Promote to God removed as per requirement. Only alpherymail@gmail.com is God.
 
   return (
     <div className="users-list">
@@ -986,8 +1077,8 @@ function UsersList({ users, onUpdate }: any) {
               <th>Identity</th>
               <th>Email & Auth</th>
               <th>Name & Contact</th>
+              <th>Role</th>
               <th>Status</th>
-              <th>God Mode</th>
               <th>Access</th>
               <th>Actions</th>
             </tr>
@@ -1016,22 +1107,37 @@ function UsersList({ users, onUpdate }: any) {
                   </div>
                 </td>
                 <td>
+                  <div className="role-stack">
+                    {user.email === 'alpherymail@gmail.com' ? (
+                      <span className="badge-role super">Super Admin</span>
+                    ) : user.role === 'tenant_admin' ? (
+                      <span className="badge-role tenant">Tenant Admin</span>
+                    ) : (
+                      <span className="badge-role user">Member</span>
+                    )}
+                    {user.isGod && user.email !== 'alpherymail@gmail.com' && (
+                      <small className="god-warning">⚠️ Legacy God</small>
+                    )}
+                  </div>
+                </td>
+                <td>
                   <span className={`status-badge ${user.isActive ? 'active' : 'inactive'}`}>
                     {user.isActive ? '✓ Active' : '✗ Disabled'}
                   </span>
                 </td>
                 <td>
-                  {user.isGod ? (
-                    <span className="god-badge-pro">⭐ GOD MODE</span>
-                  ) : (
-                    <span className="no-god">-</span>
-                  )}
-                </td>
-                <td>
-                  <div className="tenants-count">
-                    <strong>{user.tenantMemberships?.length || 0}</strong> Tenants
+                  <div className="access-stack">
+                    {user.tenantMemberships?.length > 0 ? (
+                      user.tenantMemberships.map((m: any) => (
+                        <div key={m.tenant.id} className="tenant-link">
+                          🏢 {m.tenant.name}
+                        </div>
+                      ))
+                    ) : (
+                      <span className="no-access">No Workspaces</span>
+                    )}
+                    <small className="since-text">Joined {new Date(user.createdAt).toLocaleDateString()}</small>
                   </div>
-                  <div className="created-at">Since {new Date(user.createdAt).toLocaleDateString()}</div>
                 </td>
                 <td>
                   <div className="actions">
@@ -1042,15 +1148,7 @@ function UsersList({ users, onUpdate }: any) {
                     >
                       {user.isActive ? 'Deactivate' : 'Activate'}
                     </button>
-                    {!user.isGod && (
-                      <button
-                        onClick={() => promoteToGod(user.id)}
-                        disabled={loading === user.id}
-                        className="btn-action btn-gold"
-                      >
-                        Promote to God
-                      </button>
-                    )}
+                    {/* Promote to God removed */}
                   </div>
                 </td>
               </tr>
@@ -1096,11 +1194,17 @@ function UsersList({ users, onUpdate }: any) {
         .status-badge.active { background: #d1fae5; color: #065f46; }
         .status-badge.inactive { background: #fee2e2; color: #991b1b; }
 
-        .god-badge-pro { background: linear-gradient(135deg, #7066E0 0%, #C084FC 100%); color: white; padding: 0.35rem 0.75rem; border-radius: 6px; font-size: 0.7rem; font-weight: 800; }
-        .no-god { color: #cbd5e1; font-weight: 300; }
+        .role-stack { display: flex; flex-direction: column; gap: 0.25rem; }
+        .badge-role { padding: 0.25rem 0.6rem; border-radius: 4px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; width: fit-content; }
+        .badge-role.super { background: linear-gradient(135deg, #7066E0 0%, #C084FC 100%); color: white; }
+        .badge-role.tenant { background: #E0E7FF; color: #4338CA; border: 1px solid #C7D2FE; }
+        .badge-role.user { background: #F3F4F6; color: #4B5563; }
+        .god-warning { font-size: 0.65rem; color: #DC2626; font-weight: 600; }
 
-        .tenants-count { font-size: 0.9rem; color: #4a5568; }
-        .created-at { font-size: 0.75rem; color: #a0aec0; margin-top: 0.2rem; }
+        .access-stack { display: flex; flex-direction: column; gap: 0.25rem; max-width: 150px; }
+        .tenant-link { font-size: 0.8rem; font-weight: 600; color: #2D3748; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .no-access { font-size: 0.8rem; color: #A0AEC0; font-style: italic; }
+        .since-text { font-size: 0.7rem; color: #A0AEC0; margin-top: 0.15rem; }
 
         .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
         .btn-action { padding: 0.5rem 0.75rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700; border: none; cursor: pointer; transition: all 0.2s; }

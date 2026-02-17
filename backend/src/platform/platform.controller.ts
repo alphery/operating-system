@@ -45,10 +45,15 @@ export class PlatformController {
         });
     }
 
-    // CREATE TENANT (Simplified: Only Name & Email)
+    // CREATE TENANT
     @Post('tenants')
     async createTenant(
-        @Body() data: { name: string; ownerEmail: string },
+        @Body() data: {
+            name: string;
+            ownerEmail: string;
+            organizationEmail?: string;
+            businessType?: string;
+        },
     ) {
         const email = data.ownerEmail.toLowerCase();
 
@@ -61,22 +66,36 @@ export class PlatformController {
             // Auto-create platform user placeholder
             owner = await this.prisma.platformUser.create({
                 data: {
-                    customUid: await this.generateNextUid('AU'),
+                    customUid: await this.generateNextUid('AT'),
                     email: email,
-                    role: 'user',
+                    role: 'tenant_admin', // Default to tenant admin for organization owners
                     isActive: true,
                 }
             });
+        } else if (owner.role === 'user') {
+            // Upgrade role AND UID prefix if they were just a regular user
+            const nextAtUid = await this.generateNextUid('AT');
+            await this.prisma.platformUser.update({
+                where: { id: owner.id },
+                data: {
+                    role: 'tenant_admin',
+                    customUid: nextAtUid // Upgrade to AT prefix
+                }
+            });
+            // Re-fetch to get new customUid for the rest of the flow
+            owner = await this.prisma.platformUser.findUnique({ where: { id: owner.id } });
         }
 
-        // 2. Auto-generate subdomain
-        const subdomain = data.name.toLowerCase().replace(/[^a-z0-9]/g, '') + '-' + Math.random().toString(36).substring(2, 5);
+        if (!owner) throw new BadRequestException('Failed to resolve organization owner');
+        const customShortId = await this.generateNextShortId('AT');
 
         // 3. Create tenant
         const tenant = await this.prisma.tenant.create({
             data: {
+                customShortId,
                 name: data.name,
-                subdomain: subdomain,
+                organizationEmail: data.organizationEmail || email,
+                businessType: data.businessType || 'General',
                 ownerUserId: owner.id,
                 plan: 'free',
                 allowedApps: [],
@@ -92,7 +111,7 @@ export class PlatformController {
             },
         });
 
-        // 5. Enable core apps for new tenant
+        // 5. Enable core apps
         const coreApps = await this.prisma.app.findMany({
             where: { isCore: true },
         });
@@ -114,7 +133,16 @@ export class PlatformController {
     @Patch('tenants/:id')
     async updateTenant(
         @Param('id') id: string,
-        @Body() data: { name?: string; plan?: string; isActive?: boolean },
+        @Body() data: {
+            name?: string;
+            plan?: string;
+            isActive?: boolean;
+            organizationEmail?: string;
+            businessType?: string;
+            mobile?: string;
+            address?: string;
+            personalEmail?: string;
+        },
     ) {
         return this.prisma.tenant.update({
             where: { id },
@@ -125,30 +153,35 @@ export class PlatformController {
     // DELETE TENANT
     @Delete('tenants/:id')
     async deleteTenant(@Param('id') id: string) {
-        // Find if tenant exists
         const tenant = await this.prisma.tenant.findUnique({
             where: { id },
         });
 
         if (!tenant) throw new BadRequestException('Tenant not found');
 
-        return this.prisma.tenant.delete({
+        const ownerId = tenant.ownerUserId;
+
+        // 1. Delete the tenant first
+        const deletedTenant = await this.prisma.tenant.delete({
             where: { id },
         });
-    }
 
-    // Helper for UID generation
-    private async generateNextUid(prefix: string): Promise<string> {
-        const lastUser = await this.prisma.platformUser.findFirst({
-            where: { customUid: { startsWith: prefix } },
-            orderBy: { customUid: 'desc' }
+        // 2. Automatically delete the owner if they have no other memberships
+        // (and they aren't the primary God user)
+        const owner = await this.prisma.platformUser.findUnique({
+            where: { id: ownerId },
+            include: { tenantMemberships: true }
         });
-        let nextNum = 1;
-        if (lastUser) {
-            const numPart = parseInt(lastUser.customUid.replace(prefix, ''));
-            if (!isNaN(numPart)) nextNum = numPart + 1;
+
+        if (owner && !owner.isGod && owner.email !== 'alpherymail@gmail.com') {
+            if (owner.tenantMemberships.length === 0) {
+                await this.prisma.platformUser.delete({
+                    where: { id: ownerId }
+                });
+            }
         }
-        return `${prefix}${nextNum.toString().padStart(6, '0')}`;
+
+        return deletedTenant;
     }
 
     // LIST ALL PLATFORM USERS
@@ -180,16 +213,14 @@ export class PlatformController {
         });
     }
 
-    // TOGGLE USER STATUS (ACTIVATE/DEACTIVATE)
+    // TOGGLE USER STATUS
     @Patch('users/:userId/toggle-status')
     async toggleUserStatus(@Param('userId') userId: string) {
         const user = await this.prisma.platformUser.findUnique({
             where: { id: userId },
         });
 
-        if (!user) {
-            throw new Error('User not found');
-        }
+        if (!user) throw new BadRequestException('User not found');
 
         return this.prisma.platformUser.update({
             where: { id: userId },
@@ -214,8 +245,7 @@ export class PlatformController {
     // CREATE APP
     @Post('apps')
     async createApp(
-        @Body()
-        data: {
+        @Body() data: {
             id: string;
             code: string;
             name: string;
@@ -227,6 +257,37 @@ export class PlatformController {
         return this.prisma.app.create({
             data,
         });
+    }
+
+    // Helper for short ID generation (AT01, AT02...)
+    private async generateNextShortId(prefix: string): Promise<string> {
+        const lastTenant = await this.prisma.tenant.findFirst({
+            where: { customShortId: { startsWith: prefix } },
+            orderBy: { customShortId: 'desc' }
+        });
+
+        let nextNum = 1;
+        if (lastTenant && lastTenant.customShortId) {
+            const numPart = parseInt(lastTenant.customShortId.replace(prefix, ''));
+            if (!isNaN(numPart)) nextNum = numPart + 1;
+        }
+
+        const paddedNum = nextNum.toString().padStart(2, '0');
+        return `${prefix}${paddedNum}`;
+    }
+
+    // Helper for PlatformUser UID generation (AU0001...)
+    private async generateNextUid(prefix: string): Promise<string> {
+        const lastUser = await this.prisma.platformUser.findFirst({
+            where: { customUid: { startsWith: prefix } },
+            orderBy: { customUid: 'desc' }
+        });
+        let nextNum = 1;
+        if (lastUser) {
+            const numPart = parseInt(lastUser.customUid.replace(prefix, ''));
+            if (!isNaN(numPart)) nextNum = numPart + 1;
+        }
+        return `${prefix}${nextNum.toString().padStart(6, '0')}`;
     }
 }
 
@@ -324,9 +385,7 @@ export class TenantController {
             },
         });
 
-        if (!membership) {
-            throw new Error('User not found in tenant');
-        }
+        if (!membership) throw new Error('User not found in tenant');
 
         return this.prisma.tenantUser.update({
             where: { id: membership.id },
@@ -339,9 +398,7 @@ export class TenantController {
     async getTenantApps(@Param('tenantId') tenantId: string) {
         return this.prisma.tenantApp.findMany({
             where: { tenantId },
-            include: {
-                app: true,
-            },
+            include: { app: true },
         });
     }
 
@@ -359,9 +416,7 @@ export class TenantController {
                     appId,
                 },
             },
-            update: {
-                enabled: true,
-            },
+            update: { enabled: true },
             create: {
                 tenantId,
                 appId,
@@ -397,7 +452,6 @@ export class TenantController {
         @Request() req,
         @Body() data?: { permissions?: any },
     ) {
-        // Get tenant user membership
         const membership = await this.prisma.tenantUser.findUnique({
             where: {
                 tenantId_userId: {
@@ -407,9 +461,7 @@ export class TenantController {
             },
         });
 
-        if (!membership) {
-            throw new Error('User not found in tenant');
-        }
+        if (!membership) throw new Error('User not found in tenant');
 
         return this.prisma.userAppPermission.upsert({
             where: {
@@ -446,9 +498,7 @@ export class TenantController {
             },
         });
 
-        if (!membership) {
-            throw new Error('User not found in tenant');
-        }
+        if (!membership) throw new Error('User not found in tenant');
 
         return this.prisma.userAppPermission.delete({
             where: {
