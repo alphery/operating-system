@@ -22,6 +22,21 @@ import { PlatformGuard, TenantGuard } from '../auth/guards';
 export class PlatformController {
     constructor(private prisma: PrismaService) { }
 
+    // EMERGENCY DB REPAIR
+    @Post('repair-db')
+    async repairDatabase() {
+        try {
+            await this.prisma.$executeRawUnsafe(`ALTER TABLE "platform_users" ADD COLUMN IF NOT EXISTS "allowed_apps" TEXT[] DEFAULT '{}';`);
+            await this.prisma.$executeRawUnsafe(`ALTER TABLE "tenants" ADD COLUMN IF NOT EXISTS "custom_short_id" TEXT;`);
+            try {
+                await this.prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX "tenants_custom_short_id_key" ON "tenants"("custom_short_id");`);
+            } catch (e) { /* ignore if exists */ }
+            return { success: true, message: 'Database schema repaired successfully.' };
+        } catch (error) {
+            throw new BadRequestException('Repair failed: ' + error.message);
+        }
+    }
+
     // LIST ALL TENANTS
     @Get('tenants')
     async getAllTenants() {

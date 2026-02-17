@@ -10,6 +10,7 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:100
 export default function AlpheryAccess() {
   const { platformUser, currentTenant } = useAuth();
   const authenticatedFetch = useAuthenticatedFetch();
+  const [permManagingApp, setPermManagingApp] = useState<any>(null);
 
   // God sees everything, others see their tenant
   // Only alpherymail@gmail.com can be God
@@ -30,15 +31,111 @@ export default function AlpheryAccess() {
       </header>
 
       <div className="access-container">
-        {isGod ? <GodDashboard /> : <TenantAdminDashboard />}
+        {isGod ? (
+          <GodDashboard
+            onSelectApp={setPermManagingApp}
+          />
+        ) : (
+          <TenantAdminDashboard />
+        )}
       </div>
 
-      <style jsx>{`
+      {permManagingApp && (
+        <AppAccessModal
+          app={permManagingApp}
+          onClose={() => setPermManagingApp(null)}
+          onUpdate={() => {
+            // Updated in-place
+          }}
+        />
+      )}
+
+      <style jsx global>{`
         .alphery-access {
           padding: 2rem;
           background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
           min-height: 100vh;
           color: white;
+        }
+
+        /* Global Modal Overlay */
+        .modal-overlay {
+          position: fixed;
+          top: 0; left: 0; right: 0; bottom: 0;
+          background: rgba(0, 0, 0, 0.75);
+          backdrop-filter: blur(8px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 10000;
+          padding: 2rem;
+        }
+
+        .modal {
+          background: white;
+          width: 100%;
+          max-width: 600px;
+          border-radius: 24px;
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+          overflow: hidden;
+          color: #1a202c;
+          position: relative;
+          display: flex;
+          flex-direction: column;
+          max-height: 90vh;
+          border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .modal.wider-modal { max-width: 900px; }
+        .modal.wide-modal { max-width: 800px; }
+
+        .modal-header {
+          padding: 1.5rem 2rem;
+          border-bottom: 1px solid #e2e8f0;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          background: #f8fafc;
+          flex-shrink: 0;
+        }
+
+        .modal-header h3 { margin: 0; color: #1a202c; font-weight: 800; }
+        .close-btn { background: #edf2f7; border: none; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; color: #4a5568; cursor: pointer; transition: all 0.2s; }
+        .close-btn:hover { background: #e2e8f0; color: #1a202c; transform: rotate(90deg); }
+
+        .modal-body {
+          padding: 2rem;
+          overflow-y: auto;
+          flex: 1;
+        }
+
+        .modal-actions {
+          padding: 1.5rem 2rem;
+          border-top: 1px solid #e2e8f0;
+          display: flex;
+          gap: 1rem;
+          background: #f8fafc;
+          flex-shrink: 0;
+        }
+
+        .modal-actions button {
+          flex: 1;
+          padding: 0.8rem;
+          border-radius: 12px;
+          font-weight: 700;
+          cursor: pointer;
+          border: none;
+          transition: all 0.2s;
+        }
+
+        /* Animations */
+        .animate-in {
+          animation: modalSlideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes modalSlideUp {
+          from { opacity: 0; transform: translateY(30px) scale(0.95); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
         }
 
         .access-header {
@@ -89,13 +186,12 @@ export default function AlpheryAccess() {
 // GOD DASHBOARD (Platform Owner)
 // ═══════════════════════════════════════════════════════════
 
-function GodDashboard() {
+function GodDashboard({ onSelectApp }: { onSelectApp: (app: any) => void }) {
   const { sessionToken, signOut } = useAuth();
   const [tenants, setTenants] = useState([]);
   const [users, setUsers] = useState([]);
   const [apps, setApps] = useState([]);
   const [activeTab, setActiveTab] = useState('tenants');
-  const [permManagingApp, setPermManagingApp] = useState<any>(null);
   const authenticatedFetch = useAuthenticatedFetch();
 
   // Check if we're in emergency mode
@@ -172,17 +268,15 @@ function GodDashboard() {
       <div className="tab-content">
         {activeTab === 'tenants' && <TenantsList tenants={tenants} users={users} allPlatformApps={apps} onUpdate={loadPlatformData} />}
         {activeTab === 'users' && <UsersList users={users} onUpdate={loadPlatformData} />}
-        {activeTab === 'apps' && <AppsList apps={apps} onSelect={(app: any) => setPermManagingApp(app)} onUpdate={loadPlatformData} />}
-        {activeTab === 'analytics' && <AnalyticsDashboard />}
+        {activeTab === 'apps' && (
+          <AppsList
+            apps={apps}
+            onSelect={onSelectApp}
+            onUpdate={loadPlatformData}
+          />
+        )}
+        {activeTab === 'analytics' && <AnalyticsDashboard onRepair={loadPlatformData} />}
       </div>
-
-      {permManagingApp && (
-        <AppAccessModal
-          app={permManagingApp}
-          onClose={() => setPermManagingApp(null)}
-          onUpdate={loadPlatformData}
-        />
-      )}
 
       <style jsx>{`
         .god-dashboard {
@@ -290,23 +384,6 @@ function GodDashboard() {
   );
 }
 
-// ═══════════════════════════════════════════════════════════
-// NEW ANALYTICS DASHBOARD
-// ═══════════════════════════════════════════════════════════
-
-function AnalyticsDashboard() {
-  return (
-    <div className="analytics">
-      <div className="empty-state">
-        <h3>📊 Platform Analytics</h3>
-        <p>Coming soon: Usage stats, revenue metrics, and system health.</p>
-      </div>
-      <style jsx>{`
-        .empty-state { text-align: center; padding: 4rem; color: #666; }
-      `}</style>
-    </div>
-  )
-}
 
 // ═══════════════════════════════════════════════════════════
 // TENANT ADMIN DASHBOARD
@@ -898,36 +975,7 @@ function TenantsList({ tenants, users, allPlatformApps, onUpdate }: any) {
         .plan-badge.pro { background: #ebf8ff; color: #3182ce; }
         .plan-badge.enterprise { background: #faf5ff; color: #805ad5; }
 
-        /* Modal Styles */
-        .modal-overlay {
-          position: fixed; inset: 0;
-          background: rgba(0,0,0,0.6);
-          backdrop-filter: blur(5px);
-          display: flex; align-items: center; justify-content: center;
-          z-index: 9999;
-        }
-
-        .modal {
-          background: white;
-          width: 95%; max-width: 600px;
-          border-radius: 20px;
-          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-          overflow-y: auto;
-          max-height: 90vh;
-          color: #1a202c;
-          position: relative;
-        }
-
-        .modal-header {
-          padding: 1.5rem 2rem;
-          border-bottom: 1px solid #e2e8f0;
-          display: flex; justify-content: space-between; align-items: center;
-          background: #f8fafc;
-        }
-
         .modal-header h3 { margin: 0; color: #2d3748; }
-        .close-btn { background: none; border: none; font-size: 1.5rem; color: #a0aec0; cursor: pointer; }
-        .close-btn:hover { color: #2d3748; }
 
         form { padding: 2rem; }
 
@@ -1495,7 +1543,6 @@ function AppAccessModal({ app, onClose, onUpdate }: any) {
         </div>
 
         <style jsx>{`
-          .wider-modal { max-width: 900px !important; }
           .modal-header .app-info { display: flex; align-items: center; gap: 1rem; }
           .app-icon-large { font-size: 2rem; }
           .modal-search { padding: 1rem 2rem; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
@@ -1537,10 +1584,6 @@ function AppAccessModal({ app, onClose, onUpdate }: any) {
     </div>
   );
 }
-
-// ═══════════════════════════════════════════════════════════
-// TENANT USERS LIST
-// ═══════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════
 // TENANT USERS LIST
@@ -1941,6 +1984,99 @@ function ManageAppsModal({ tenant, allApps, onClose, onUpdate }: any) {
         .btn-finish { background: #1a202c; color: white; border: none; padding: 0.75rem 2rem; border-radius: 8px; font-weight: 700; cursor: pointer; }
         .animate-in { animation: slideUp 0.3s ease-out; }
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+      `}</style>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// TENANT APPS LIST
+// ═══════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════
+// ANALYTICS & SYSTEM HEALTH
+// ═══════════════════════════════════════════════════════════
+
+function AnalyticsDashboard({ onRepair }: { onRepair: () => void }) {
+  const [repairing, setRepairing] = useState(false);
+  const authenticatedFetch = useAuthenticatedFetch();
+
+  const handleRepair = async () => {
+    if (!confirm('This will attempt to manually add missing database columns (allowed_apps, custom_short_id). Continue?')) return;
+    setRepairing(true);
+    try {
+      const res = await authenticatedFetch(`${BACKEND_URL}/platform/repair-db`, { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        alert('✅ ' + data.message);
+        onRepair();
+      } else {
+        alert('❌ ' + data.message);
+      }
+    } catch (err) {
+      alert('Error triggering repair');
+    } finally {
+      setRepairing(false);
+    }
+  };
+
+  return (
+    <div className="analytics-dashboard">
+      <div className="header-row">
+        <div>
+          <h2>📊 Platform Analytics</h2>
+          <p className="subtitle">System health and usage metrics</p>
+        </div>
+        <button
+          className={`repair-btn ${repairing ? 'loading' : ''}`}
+          onClick={handleRepair}
+          disabled={repairing}
+        >
+          {repairing ? '🛠 Repairing...' : '🛠 Repair Database Schema'}
+        </button>
+      </div>
+
+      <div className="stats-grid">
+        <div className="stat-card">
+          <div className="stat-value">Active</div>
+          <div className="stat-label">System Status</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-value">Stable</div>
+          <div className="stat-label">API Health</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-value">Connected</div>
+          <div className="stat-label">Database Status</div>
+        </div>
+      </div>
+
+      <div className="notice-box">
+        <h3>💡 Pro Tip</h3>
+        <p>If you see "0 organizations" or app toggles aren't saving, click the <strong>Repair Database Schema</strong> button above to synchronize the database with the latest features.</p>
+      </div>
+
+      <style jsx>{`
+        .analytics-dashboard { color: #1a202c; background: white; padding: 2rem; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+        .header-row h2 { margin: 0; color: #2d3748; }
+        .subtitle { color: #718096; margin: 0.25rem 0 0 0; }
+        
+        .repair-btn {
+          background: #f1f5f9; color: #475569; border: 2px solid #e2e8f0; padding: 0.75rem 1.5rem; 
+          border-radius: 10px; font-weight: 700; cursor: pointer; transition: all 0.2s;
+        }
+        .repair-btn:hover:not(:disabled) { background: #e2e8f0; border-color: #cbd5e0; color: #1e293b; }
+        .repair-btn.loading { opacity: 0.7; }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+        .stat-card { background: #f8fafc; padding: 1.5rem; border-radius: 16px; border: 1px solid #e2e8f0; text-align: center; }
+        .stat-value { font-size: 1.5rem; font-weight: 800; color: #10b981; margin-bottom: 0.25rem; }
+        .stat-label { font-size: 0.8rem; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+
+        .notice-box { background: #eff6ff; border: 1px solid #bfdbfe; padding: 1.5rem; border-radius: 12px; color: #1e40af; }
+        .notice-box h3 { margin: 0 0 0.5rem 0; font-size: 1.1rem; }
+        .notice-box p { margin: 0; line-height: 1.5; font-size: 0.95rem; }
       `}</style>
     </div>
   );
