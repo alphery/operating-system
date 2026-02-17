@@ -112,7 +112,8 @@ export default function Ubuntu() {
 
 	// In the new system, if we have a platformUser, they are basic-approved
 	const isApproved = useMemo(() => {
-		return !!platformUser && platformUser.isActive !== false;
+		// Strict check: must have platform record AND it must be explicitly active
+		return !!platformUser && platformUser.isActive === true;
 	}, [platformUser]);
 
 	const isPending = useMemo(() => {
@@ -340,24 +341,26 @@ export default function Ubuntu() {
 				isShutDown={shutDownScreen}
 				turnOn={turnOn}
 			/>
-			{(user || platformUser || demoMode) && (
-				<Navbar
-					lockScreen={lockScreen}
-					shutDown={shutDown}
-					logOut={handleLogout}
-					user={currentUser}
-					showInstallPrompt={showInstallPrompt}
-					handleInstallClick={handleInstallClick}
-				/>
+			{(isApproved || demoMode) && (
+				<>
+					<Navbar
+						lockScreen={lockScreen}
+						shutDown={shutDown}
+						logOut={handleLogout}
+						user={currentUser}
+						showInstallPrompt={showInstallPrompt}
+						handleInstallClick={handleInstallClick}
+					/>
+					<Desktop
+						bg_image_name={bgImageName}
+						changeBackgroundImage={changeBackgroundImage}
+						user={currentUser}
+						userData={platformUser}
+						currentTenant={currentTenant}
+						authorizedApps={authorizedApps}
+					/>
+				</>
 			)}
-			<Desktop
-				bg_image_name={bgImageName}
-				changeBackgroundImage={changeBackgroundImage}
-				user={currentUser}
-				userData={platformUser}
-				currentTenant={currentTenant}
-				authorizedApps={authorizedApps}
-			/>
 		</div>
 	);
 }

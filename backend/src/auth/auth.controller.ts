@@ -80,6 +80,7 @@ export class AuthController {
                 photoUrl: user.photoUrl,
                 settings: user.settings,
                 isGod: user.isGod,
+                isActive: user.isActive,
             },
             tenants: tenants.map((t) => ({
                 id: t.tenant.id,
