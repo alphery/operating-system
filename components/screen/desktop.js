@@ -87,7 +87,12 @@ export class Desktop extends Component {
     }
 
     componentDidUpdate(prevProps) {
-        if (prevProps.user !== this.props.user || prevProps.userData !== this.props.userData) {
+        if (
+            prevProps.user !== this.props.user ||
+            prevProps.userData !== this.props.userData ||
+            prevProps.authorizedApps !== this.props.authorizedApps ||
+            prevProps.currentTenant !== this.props.currentTenant
+        ) {
             this.checkForNewFolders();
             this.fetchAppsData();
         }
@@ -289,15 +294,20 @@ export class Desktop extends Component {
             let hasPermission = false;
 
             if (!user || (userData && userData.isGod)) {
-                // God Mode or Guest: All apps available
+                // God Mode or Guest: All apps available by default
                 hasPermission = true;
+
+                // SPECIAL FIX: If God is inside a tenant workspace, they should still respect the tenant bundle 
+                // IF that bundle specifically restricts apps. This allows God to see what the tenant sees.
+                if (this.props.currentTenant && this.props.authorizedApps && !isSystemApp) {
+                    hasPermission = this.props.authorizedApps.includes(app.id);
+                }
             } else if (isSystemApp) {
                 // System apps: Always available
                 hasPermission = true;
-            } else if (this.props.currentTenant) {
-                // In the new system, tenant members see apps assigned to the tenant
-                // For now, allow everything or implement tenant-app check
-                hasPermission = true;
+            } else if (this.props.currentTenant && this.props.authorizedApps) {
+                // Workspace specific permission enforcement
+                hasPermission = this.props.authorizedApps.includes(app.id);
             } else {
                 // Regular Firestore legacy check
                 if (userData && (userData.allowedApps === undefined || userData.allowedApps === null)) {

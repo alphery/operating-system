@@ -119,12 +119,35 @@ export default function Ubuntu() {
 		return !!user && !platformUser;
 	}, [user, platformUser]);
 
+	const [authorizedApps, setAuthorizedApps] = useState<string[] | null>(null);
+	const authenticatedFetch = useAuthenticatedFetch();
+
+	useEffect(() => {
+		async function fetchAuthorizedApps() {
+			if (currentTenant) {
+				try {
+					const res = await authenticatedFetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://alphery-os-backend.onrender.com'}/auth/tenants/${currentTenant.id}/apps`);
+					if (res.ok) {
+						const apps = await res.json();
+						setAuthorizedApps(apps.map((a: any) => a.id));
+					}
+				} catch (err) {
+					console.error('[Ubuntu] Failed to fetch authorized apps:', err);
+				}
+			} else {
+				setAuthorizedApps(null);
+			}
+		}
+		fetchAuthorizedApps();
+	}, [currentTenant]);
+
 	useEffect(() => {
 		console.log('[UBUNTU] Auth state changed:', {
 			hasUser: !!user,
 			hasPlatformUser: !!platformUser,
 			isApproved,
-			isPending
+			isPending,
+			tenant: currentTenant?.name
 		});
 
 		if (!user && !platformUser) {
@@ -159,7 +182,7 @@ export default function Ubuntu() {
 				localStorage.setItem('bg-image', savedWall);
 			}
 		}
-	}, [user, platformUser, isApproved, bootingScreen]);
+	}, [user, platformUser, isApproved, bootingScreen, currentTenant]);
 
 	const setTimeOutBootScreen = () => {
 		setTimeout(() => {
@@ -331,6 +354,7 @@ export default function Ubuntu() {
 				user={currentUser}
 				userData={platformUser}
 				currentTenant={currentTenant}
+				authorizedApps={authorizedApps}
 			/>
 		</div>
 	);

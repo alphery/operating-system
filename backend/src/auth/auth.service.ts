@@ -466,7 +466,15 @@ export class AuthService {
 
         if (user?.isGod) {
             return this.prisma.app.findMany({
-                where: { isActive: true },
+                where: {
+                    isActive: true,
+                    tenantApps: {
+                        some: {
+                            tenantId: tenantId,
+                            enabled: true,
+                        },
+                    },
+                },
             });
         }
 
