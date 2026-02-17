@@ -23,6 +23,10 @@ import { displayCalendar } from './components/apps/calendar';
 import { displayAboutAlphery } from './components/apps/about_alphery';
 import RealtimeDemo from './components/apps/realtime_demo';
 
+import AlpheryDocs from './components/apps/alphery_docs/AlpheryDocs.tsx';
+import AlpherySheets from './components/apps/alphery_sheets/AlpherySheets.tsx';
+import AlpherySlides from './components/apps/alphery_slides/AlpherySlides.tsx';
+
 // Default installed apps for all new users
 const DEFAULT_INSTALLED_APPS = [
     'chrome',
@@ -34,7 +38,10 @@ const DEFAULT_INSTALLED_APPS = [
     'trash',
     'gedit', // Text Editor
     'app-store',
-    'realtime-demo' // Socket.IO Test
+    'realtime-demo', // Socket.IO Test
+    'alphery-docs',
+    'alphery-sheets',
+    'alphery-slides'
 ];
 
 const apps = [
@@ -227,6 +234,33 @@ const apps = [
         favourite: false,
         desktop_shortcut: false,
         screen: displayGallery,
+    },
+    {
+        id: "alphery-docs",
+        title: "Alphery Docs",
+        icon: './themes/Yaru/apps/gedit.png',
+        disabled: false,
+        favourite: true,
+        desktop_shortcut: true,
+        screen: AlpheryDocs,
+    },
+    {
+        id: "alphery-sheets",
+        title: "Alphery Sheets",
+        icon: './themes/Yaru/apps/calc.png',
+        disabled: false,
+        favourite: true,
+        desktop_shortcut: true,
+        screen: AlpherySheets,
+    },
+    {
+        id: "alphery-slides",
+        title: "Alphery Slides",
+        icon: './themes/Yaru/apps/projects.png',
+        disabled: false,
+        favourite: true,
+        desktop_shortcut: true,
+        screen: AlpherySlides,
     },
     {
         id: "realtime-demo",

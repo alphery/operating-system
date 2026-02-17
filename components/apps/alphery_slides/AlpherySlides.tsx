@@ -118,7 +118,7 @@ const AlpherySlides = () => {
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 bg-gray-50">
                 <div className="flex items-center space-x-4">
-                    <img src="./themes/Yaru/apps/libreoffice-impress.png" alt="Slides" className="w-8 h-8" />
+                    <img src="./themes/Yaru/apps/projects.png" alt="Slides" className="w-8 h-8" />
                     <div>
                         <input
                             type="text"
