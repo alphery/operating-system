@@ -211,6 +211,7 @@ export class AuthService implements OnModuleInit {
                 role: platformUser.role,
                 settings: platformUser.settings,
                 isGod: platformUser.isGod,
+                isActive: platformUser.isActive,
             },
             tenants: tenants.map((t) => ({
                 id: t.tenant.id,
@@ -652,8 +653,10 @@ export class AuthService implements OnModuleInit {
                     id: user.id,
                     customUid: user.customUid,
                     email: user.email,
+                    displayName: user.displayName,
                     role: user.role,
                     isGod: user.isGod,
+                    isActive: user.isActive,
                     photoUrl: user.photoUrl,
                     settings: user.settings,
                 },
