@@ -112,11 +112,13 @@ export default function Ubuntu() {
 
 	// In the new system, if we have a platformUser, they are basic-approved
 	const isApproved = useMemo(() => {
-		return !!platformUser;
+		return !!platformUser && platformUser.isActive !== false;
 	}, [platformUser]);
 
 	const isPending = useMemo(() => {
-		return !!user && !platformUser;
+		// Pending if we have a Firebase user but NO platform user record yet,
+		// OR if the platform user record exists but is NOT active.
+		return !!user && (!platformUser || platformUser.isActive === false);
 	}, [user, platformUser]);
 
 	const [authorizedApps, setAuthorizedApps] = useState<string[] | null>(null);

@@ -20,6 +20,7 @@ interface PlatformUser {
     displayName: string | null;
     photoUrl: string | null;
     isGod: boolean;
+    isActive: boolean;
     settings?: any;
 }
 
@@ -118,6 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 displayName: 'God Admin (Emergency)',
                 photoUrl: null,
                 isGod: true,
+                isActive: true,
                 settings: savedSettings
             };
             const mockTenant: Tenant = {
@@ -204,6 +206,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             displayName: 'God Admin (Simulation)',
             photoUrl: null,
             isGod: true,
+            isActive: true,
             settings: savedSettings
         };
         const mockTenant: Tenant = {

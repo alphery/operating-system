@@ -152,7 +152,7 @@ export class AuthService {
                         mobile: data.mobile || null,
                         displayName: data.name,
                         isGod,
-                        isActive: true,
+                        isActive: isGod,
                     },
                 });
             } catch (error) {
@@ -206,10 +206,10 @@ export class AuthService {
             throw new UnauthorizedException('Invalid User ID or password');
         }
 
-        // 2. Check if user is active
-        if (!platformUser.isActive) {
-            throw new UnauthorizedException('Account is disabled. Contact administrator.');
-        }
+        // 2. Check if user is active - ALLOW but with flag
+        // if (!platformUser.isActive) {
+        //     throw new UnauthorizedException('Account is disabled. Contact administrator.');
+        // }
 
         // 3. Verify password with Firebase
         try {
@@ -268,6 +268,7 @@ export class AuthService {
                 photoUrl: platformUser.photoUrl,
                 settings: platformUser.settings,
                 isGod: platformUser.isGod,
+                isActive: platformUser.isActive,
             },
             tenants: tenants.map((t) => ({
                 id: t.tenant.id,
@@ -351,11 +352,43 @@ export class AuthService {
                             displayName: decodedToken.name || email.split('@')[0],
                             photoUrl: decodedToken.picture || null,
                             isGod: isGod,
-                            isActive: true,
+                            isActive: isGod, // Initially pending unless God
                         },
                     });
 
-                    console.log(`[AUTH] New user created via Google: ${customUid} (${email})`);
+                    // Check if user was invited - if so, auto-activate and link them
+                    const invitation = await this.prisma.invitation.findFirst({
+                        where: { email: email.toLowerCase() },
+                        orderBy: { createdAt: 'desc' }
+                    });
+
+                    if (invitation || isGod) {
+                        await this.prisma.platformUser.update({
+                            where: { id: platformUser.id },
+                            data: { isActive: true }
+                        });
+                        platformUser.isActive = true;
+
+                        // If they were invited to a tenant, we should probably add them to the tenant now
+                        if (invitation) {
+                            try {
+                                await this.prisma.tenantUser.create({
+                                    data: {
+                                        tenantId: invitation.tenantId,
+                                        userId: platformUser.id,
+                                        role: invitation.role || 'member',
+                                        isActive: true
+                                    }
+                                });
+                                // Mark invitation as used (delete it)
+                                await this.prisma.invitation.delete({ where: { id: invitation.id } });
+                            } catch (e) {
+                                console.error('[AUTH] Failed to auto-join tenant from invitation:', e);
+                            }
+                        }
+                    }
+
+                    console.log(`[AUTH] New user created via Google (${platformUser.isActive ? 'Approved' : 'Pending'}): ${customUid} (${email})`);
                 }
             } else {
                 await this.prisma.platformUser.update({
@@ -364,9 +397,10 @@ export class AuthService {
                 });
             }
 
-            if (!platformUser.isActive) {
-                throw new UnauthorizedException('User account is disabled');
-            }
+            // Removed hard block for isActive: false to allow showing Pending screen
+            // if (!platformUser.isActive) {
+            //     throw new UnauthorizedException('User account is disabled');
+            // }
 
             const tenants = await this.getUserTenants(platformUser.id);
 
@@ -391,6 +425,7 @@ export class AuthService {
                     photoUrl: platformUser.photoUrl,
                     settings: platformUser.settings,
                     isGod: platformUser.isGod,
+                    isActive: platformUser.isActive,
                 },
                 tenants: tenants.map((t) => ({
                     id: t.tenant.id,
