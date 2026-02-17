@@ -161,7 +161,7 @@ function GodDashboard() {
       </nav>
 
       <div className="tab-content">
-        {activeTab === 'tenants' && <TenantsList tenants={tenants} users={users} onUpdate={loadPlatformData} />}
+        {activeTab === 'tenants' && <TenantsList tenants={tenants} users={users} allPlatformApps={apps} onUpdate={loadPlatformData} />}
         {activeTab === 'users' && <UsersList users={users} onUpdate={loadPlatformData} />}
         {activeTab === 'apps' && <AppsList apps={apps} onUpdate={loadPlatformData} />}
         {activeTab === 'analytics' && <AnalyticsDashboard />}
@@ -404,10 +404,11 @@ function TenantAdminDashboard() {
 // TENANTS LIST (God Mode) - ENHANCED WIZARD
 // ═══════════════════════════════════════════════════════════
 
-function TenantsList({ tenants, users, onUpdate }: any) {
+function TenantsList({ tenants, users, allPlatformApps, onUpdate }: any) {
   const [showCreate, setShowCreate] = useState(false);
   const [newTenant, setNewTenant] = useState({ name: '', ownerEmail: '' });
   const [editingTenant, setEditingTenant] = useState<any>(null);
+  const [managingAppsTenant, setManagingAppsTenant] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const authenticatedFetch = useAuthenticatedFetch();
 
@@ -611,13 +612,13 @@ function TenantsList({ tenants, users, onUpdate }: any) {
       )}
       <div className="list">
         {tenants.map((tenant: any) => (
-          <div key={tenant.id} className="card clickable" onClick={() => setEditingTenant({ ...tenant })}>
-            <div className="card-header">
+          <div key={tenant.id} className="card">
+            <div className="card-header" onClick={() => setEditingTenant({ ...tenant })} style={{ cursor: 'pointer' }}>
               <h3>{tenant.name}</h3>
               <span className={`plan-badge ${tenant.plan}`}>{tenant.plan}</span>
             </div>
 
-            <div className="card-body">
+            <div className="card-body" onClick={() => setEditingTenant({ ...tenant })} style={{ cursor: 'pointer' }}>
               <div className="info-row">
                 <span className="label">ID:</span>
                 <span className="value code" title={tenant.id}>{tenant.id.substring(0, 8)}...</span>
@@ -627,19 +628,24 @@ function TenantsList({ tenants, users, onUpdate }: any) {
                 <span className="value">{tenant.owner?.email || 'N/A'}</span>
               </div>
               <div className="info-row">
-                <span className="label">Created:</span>
-                <span className="value">{new Date(tenant.createdAt).toLocaleDateString()}</span>
+                <span className="label">Status:</span>
+                <span className={`status-badge ${tenant.isActive !== false ? 'active' : 'inactive'}`}>
+                  {tenant.isActive !== false ? 'Active' : 'Inactive'}
+                </span>
               </div>
             </div>
 
             <div className="card-footer">
-              <div className="stat">
+              <div className="stat" onClick={() => setEditingTenant({ ...tenant })} style={{ cursor: 'pointer' }}>
                 <span className="stat-val">👥 {tenant._count?.users || 0}</span>
                 <span className="stat-label">Users</span>
               </div>
-              <div className="stat">
+              <div className="stat-btn" onClick={(e) => {
+                e.stopPropagation();
+                setManagingAppsTenant(tenant);
+              }}>
                 <span className="stat-val">📱 {tenant._count?.apps || 0}</span>
-                <span className="stat-label">Apps</span>
+                <span className="stat-label">Manage Apps</span>
               </div>
             </div>
           </div>
@@ -651,6 +657,15 @@ function TenantsList({ tenants, users, onUpdate }: any) {
           </div>
         )}
       </div>
+
+      {managingAppsTenant && (
+        <ManageAppsModal
+          tenant={managingAppsTenant}
+          allApps={allPlatformApps}
+          onClose={() => setManagingAppsTenant(null)}
+          onUpdate={onUpdate}
+        />
+      )}
 
       <style jsx>{`
         .tenants-list .header {
@@ -964,182 +979,135 @@ function UsersList({ users, onUpdate }: any) {
         <p className="subtitle">Manage all users across the platform</p>
       </div>
 
-      <table>
-        <thead>
-          <tr>
-            <th>User ID</th>
-            <th>Email</th>
-            <th>Name</th>
-            <th>Mobile</th>
-            <th>Status</th>
-            <th>God</th>
-            <th>Tenants</th>
-            <th>Created</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.map((user: any) => (
-            <tr key={user.id} className={!user.isActive ? 'inactive' : ''}>
-              <td>
-                <span className="user-id">{user.customUid}</span>
-              </td>
-              <td>{user.email}</td>
-              <td>{user.displayName || '-'}</td>
-              <td>{user.mobile || '-'}</td>
-              <td>
-                <span className={`status-badge ${user.isActive ? 'active' : 'inactive'}`}>
-                  {user.isActive ? '✓ Active' : '✗ Inactive'}
-                </span>
-              </td>
-              <td>
-                {user.isGod ? (
-                  <span className="god-badge">⭐ GOD</span>
-                ) : (
-                  '-'
-                )}
-              </td>
-              <td>{user.tenantMemberships?.length || 0}</td>
-              <td>{new Date(user.createdAt).toLocaleDateString()}</td>
-              <td>
-                <div className="actions">
-                  <button
-                    onClick={() => toggleUserStatus(user.id, user.isActive)}
-                    disabled={loading === user.id}
-                    className="btn-small"
-                  >
-                    {user.isActive ? 'Deactivate' : 'Activate'}
-                  </button>
-                  {!user.isGod && (
-                    <button
-                      onClick={() => promoteToGod(user.id)}
-                      disabled={loading === user.id}
-                      className="btn-small btn-promote"
-                    >
-                      Promote
-                    </button>
-                  )}
-                </div>
-              </td>
+      <div className="user-table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Identity</th>
+              <th>Email & Auth</th>
+              <th>Name & Contact</th>
+              <th>Status</th>
+              <th>God Mode</th>
+              <th>Access</th>
+              <th>Actions</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {users.map((user: any) => (
+              <tr key={user.id} className={!user.isActive ? 'inactive' : ''}>
+                <td>
+                  <div className="user-id-stack">
+                    <span className="user-id" title="Custom Platform UID">{user.customUid}</span>
+                    <span className="db-id" title="Database UUID">{user.id.substring(0, 8)}...</span>
+                  </div>
+                </td>
+                <td>
+                  <div className="email-stack">
+                    <span className="email-text">{user.email}</span>
+                    <span className={`provider-tag ${user.firebaseUid ? 'google' : 'local'}`}>
+                      {user.firebaseUid ? 'G Google Auth' : '⌨ Local Login'}
+                    </span>
+                  </div>
+                </td>
+                <td>
+                  <div className="name-stack">
+                    <span className="user-name">{user.displayName || 'Unnamed User'}</span>
+                    <span className="user-mobile">{user.mobile || 'No Mobile'}</span>
+                  </div>
+                </td>
+                <td>
+                  <span className={`status-badge ${user.isActive ? 'active' : 'inactive'}`}>
+                    {user.isActive ? '✓ Active' : '✗ Disabled'}
+                  </span>
+                </td>
+                <td>
+                  {user.isGod ? (
+                    <span className="god-badge-pro">⭐ GOD MODE</span>
+                  ) : (
+                    <span className="no-god">-</span>
+                  )}
+                </td>
+                <td>
+                  <div className="tenants-count">
+                    <strong>{user.tenantMemberships?.length || 0}</strong> Tenants
+                  </div>
+                  <div className="created-at">Since {new Date(user.createdAt).toLocaleDateString()}</div>
+                </td>
+                <td>
+                  <div className="actions">
+                    <button
+                      onClick={() => toggleUserStatus(user.id, user.isActive)}
+                      disabled={loading === user.id}
+                      className={`btn-action ${user.isActive ? 'btn-red' : 'btn-green'}`}
+                    >
+                      {user.isActive ? 'Deactivate' : 'Activate'}
+                    </button>
+                    {!user.isGod && (
+                      <button
+                        onClick={() => promoteToGod(user.id)}
+                        disabled={loading === user.id}
+                        className="btn-action btn-gold"
+                      >
+                        Promote to God
+                      </button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       <style jsx>{`
-        .users-list .header {
-          margin-bottom: 1.5rem;
+        .users-list .header { margin-bottom: 2rem; }
+        .users-list h2 { margin: 0; color: #2d3748; }
+        .subtitle { color: #718096; margin-top: 0.25rem; }
+
+        .user-table-container {
+          background: #f8fafc;
+          border-radius: 12px;
+          overflow: hidden;
+          border: 1px solid #e2e8f0;
         }
 
-        .users-list h2 {
-          margin: 0 0 0.5rem 0;
-          color: #333;
-        }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #edf2f7; padding: 1rem; text-align: left; font-size: 0.75rem; color: #4a5568; text-transform: uppercase; letter-spacing: 0.05em; }
+        td { padding: 1.25rem 1rem; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover { background: #f1f5f9; }
+        tr.inactive { background: #fafafa; }
 
-        .subtitle {
-          margin: 0;
-          color: #666;
-          font-size: 0.9rem;
-        }
+        .user-id-stack { display: flex; flex-direction: column; gap: 0.25rem; }
+        .user-id { font-family: monospace; font-weight: 700; color: #4c51bf; background: #e0e7ff; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.85rem; }
+        .db-id { font-size: 0.7rem; color: #a0aec0; }
 
-        table {
-          width: 100%;
-          border-collapse: collapse;
-          font-size: 0.9rem;
-        }
+        .email-stack { display: flex; flex-direction: column; gap: 0.35rem; }
+        .email-text { font-weight: 600; color: #2d3748; }
+        .provider-tag { font-size: 0.7rem; font-weight: 700; padding: 0.1rem 0.4rem; border-radius: 4px; width: fit-content; text-transform: uppercase; }
+        .provider-tag.google { background: #fff5f5; color: #c53030; border: 1px solid #feb2b2; }
+        .provider-tag.local { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
 
-        th {
-          background: #f5f7fa;
-          padding: 0.75rem;
-          text-align: left;
-          font-weight: 600;
-          color: #333;
-          white-space: nowrap;
-        }
+        .name-stack { display: flex; flex-direction: column; }
+        .user-name { font-weight: 700; color: #1a202c; }
+        .user-mobile { font-size: 0.8rem; color: #718096; }
 
-        td {
-          padding: 0.75rem;
-          border-bottom: 1px solid #e5e7eb;
-        }
+        .status-badge { padding: 0.35rem 0.75rem; border-radius: 99px; font-size: 0.75rem; font-weight: 700; }
+        .status-badge.active { background: #d1fae5; color: #065f46; }
+        .status-badge.inactive { background: #fee2e2; color: #991b1b; }
 
-        tr:hover {
-          background: #f9fafb;
-        }
+        .god-badge-pro { background: linear-gradient(135deg, #7066E0 0%, #C084FC 100%); color: white; padding: 0.35rem 0.75rem; border-radius: 6px; font-size: 0.7rem; font-weight: 800; }
+        .no-god { color: #cbd5e1; font-weight: 300; }
 
-        tr.inactive {
-          opacity: 0.6;
-        }
+        .tenants-count { font-size: 0.9rem; color: #4a5568; }
+        .created-at { font-size: 0.75rem; color: #a0aec0; margin-top: 0.2rem; }
 
-        .user-id {
-          font-family: 'Courier New', monospace;
-          background: #667eea20;
-          padding: 0.25rem 0.5rem;
-          border-radius: 4px;
-          font-weight: 600;
-          color: #667eea;
-        }
-
-        .status-badge {
-          padding: 0.25rem 0.75rem;
-          border-radius: 4px;
-          font-size: 0.75rem;
-          font-weight: 600;
-          white-space: nowrap;
-        }
-
-        .status-badge.active {
-          background: #d1fae5;
-          color: #065f46;
-        }
-
-        .status-badge.inactive {
-          background: #fee2e2;
-          color: #991b1b;
-        }
-
-        .god-badge {
-          background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-          padding: 0.25rem 0.75rem;
-          border-radius: 4px;
-          font-size: 0.75rem;
-          font-weight: 600;
-          color: white;
-          white-space: nowrap;
-        }
-
-        .actions {
-          display: flex;
-          gap: 0.5rem;
-        }
-
-        .btn-small {
-          padding: 0.25rem 0.75rem;
-          font-size: 0.75rem;
-          border: none;
-          border-radius: 4px;
-          cursor: pointer;
-          background: #667eea;
-          color: white;
-          font-weight: 600;
-          transition: all 0.2s;
-        }
-
-        .btn-small:hover:not(:disabled) {
-          background: #5568d3;
-        }
-
-        .btn-small:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-
-        .btn-promote {
-          background: #f59e0b;
-        }
-
-        .btn-promote:hover:not(:disabled) {
-          background: #d97706;
-        }
+        .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .btn-action { padding: 0.5rem 0.75rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700; border: none; cursor: pointer; transition: all 0.2s; }
+        .btn-action:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .btn-action:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-green { background: #16a34a; color: white; }
+        .btn-red { background: #dc2626; color: white; }
       `}</style>
     </div>
   );
@@ -1169,68 +1137,16 @@ function AppsList({ apps, onUpdate }: any) {
       </div>
 
       <style jsx>{`
-        .apps-list h2 {
-          margin-bottom: 1.5rem;
-          color: #333;
-        }
-
-        .grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-          gap: 1.5rem;
-        }
-
-        .app-card {
-          background: white;
-          padding: 1.5rem;
-          border-radius: 8px;
-          border: 2px solid #e5e7eb;
-          transition: all 0.3s;
-        }
-
-        .app-card:hover {
-          border-color: #667eea;
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
-        }
-
-        .app-card h3 {
-          margin: 0 0 0.5rem 0;
-          color: #667eea;
-        }
-
-        .app-card p {
-          margin: 0 0 1rem 0;
-          font-size: 0.9rem;
-          color: #666;
-        }
-
-        .meta {
-          display: flex;
-          gap: 0.5rem;
-        }
-
-        .badge {
-          padding: 0.25rem 0.75rem;
-          border-radius: 4px;
-          font-size: 0.75rem;
-          font-weight: 600;
-          background: #f3f4f6;
-          color: #6b7280;
-        }
-
-        .badge.core {
-          background: #667eea;
-          color: white;
-        }
-
-        .category {
-          padding: 0.25rem 0.75rem;
-          border-radius: 4px;
-          font-size: 0.75rem;
-          background: #f9fafb;
-          color: #9ca3af;
-        }
+        .apps-list h2 { margin-bottom: 1.5rem; color: #333; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1.5rem; }
+        .app-card { background: white; padding: 1.5rem; border-radius: 8px; border: 2px solid #e5e7eb; transition: all 0.3s; }
+        .app-card:hover { border-color: #667eea; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2); }
+        .app-card h3 { margin: 0 0 0.5rem 0; color: #667eea; }
+        .app-card p { margin: 0 0 1rem 0; font-size: 0.9rem; color: #666; }
+        .meta { display: flex; gap: 0.5rem; }
+        .badge { padding: 0.25rem 0.75rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; background: #f3f4f6; color: #6b7280; }
+        .badge.core { background: #667eea; color: white; }
+        .category { padding: 0.25rem 0.75rem; border-radius: 4px; font-size: 0.75rem; background: #f9fafb; color: #9ca3af; }
       `}</style>
     </div>
   );
@@ -1244,73 +1160,169 @@ function TenantUsersList({ users, tenantId, onUpdate }: any) {
   return (
     <div className="tenant-users-list">
       <h2>👥 Team Members</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Role</th>
-            <th>Permitted Apps</th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.map((member: any) => (
-            <tr key={member.id}>
-              <td>{member.user.displayName || '-'}</td>
-              <td>{member.user.email}</td>
-              <td>
-                <span className={`role-badge ${member.role}`}>{member.role}</span>
-              </td>
-              <td>{member.appPermissions?.length || 0} apps</td>
+      <div className="user-table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Permitted Apps</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {users.map((member: any) => (
+              <tr key={member.id}>
+                <td>{member.user.displayName || member.user.email.split('@')[0]}</td>
+                <td>{member.user.email}</td>
+                <td>
+                  <span className={`role-badge ${member.role}`}>{member.role}</span>
+                </td>
+                <td>{member.appPermissions?.length || 0} apps</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       <style jsx>{`
-        .tenant-users-list h2 {
-          margin-bottom: 1.5rem;
-        }
+        .tenant-users-list h2 { margin-bottom: 1.5rem; }
+        .user-table-container { background: white; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #f8fafc; padding: 1rem; text-align: left; font-weight: 600; color: #4a5568; }
+        td { padding: 1rem; border-bottom: 1px solid #f1f5f9; }
+        .role-badge { padding: 0.25rem 0.75rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
+        .role-badge.owner { background: #fef3c7; color: #92400e; }
+        .role-badge.admin { background: #dbeafe; color: #1e40af; }
+        .role-badge.member { background: #d1fae5; color: #065f46; }
+      `}</style>
+    </div>
+  );
+}
 
-        table {
-          width: 100%;
-          border-collapse: collapse;
-        }
+// ═══════════════════════════════════════════════════════════
+// MANAGE APPS MODAL (Super Admin)
+// ═══════════════════════════════════════════════════════════
 
-        th {
-          background: #f5f7fa;
-          padding: 0.75rem;
-          text-align: left;
-          font-weight: 600;
-        }
+function ManageAppsModal({ tenant, allApps, onClose, onUpdate }: any) {
+  const [tenantApps, setTenantApps] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState<string | null>(null);
+  const authenticatedFetch = useAuthenticatedFetch();
 
-        td {
-          padding: 0.75rem;
-          border-bottom: 1px solid #e5e7eb;
-        }
+  useEffect(() => {
+    loadTenantApps();
+  }, [tenant.id]);
 
-        .role-badge {
-          padding: 0.25rem 0.75rem;
-          border-radius: 4px;
-          font-size: 0.75rem;
-          font-weight: 600;
-          text-transform: uppercase;
-        }
+  async function loadTenantApps() {
+    setLoading(true);
+    try {
+      const res = await authenticatedFetch(`${BACKEND_URL}/tenants/${tenant.id}/apps`);
+      if (res.ok) {
+        setTenantApps(await res.json());
+      }
+    } catch (err) {
+      console.error('Failed to load tenant apps:', err);
+    } finally {
+      setLoading(false);
+    }
+  }
 
-        .role-badge.owner {
-          background: #fef3c7;
-          color: #92400e;
-        }
+  const toggleApp = async (appId: string, currentlyEnabled: boolean) => {
+    setProcessing(appId);
+    try {
+      const method = currentlyEnabled ? 'DELETE' : 'POST';
+      const res = await authenticatedFetch(`${BACKEND_URL}/tenants/${tenant.id}/apps/${appId}`, {
+        method
+      });
+      if (res.ok) {
+        await loadTenantApps();
+        onUpdate();
+      }
+    } catch (err) {
+      alert('Failed to update app status');
+    } finally {
+      setProcessing(null);
+    }
+  };
 
-        .role-badge.admin {
-          background: #dbeafe;
-          color: #1e40af;
-        }
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal wide-modal animate-in" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <div>
+            <h3>📱 Manage App Permissions</h3>
+            <p className="modal-subtitle">Enabling apps for <strong>{tenant.name}</strong></p>
+          </div>
+          <button className="close-btn" onClick={onClose}>×</button>
+        </div>
 
-        .role-badge.member {
-          background: #d1fae5;
-          color: #065f46;
-        }
+        <div className="modal-body">
+          {loading ? (
+            <div className="loading-state">Loading tenant application bundle...</div>
+          ) : (
+            <div className="app-permission-grid">
+              {allApps.map((app: any) => {
+                const tenantAppEntry = tenantApps.find(ta => ta.appId === app.id);
+                const isEnabled = tenantAppEntry && tenantAppEntry.enabled;
+
+                return (
+                  <div key={app.id} className={`app-perm-card ${isEnabled ? 'enabled' : 'disabled'}`}>
+                    <div className="app-icon-small">{app.iconUrl || '📦'}</div>
+                    <div className="app-info">
+                      <div className="app-name-row">
+                        <h4>{app.name}</h4>
+                        {app.isCore && <span className="core-tag">Core</span>}
+                      </div>
+                      <p>{app.description}</p>
+                    </div>
+                    <div className="app-toggle">
+                      <button
+                        onClick={() => toggleApp(app.id, !!isEnabled)}
+                        disabled={processing === app.id}
+                        className={`toggle-btn ${isEnabled ? 'on' : 'off'}`}
+                      >
+                        {processing === app.id ? '...' : isEnabled ? 'Enabled' : 'Disabled'}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="modal-actions-footer">
+          <button className="btn-finish" onClick={onClose}>Done</button>
+        </div>
+      </div>
+
+      <style jsx>{`
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; z-index: 9999; }
+        .modal { background: white; width: 100%; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); overflow: hidden; color: #1a202c; }
+        .wide-modal { max-width: 800px; }
+        .modal-header { padding: 1.5rem 2rem; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc; }
+        .modal-subtitle { color: #64748b; font-size: 0.9rem; margin: 0; }
+        .close-btn { background: none; border: none; font-size: 1.5rem; color: #a0aec0; cursor: pointer; }
+        .modal-body { padding: 2rem; max-height: 500px; overflow-y: auto; }
+        .loading-state { padding: 3rem; text-align: center; color: #64748b; font-style: italic; }
+        .app-permission-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .app-perm-card { display: flex; align-items: center; gap: 1rem; padding: 1rem; border-radius: 12px; border: 1px solid #e2e8f0; transition: all 0.2s; background: #fff; }
+        .app-perm-card.enabled { border-color: #667eea; background: #f5f3ff; }
+        .app-perm-card.disabled { opacity: 0.8; }
+        .app-icon-small { font-size: 1.5rem; }
+        .app-info { flex: 1; }
+        .app-info h4 { margin: 0; font-size: 0.95rem; color: #1e293b; }
+        .app-name-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem; }
+        .core-tag { font-size: 0.65rem; background: #e0e7ff; color: #4338ca; padding: 0.1rem 0.4rem; border-radius: 4px; font-weight: 800; text-transform: uppercase; }
+        .app-info p { margin: 0; font-size: 0.75rem; color: #64748b; line-height: 1.3; }
+        .toggle-btn { padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700; border: none; cursor: pointer; transition: all 0.2s; min-width: 80px; }
+        .toggle-btn.on { background: #667eea; color: white; }
+        .toggle-btn.off { background: #f1f5f9; color: #64748b; }
+        .modal-actions-footer { padding: 1.5rem 2rem; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; }
+        .btn-finish { background: #1a202c; color: white; border: none; padding: 0.75rem 2rem; border-radius: 8px; font-weight: 700; cursor: pointer; }
+        .animate-in { animation: slideUp 0.3s ease-out; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
     </div>
   );
@@ -1322,67 +1334,44 @@ function TenantUsersList({ users, tenantId, onUpdate }: any) {
 
 function TenantAppsList({ apps, tenantId, onUpdate }: any) {
   return (
-    <div className="tenant-apps-list">
-      <h2>📱 Enabled Apps</h2>
-      <div className="grid">
-        {apps.map((tenantApp: any) => (
-          <div key={tenantApp.id} className="app-card">
-            <h3>{tenantApp.app.name}</h3>
-            <p>{tenantApp.app.description}</p>
-            <div className="status">
-              <span className={`badge ${tenantApp.enabled ? 'enabled' : 'disabled'}`}>
-                {tenantApp.enabled ? '✓ Enabled' : '✗ Disabled'}
-              </span>
-            </div>
+    <div className="tenant-apps">
+      <h2>📱 Organization Applications</h2>
+      <p className="subtitle">Applications enabled for your workspace</p>
+
+      <div className="apps-grid">
+        {apps.length === 0 ? (
+          <div className="empty-apps">
+            <p>No extra applications enabled by super admin yet.</p>
           </div>
-        ))}
+        ) : (
+          apps.map((ta: any) => (
+            <div key={ta.appId} className={`app-card-simple ${ta.enabled ? 'active' : 'disabled'}`}>
+              <div className="icon">{ta.app?.iconUrl || '📦'}</div>
+              <div className="info">
+                <h3>{ta.app?.name}</h3>
+                <p>{ta.app?.description}</p>
+              </div>
+              <div className={`status-tag ${ta.enabled ? 'enabled' : 'disabled'}`}>
+                {ta.enabled ? 'Enabled' : 'Restricted'}
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       <style jsx>{`
-        .tenant-apps-list h2 {
-          margin-bottom: 1.5rem;
-        }
-
-        .grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-          gap: 1.5rem;
-        }
-
-        .app-card {
-          background: white;
-          padding: 1.5rem;
-          border-radius: 8px;
-          border: 2px solid #e5e7eb;
-        }
-
-        .app-card h3 {
-          margin: 0 0 0.5rem 0;
-          color: #667eea;
-        }
-
-        .app-card p {
-          margin: 0 0 1rem 0;
-          font-size: 0.9rem;
-          color: #666;
-        }
-
-        .badge {
-          padding: 0.25rem 0.75rem;
-          border-radius: 4px;
-          font-size: 0.75rem;
-          font-weight: 600;
-        }
-
-        .badge.enabled {
-          background: #d1fae5;
-          color: #065f46;
-        }
-
-        .badge.disabled {
-          background: #fee2e2;
-          color: #991b1b;
-        }
+        .tenant-apps h2 { margin-bottom: 0.25rem; }
+        .subtitle { color: #666; margin-bottom: 2rem; font-size: 0.9rem; }
+        .apps-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; }
+        .app-card-simple { display: flex; align-items: center; gap: 1rem; padding: 1.25rem; border-radius: 12px; border: 1px solid #e2e8f0; background: #fff; }
+        .icon { font-size: 2rem; }
+        .info { flex: 1; }
+        .info h3 { margin: 0; font-size: 1rem; color: #1a202c; }
+        .info p { margin: 0.25rem 0 0 0; font-size: 0.8rem; color: #64748b; line-height: 1.4; }
+        .status-tag { font-size: 0.7rem; font-weight: 700; padding: 0.25rem 0.5rem; border-radius: 4px; text-transform: uppercase; }
+        .status-tag.enabled { background: #dcfce7; color: #166534; }
+        .status-tag.disabled { background: #fee2e2; color: #991b1b; }
+        .empty-apps { padding: 3rem; text-align: center; color: #a0aec0; border: 2px dashed #e2e8f0; border-radius: 12px; grid-column: 1 / -1; }
       `}</style>
     </div>
   );
