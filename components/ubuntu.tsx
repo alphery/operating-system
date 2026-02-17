@@ -117,9 +117,8 @@ export default function Ubuntu() {
 	}, [platformUser]);
 
 	const isPending = useMemo(() => {
-		// Pending if we have a Firebase user but NO platform user record yet,
-		// OR if the platform user record exists but is NOT active.
-		return !!user && (!platformUser || platformUser.isActive === false);
+		// Pending if we have a Firebase user but they aren't explicitly approved yet
+		return !!user && (!platformUser || platformUser.isActive !== true);
 	}, [user, platformUser]);
 
 	const [authorizedApps, setAuthorizedApps] = useState<string[] | null>(null);
