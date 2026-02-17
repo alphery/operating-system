@@ -321,23 +321,42 @@ export class AuthService {
             });
 
             if (!platformUser) {
-                // Auto-create for legacy users
-                const customUid = await this.generateCustomUid();
-                const isGod = this.isGodEmail(email);
-
-                platformUser = await this.prisma.platformUser.create({
-                    data: {
-                        customUid,
-                        firebaseUid: firebaseUid,
-                        email: email.toLowerCase(),
-                        displayName: decodedToken.name || email.split('@')[0],
-                        photoUrl: decodedToken.picture || null,
-                        isGod: isGod,
-                        isActive: true,
-                    },
+                // Try to find by email (for users created via platform dashboard but not yet linked to Firebase)
+                platformUser = await this.prisma.platformUser.findUnique({
+                    where: { email: email.toLowerCase() },
                 });
 
-                console.log(`[AUTH] Legacy user migrated: ${customUid} (${email})`);
+                if (platformUser) {
+                    // Link existing placeholder user to this Firebase UID
+                    platformUser = await this.prisma.platformUser.update({
+                        where: { id: platformUser.id },
+                        data: {
+                            firebaseUid: firebaseUid,
+                            displayName: platformUser.displayName || decodedToken.name || email.split('@')[0],
+                            photoUrl: platformUser.photoUrl || decodedToken.picture || null,
+                            lastLoginAt: new Date(),
+                        }
+                    });
+                    console.log(`[AUTH] Placeholder user linked to Firebase: ${platformUser.customUid} (${email})`);
+                } else {
+                    // Auto-create for truly new users
+                    const customUid = await this.generateCustomUid();
+                    const isGod = this.isGodEmail(email);
+
+                    platformUser = await this.prisma.platformUser.create({
+                        data: {
+                            customUid,
+                            firebaseUid: firebaseUid,
+                            email: email.toLowerCase(),
+                            displayName: decodedToken.name || email.split('@')[0],
+                            photoUrl: decodedToken.picture || null,
+                            isGod: isGod,
+                            isActive: true,
+                        },
+                    });
+
+                    console.log(`[AUTH] New user created via Google: ${customUid} (${email})`);
+                }
             } else {
                 await this.prisma.platformUser.update({
                     where: { id: platformUser.id },
