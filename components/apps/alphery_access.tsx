@@ -95,6 +95,7 @@ function GodDashboard() {
   const [users, setUsers] = useState([]);
   const [apps, setApps] = useState([]);
   const [activeTab, setActiveTab] = useState('tenants');
+  const [permManagingApp, setPermManagingApp] = useState<any>(null);
   const authenticatedFetch = useAuthenticatedFetch();
 
   // Check if we're in emergency mode
@@ -171,9 +172,17 @@ function GodDashboard() {
       <div className="tab-content">
         {activeTab === 'tenants' && <TenantsList tenants={tenants} users={users} allPlatformApps={apps} onUpdate={loadPlatformData} />}
         {activeTab === 'users' && <UsersList users={users} onUpdate={loadPlatformData} />}
-        {activeTab === 'apps' && <AppsList apps={apps} onUpdate={loadPlatformData} />}
+        {activeTab === 'apps' && <AppsList apps={apps} onSelect={(app: any) => setPermManagingApp(app)} onUpdate={loadPlatformData} />}
         {activeTab === 'analytics' && <AnalyticsDashboard />}
       </div>
+
+      {permManagingApp && (
+        <AppAccessModal
+          app={permManagingApp}
+          onClose={() => setPermManagingApp(null)}
+          onUpdate={loadPlatformData}
+        />
+      )}
 
       <style jsx>{`
         .god-dashboard {
@@ -1263,37 +1272,268 @@ function UsersList({ users, onUpdate }: any) {
 // APPS LIST (God Mode)
 // ═══════════════════════════════════════════════════════════
 
-function AppsList({ apps, onUpdate }: any) {
+// ═══════════════════════════════════════════════════════════
+// APPS LIST (God Mode)
+// ═══════════════════════════════════════════════════════════
+
+function AppsList({ apps, onSelect, onUpdate }: any) {
   return (
     <div className="apps-list">
-      <h2>📱 Application Catalog</h2>
+      <div className="header">
+        <h2>📱 Application Catalog</h2>
+        <p className="subtitle">Click an app to manage platform-wide permissions</p>
+      </div>
       <div className="grid">
         {apps.map((app: any) => (
-          <div key={app.id} className="app-card">
+          <div key={app.id} className="app-card" onClick={() => onSelect(app)}>
+            <div className="app-icon-wrapper">
+              <span className="app-id-pill">{app.id}</span>
+            </div>
             <h3>{app.name}</h3>
             <p>{app.description}</p>
             <div className="meta">
               <span className={`badge ${app.isCore ? 'core' : ''}`}>
-                {app.isCore ? 'Core' : 'Optional'}
+                {app.isCore ? 'Core System' : 'Standard App'}
               </span>
               <span className="category">{app.category}</span>
+            </div>
+
+            <div className="usage-stat">
+              <span className="dot"></span>
+              Used by {app._count?.tenantApps || 0} organizations
             </div>
           </div>
         ))}
       </div>
 
       <style jsx>{`
-        .apps-list h2 { margin-bottom: 1.5rem; color: #333; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1.5rem; }
-        .app-card { background: white; padding: 1.5rem; border-radius: 8px; border: 2px solid #e5e7eb; transition: all 0.3s; }
-        .app-card:hover { border-color: #667eea; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2); }
-        .app-card h3 { margin: 0 0 0.5rem 0; color: #667eea; }
-        .app-card p { margin: 0 0 1rem 0; font-size: 0.9rem; color: #666; }
-        .meta { display: flex; gap: 0.5rem; }
-        .badge { padding: 0.25rem 0.75rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; background: #f3f4f6; color: #6b7280; }
-        .badge.core { background: #667eea; color: white; }
-        .category { padding: 0.25rem 0.75rem; border-radius: 4px; font-size: 0.75rem; background: #f9fafb; color: #9ca3af; }
+        .apps-list .header { margin-bottom: 2rem; }
+        .apps-list h2 { margin: 0; color: #2d3748; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; }
+        
+        .app-card { 
+          background: white; 
+          padding: 1.5rem; 
+          border-radius: 16px; 
+          border: 2px solid #e2e8f0; 
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); 
+          cursor: pointer;
+          position: relative;
+          overflow: hidden;
+        }
+        
+        .app-card:hover { 
+          border-color: #667eea; 
+          transform: translateY(-4px); 
+          box-shadow: 0 12px 20px rgba(102, 126, 234, 0.15); 
+        }
+
+        .app-icon-wrapper { margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: flex-start; }
+        .app-id-pill { font-size: 0.65rem; font-family: monospace; font-weight: 800; background: #f1f5f9; color: #64748b; padding: 0.2rem 0.5rem; border-radius: 4px; text-transform: uppercase; }
+
+        .app-card h3 { margin: 0 0 0.5rem 0; color: #1a202c; font-size: 1.25rem; }
+        .app-card p { margin: 0 0 1.25rem 0; font-size: 0.9rem; color: #4a5568; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        
+        .meta { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+        .badge { padding: 0.25rem 0.6rem; border-radius: 6px; font-size: 0.7rem; font-weight: 700; background: #f3f4f6; color: #6b7280; text-transform: uppercase; }
+        .badge.core { background: #e0e7ff; color: #4338ca; }
+        .category { padding: 0.25rem 0.6rem; border-radius: 6px; font-size: 0.7rem; font-weight: 600; background: #f8fafc; color: #94a3b8; text-transform: capitalize; border: 1px solid #f1f5f9; }
+
+        .usage-stat { font-size: 0.75rem; color: #94a3b8; display: flex; align-items: center; gap: 0.5rem; border-top: 1px solid #f1f5f9; pt: 1rem; margin-top: 0.5rem; padding-top: 0.75rem; }
+        .usage-stat .dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; display: inline-block; }
       `}</style>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// APP ACCESS MODAL (Global Permission Manager)
+// ═══════════════════════════════════════════════════════════
+
+function AppAccessModal({ app, onClose, onUpdate }: any) {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const authenticatedFetch = useAuthenticatedFetch();
+
+  useEffect(() => {
+    loadConsumers();
+  }, [app.id]);
+
+  async function loadConsumers() {
+    setLoading(true);
+    try {
+      const res = await authenticatedFetch(`${BACKEND_URL}/platform/apps/${app.id}/consumers`);
+      if (res.ok) setData(await res.json());
+    } catch (err) {
+      console.error('Failed to load consumers:', err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const toggleTenantAccess = async (tenantId: string) => {
+    setProcessing(`t-${tenantId}`);
+    try {
+      const res = await authenticatedFetch(`${BACKEND_URL}/platform/apps/${app.id}/tenants/${tenantId}/toggle`, {
+        method: 'PATCH'
+      });
+      if (res.ok) loadConsumers();
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  const toggleUserAccess = async (userId: string) => {
+    setProcessing(`u-${userId}`);
+    try {
+      const res = await authenticatedFetch(`${BACKEND_URL}/platform/apps/${app.id}/users/${userId}/toggle`, {
+        method: 'PATCH'
+      });
+      if (res.ok) loadConsumers();
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  const filteredTenants = data?.tenants?.filter((t: any) =>
+    t.name.toLowerCase().includes(search.toLowerCase()) ||
+    t.customShortId?.toLowerCase().includes(search.toLowerCase())
+  ) || [];
+
+  const filteredUsers = data?.users?.filter((u: any) =>
+    u.email.toLowerCase().includes(search.toLowerCase()) ||
+    u.displayName?.toLowerCase().includes(search.toLowerCase())
+  ) || [];
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal wider-modal animate-in" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <div className="app-info">
+            <span className="app-icon-large">📱</span>
+            <div>
+              <h3>Permissions: {app.name}</h3>
+              <p className="subtitle">Managing platform-wide access rights</p>
+            </div>
+          </div>
+          <button className="close-btn" onClick={onClose}>×</button>
+        </div>
+
+        <div className="modal-search">
+          <input
+            placeholder="🔍 Search tenants or staff members..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="search-input"
+          />
+        </div>
+
+        <div className="modal-body">
+          {loading ? (
+            <div className="loading-state">
+              <div className="spinner-large"></div>
+              <p>Fetching permission map...</p>
+            </div>
+          ) : (
+            <div className="access-grid">
+              {/* TENANTS SECTION */}
+              <section className="access-section">
+                <div className="section-header">
+                  <h4>🏢 Organizations ({filteredTenants.length})</h4>
+                  <p>Hides/Shows app for all workspace members</p>
+                </div>
+                <div className="access-list">
+                  {filteredTenants.map((t: any) => (
+                    <div key={t.id} className="access-item">
+                      <div className="item-info">
+                        <span className="id-tag">{t.customShortId || 'TENANT'}</span>
+                        <span className="name">{t.name}</span>
+                      </div>
+                      <button
+                        className={`toggle-btn ${t.enabled ? 'enabled' : ''}`}
+                        disabled={processing === `t-${t.id}`}
+                        onClick={() => toggleTenantAccess(t.id)}
+                      >
+                        {processing === `t-${t.id}` ? '...' : (t.enabled ? 'ENABLED' : 'DISABLED')}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {/* STAFF/USERS SECTION */}
+              <section className="access-section">
+                <div className="section-header">
+                  <h4>👥 Platform Staff & Private Users ({filteredUsers.length})</h4>
+                  <p>Individual access for non-workspace roles</p>
+                </div>
+                <div className="access-list">
+                  {filteredUsers.map((u: any) => (
+                    <div key={u.id} className="access-item">
+                      <div className="item-info">
+                        <span className={`role-pill ${u.role}`}>{u.role}</span>
+                        <div className="user-details">
+                          <span className="name">{u.displayName || 'Unnamed Staff'}</span>
+                          <span className="email">{u.email}</span>
+                        </div>
+                      </div>
+                      <button
+                        className={`toggle-btn ${u.enabled ? 'enabled' : ''}`}
+                        disabled={processing === `u-${u.id}` || u.role === 'super_admin'}
+                        onClick={() => toggleUserAccess(u.id)}
+                      >
+                        {u.role === 'super_admin' ? 'FULL ACCESS' : (processing === `u-${u.id}` ? '...' : (u.enabled ? 'GRANTED' : 'REVOKED'))}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </div>
+          )}
+        </div>
+
+        <style jsx>{`
+          .wider-modal { max-width: 900px !important; }
+          .modal-header .app-info { display: flex; align-items: center; gap: 1rem; }
+          .app-icon-large { font-size: 2rem; }
+          .modal-search { padding: 1rem 2rem; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+          .search-input { width: 100%; border: 2px solid #e2e8f0; padding: 0.6rem 1rem; border-radius: 12px; font-size: 0.95rem; }
+          .modal-body { padding: 0; max-height: 60vh; overflow-y: auto; }
+          
+          .access-grid { display: grid; grid-template-columns: 1fr 1fr; divide-x: 1px solid #e2e8f0; }
+          .access-section { padding: 1.5rem 2rem; border-right: 1px solid #f1f5f9; }
+          .access-section:last-child { border-right: none; }
+          
+          .section-header { margin-bottom: 1.5rem; }
+          .section-header h4 { margin: 0; color: #1a202c; font-weight: 700; }
+          .section-header p { margin: 0.25rem 0 0 0; font-size: 0.8rem; color: #718096; }
+
+          .access-list { display: flex; flex-direction: column; gap: 0.75rem; }
+          .access-item { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: #f8fafc; border-radius: 12px; border: 1px solid #f1f5f9; }
+          
+          .item-info { display: flex; align-items: center; gap: 0.75rem; }
+          .id-tag { font-family: monospace; font-size: 0.7rem; font-weight: 800; background: #e2e8f0; color: #475569; padding: 0.15rem 0.4rem; border-radius: 4px; }
+          .name { font-weight: 600; font-size: 0.9rem; color: #334155; }
+          
+          .user-details { display: flex; flex-direction: column; }
+          .email { font-size: 0.75rem; color: #94a3b8; }
+          
+          .role-pill { font-size: 0.6rem; font-weight: 800; text-transform: uppercase; padding: 0.1rem 0.4rem; border-radius: 4px; }
+          .role-pill.super_admin { background: #fee2e2; color: #ef4444; }
+          .role-pill.user { background: #f1f5f9; color: #64748b; }
+          .role-pill.tenant_admin { background: #dcfce7; color: #166534; }
+
+          .toggle-btn { padding: 0.4rem 0.75rem; border-radius: 8px; font-size: 0.7rem; font-weight: 800; cursor: pointer; border: none; transition: all 0.2s; min-width: 85px; }
+          .toggle-btn.enabled { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+          .toggle-btn:not(.enabled) { background: #f1f5f9; color: #94a3b8; border: 1px solid #e2e8f0; }
+          .toggle-btn:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(0.95); }
+          
+          .loading-state { padding: 4rem; text-align: center; color: #94a3b8; }
+          .spinner-large { width: 3rem; height: 3rem; border: 4px solid #f1f5f9; border-top-color: #667eea; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 1rem; }
+        `}</style>
+      </div>
     </div>
   );
 }
@@ -1302,46 +1542,278 @@ function AppsList({ apps, onUpdate }: any) {
 // TENANT USERS LIST
 // ═══════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════
+// TENANT USERS LIST
+// ═══════════════════════════════════════════════════════════
+
 function TenantUsersList({ users, tenantId, onUpdate }: any) {
+  const [showInvite, setShowInvite] = useState(false);
+  const [managingUser, setManagingUser] = useState<any>(null);
+
   return (
     <div className="tenant-users-list">
-      <h2>👥 Team Members</h2>
+      <div className="header">
+        <div>
+          <h2>👥 Team Members</h2>
+          <p className="subtitle">Invite and manage access for your organization</p>
+        </div>
+        <button className="btn-add" onClick={() => setShowInvite(true)}>
+          <span className="icon">+</span> Add Team Member
+        </button>
+      </div>
+
       <div className="user-table-container">
         <table>
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Email</th>
+              <th>Member</th>
               <th>Role</th>
-              <th>Permitted Apps</th>
+              <th>App Access</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {users.map((member: any) => (
               <tr key={member.id}>
-                <td>{member.user.displayName || member.user.email.split('@')[0]}</td>
-                <td>{member.user.email}</td>
+                <td>
+                  <div className="user-info">
+                    <div className="avatar">
+                      {member.user.photoUrl ? (
+                        <img src={member.user.photoUrl} alt="" />
+                      ) : (
+                        <span>{(member.user.displayName || member.user.email)[0].toUpperCase()}</span>
+                      )}
+                    </div>
+                    <div>
+                      <div className="name">{member.user.displayName || 'Unnamed Member'}</div>
+                      <div className="email">{member.user.email}</div>
+                    </div>
+                  </div>
+                </td>
                 <td>
                   <span className={`role-badge ${member.role}`}>{member.role}</span>
                 </td>
-                <td>{member.appPermissions?.length || 0} apps</td>
+                <td>
+                  <div className="app-stats">
+                    <strong>{member.appPermissions?.length || 0}</strong> apps enabled
+                  </div>
+                </td>
+                <td>
+                  <button className="btn-manage" onClick={() => setManagingUser(member)}>
+                    ⚙️ Manage Access
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
 
+      {showInvite && (
+        <InviteMemberModal
+          tenantId={tenantId}
+          onClose={() => setShowInvite(false)}
+          onUpdate={onUpdate}
+        />
+      )}
+
+      {managingUser && (
+        <UserAppPermissionsModal
+          member={managingUser}
+          tenantId={tenantId}
+          onClose={() => setManagingUser(null)}
+          onUpdate={onUpdate}
+        />
+      )}
+
       <style jsx>{`
-        .tenant-users-list h2 { margin-bottom: 1.5rem; }
-        .user-table-container { background: white; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; }
+        .tenant-users-list .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+        .tenant-users-list h2 { margin: 0; color: #1a202c; }
+        .subtitle { color: #718096; font-size: 0.9rem; margin-top: 0.25rem; }
+        
+        .btn-add { background: #667eea; color: white; border: none; padding: 0.6rem 1.25rem; border-radius: 8px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s; }
+        .btn-add:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3); }
+
+        .user-table-container { background: #f8fafc; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; }
         table { width: 100%; border-collapse: collapse; }
-        th { background: #f8fafc; padding: 1rem; text-align: left; font-weight: 600; color: #4a5568; }
-        td { padding: 1rem; border-bottom: 1px solid #f1f5f9; }
-        .role-badge { padding: 0.25rem 0.75rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
-        .role-badge.owner { background: #fef3c7; color: #92400e; }
+        th { background: #f1f5f9; padding: 1rem; text-align: left; font-size: 0.75rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; }
+        td { padding: 1.25rem 1rem; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
+        
+        .user-info { display: flex; align-items: center; gap: 1rem; }
+        .avatar { width: 40px; height: 40px; border-radius: 50%; background: #667eea; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; overflow: hidden; }
+        .avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .name { font-weight: 600; color: #1a202c; }
+        .email { font-size: 0.8rem; color: #718096; }
+
+        .role-badge { padding: 0.25rem 0.6rem; border-radius: 4px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
+        .role-badge.owner { background: #fee2e2; color: #991b1b; }
         .role-badge.admin { background: #dbeafe; color: #1e40af; }
-        .role-badge.member { background: #d1fae5; color: #065f46; }
+        .role-badge.member { background: #dcfce7; color: #166534; }
+
+        .app-stats { font-size: 0.9rem; color: #4a5568; }
+        
+        .btn-manage { background: white; border: 1px solid #e2e8f0; padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.8rem; font-weight: 600; color: #4a5568; cursor: pointer; transition: all 0.2s; }
+        .btn-manage:hover { background: #f7fafc; border-color: #cbd5e0; }
       `}</style>
+    </div>
+  );
+}
+
+function InviteMemberModal({ tenantId, onClose, onUpdate }: any) {
+  const [email, setEmail] = useState('');
+  const [role, setRole] = useState('member');
+  const [loading, setLoading] = useState(false);
+  const authenticatedFetch = useAuthenticatedFetch();
+
+  const handleInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const res = await authenticatedFetch(`${BACKEND_URL}/tenants/${tenantId}/users/invite`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, role }),
+      });
+      if (res.ok) {
+        onUpdate();
+        onClose();
+        alert('📩 Invitation sent successfully!');
+      } else {
+        const err = await res.json();
+        alert(err.message || 'Failed to invite user');
+      }
+    } catch (err) {
+      alert('Error sending invitation');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal animate-in" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <h3>➕ Add Team Member</h3>
+          <button className="close-btn" onClick={onClose}>×</button>
+        </div>
+        <form onSubmit={handleInvite}>
+          <div className="form-group">
+            <label>Email Address</label>
+            <input
+              type="email"
+              placeholder="colleague@gmail.com"
+              value={email}
+              onChange={e => setEmail(e.target.value.toLowerCase())}
+              required
+              autoFocus
+            />
+          </div>
+          <div className="form-group">
+            <label>Workspace Role</label>
+            <select value={role} onChange={e => setRole(e.target.value)}>
+              <option value="member">Member (Regular Access)</option>
+              <option value="admin">Admin (Can manage users)</option>
+            </select>
+          </div>
+          <div className="modal-actions">
+            <button type="button" className="btn-cancel" onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn-submit" disabled={loading}>
+              {loading ? 'Sending...' : 'Send Invitation'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function UserAppPermissionsModal({ member, tenantId, onClose, onUpdate }: any) {
+  const [tenantApps, setTenantApps] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState<string | null>(null);
+  const authenticatedFetch = useAuthenticatedFetch();
+
+  const userPermittedAppIds = member.appPermissions?.map((p: any) => p.appId) || [];
+
+  useEffect(() => {
+    loadTenantApps();
+  }, []);
+
+  async function loadTenantApps() {
+    setLoading(true);
+    try {
+      const res = await authenticatedFetch(`${BACKEND_URL}/tenants/${tenantId}/apps`);
+      if (res.ok) setTenantApps(await res.json());
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const togglePermission = async (appId: string, isGranted: boolean) => {
+    setProcessing(appId);
+    try {
+      const method = isGranted ? 'DELETE' : 'POST';
+      const res = await authenticatedFetch(`${BACKEND_URL}/tenants/${tenantId}/users/${member.user.id}/apps/${appId}`, {
+        method
+      });
+      if (res.ok) onUpdate();
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal animate-in" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <h3>⚙️ App Access: {member.user.displayName || member.user.email}</h3>
+          <button className="close-btn" onClick={onClose}>×</button>
+        </div>
+        <div className="modal-body p-6">
+          <p className="subtitle mb-6">Enable or disable specific applications for this member.</p>
+
+          {loading ? (
+            <div className="flex-center py-10"><div className="spinner"></div></div>
+          ) : (
+            <div className="perm-list">
+              {tenantApps.map((ta: any) => {
+                const isGranted = userPermittedAppIds.includes(ta.appId);
+                return (
+                  <div key={ta.appId} className="perm-item">
+                    <div className="app-info">
+                      <span className="app-name">{ta.app.name}</span>
+                      <span className="app-cat">{ta.app.category}</span>
+                    </div>
+                    <button
+                      className={`toggle-btn ${isGranted ? 'granted' : ''}`}
+                      disabled={processing === ta.appId}
+                      onClick={() => togglePermission(ta.appId, isGranted)}
+                    >
+                      {processing === ta.appId ? '...' : (isGranted ? 'GRANTED' : 'NO ACCESS')}
+                    </button>
+                  </div>
+                );
+              })}
+              {tenantApps.length === 0 && (
+                <div className="empty-apps">
+                  No apps enabled for this organization yet.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        <style jsx>{`
+          .perm-list { display: flex; flex-direction: column; gap: 0.75rem; }
+          .perm-item { display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; }
+          .app-info { display: flex; flex-direction: column; }
+          .app-name { font-weight: 700; color: #1a202c; }
+          .app-cat { font-size: 0.75rem; color: #718096; text-transform: uppercase; }
+          .toggle-btn { padding: 0.4rem 1rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700; cursor: pointer; border: none; min-width: 100px; }
+          .toggle-btn.granted { background: #dcfce7; color: #166534; }
+          .toggle-btn:not(.granted) { background: #f1f5f9; color: #64748b; }
+          .empty-apps { text-align: center; padding: 2rem; color: #a0aec0; font-style: italic; }
+        `}</style>
+      </div>
     </div>
   );
 }

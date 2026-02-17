@@ -31,6 +31,7 @@ model PlatformUser {
   isGod        Boolean   @default(false) @map("is_god") // Platform owner (super_admin)
   isActive     Boolean   @default(true) @map("is_active")
   createdBy    String?   @map("created_by") // Who created this user (AA/AT ID)
+  allowedApps  String[]  @default([]) // Individual app permissions (for staff/private users)
   settings     Json      @default("{}")
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")

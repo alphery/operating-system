@@ -261,7 +261,6 @@ export class PlatformController {
         });
     }
 
-    // CREATE APP
     @Post('apps')
     async createApp(
         @Body() data: {
@@ -275,6 +274,116 @@ export class PlatformController {
     ) {
         return this.prisma.app.create({
             data,
+        });
+    }
+
+    // GET APP CONSUMERS
+    @Get('apps/:appId/consumers')
+    async getAppConsumers(@Param('appId') appId: string) {
+        const tenants = await this.prisma.tenant.findMany({
+            select: {
+                id: true,
+                name: true,
+                customShortId: true,
+                apps: {
+                    where: { appId },
+                    select: { enabled: true }
+                }
+            }
+        });
+
+        const users = await this.prisma.platformUser.findMany({
+            where: {
+                OR: [
+                    { allowedApps: { has: appId } },
+                    { role: 'super_admin' }
+                ]
+            },
+            select: {
+                id: true,
+                email: true,
+                displayName: true,
+                role: true,
+                allowedApps: true
+            }
+        });
+
+        const allStaffs = await this.prisma.platformUser.findMany({
+            where: {
+                OR: [
+                    { role: 'super_admin' },
+                    { role: 'user' }, // Assuming 'user' without tenant could be staff
+                ]
+            },
+            select: {
+                id: true, email: true, displayName: true, role: true, allowedApps: true
+            }
+        });
+
+        return {
+            tenants: tenants.map(t => ({
+                id: t.id,
+                name: t.name,
+                customShortId: t.customShortId,
+                enabled: t.apps.length > 0 && t.apps[0].enabled
+            })),
+            users: allStaffs.map(u => ({
+                ...u,
+                enabled: u.allowedApps.includes(appId) || u.role === 'super_admin'
+            }))
+        };
+    }
+
+    // TOGGLE APP FOR TENANT
+    @Patch('apps/:appId/tenants/:tenantId/toggle')
+    async toggleAppForTenant(
+        @Param('appId') appId: string,
+        @Param('tenantId') tenantId: string,
+        @Request() req
+    ) {
+        const existing = await this.prisma.tenantApp.findUnique({
+            where: { tenantId_appId: { tenantId, appId } }
+        });
+
+        if (existing) {
+            return this.prisma.tenantApp.update({
+                where: { id: existing.id },
+                data: { enabled: !existing.enabled }
+            });
+        }
+
+        return this.prisma.tenantApp.create({
+            data: {
+                tenantId,
+                appId,
+                enabled: true,
+                enabledByUserId: req.user.sub
+            }
+        });
+    }
+
+    // TOGGLE APP FOR USER
+    @Patch('apps/:appId/users/:userId/toggle')
+    async toggleAppForUser(
+        @Param('appId') appId: string,
+        @Param('userId') userId: string
+    ) {
+        const user = await this.prisma.platformUser.findUnique({
+            where: { id: userId }
+        });
+
+        if (!user) throw new BadRequestException('User not found');
+
+        let allowedApps = [...user.allowedApps];
+        if (allowedApps.includes(appId)) {
+            allowedApps = allowedApps.filter(id => id !== appId);
+        } else {
+            allowedApps.push(appId);
+        }
+
+        return this.prisma.platformUser.update({
+            where: { id: userId },
+            data: { allowedApps }
         });
     }
 
