@@ -486,11 +486,18 @@ export class AuthService implements OnModuleInit {
                         enabled: true,
                     },
                 },
-                userPermissions: {
-                    some: {
-                        tenantUserId: membership.id,
+                OR: [
+                    {
+                        userPermissions: {
+                            some: {
+                                tenantUserId: membership.id,
+                            },
+                        },
                     },
-                },
+                    {
+                        id: { in: user.allowedApps || [] },
+                    },
+                ],
             },
         });
     }
