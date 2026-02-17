@@ -228,6 +228,25 @@ export class PlatformController {
         });
     }
 
+    // DELETE PLATFORM USER PERMANENTLY
+    @Delete('users/:userId')
+    async deleteUser(@Param('userId') userId: string) {
+        const user = await this.prisma.platformUser.findUnique({
+            where: { id: userId },
+        });
+
+        if (!user) throw new BadRequestException('User not found');
+
+        // Safety: Never delete the primary God user
+        if (user.email === 'alpherymail@gmail.com' || user.isGod) {
+            throw new BadRequestException('Cannot delete the primary platform administrator');
+        }
+
+        return this.prisma.platformUser.delete({
+            where: { id: userId },
+        });
+    }
+
     // LIST ALL APPS
     @Get('apps')
     async getAllApps() {

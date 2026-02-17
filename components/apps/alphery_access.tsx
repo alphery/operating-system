@@ -29,7 +29,9 @@ export default function AlpheryAccess() {
         </p>
       </header>
 
-      {isGod ? <GodDashboard /> : <TenantAdminDashboard />}
+      <div className="access-container">
+        {isGod ? <GodDashboard /> : <TenantAdminDashboard />}
+      </div>
 
       <style jsx>{`
         .alphery-access {
@@ -67,6 +69,11 @@ export default function AlpheryAccess() {
         @keyframes pulse {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.7; }
+        }
+
+        .access-container {
+          max-width: 1400px;
+          margin: 0 auto;
         }
 
         .subtitle {
@@ -893,11 +900,13 @@ function TenantsList({ tenants, users, allPlatformApps, onUpdate }: any) {
 
         .modal {
           background: white;
-          width: 100%; max-width: 550px;
+          width: 95%; max-width: 600px;
           border-radius: 20px;
           box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-          overflow: hidden;
+          overflow-y: auto;
+          max-height: 90vh;
           color: #1a202c;
+          position: relative;
         }
 
         .modal-header {
@@ -1061,6 +1070,28 @@ function UsersList({ users, onUpdate }: any) {
     }
   };
 
+  const deletePlatformUser = async (user: any) => {
+    if (!confirm(`🚨 ARE YOU SURE? This will PERMANENTLY delete user ${user.email} and ALL their associated data!`)) return;
+
+    setLoading(user.id);
+    try {
+      const res = await authenticatedFetch(`${BACKEND_URL}/platform/users/${user.id}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        onUpdate();
+        alert('🗑️ User deleted permanently');
+      } else {
+        const err = await res.json();
+        alert(err.message || 'Failed to delete user');
+      }
+    } catch (error) {
+      alert('Error deleting user');
+    } finally {
+      setLoading(null);
+    }
+  };
+
   // Promote to God removed as per requirement. Only alpherymail@gmail.com is God.
 
   return (
@@ -1148,7 +1179,16 @@ function UsersList({ users, onUpdate }: any) {
                     >
                       {user.isActive ? 'Deactivate' : 'Activate'}
                     </button>
-                    {/* Promote to God removed */}
+                    {user.email !== 'alpherymail@gmail.com' && (
+                      <button
+                        onClick={() => deletePlatformUser(user)}
+                        disabled={loading === user.id}
+                        className="btn-action btn-delete-user"
+                        title="Delete user permanently"
+                      >
+                        Delete
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -1206,12 +1246,14 @@ function UsersList({ users, onUpdate }: any) {
         .no-access { font-size: 0.8rem; color: #A0AEC0; font-style: italic; }
         .since-text { font-size: 0.7rem; color: #A0AEC0; margin-top: 0.15rem; }
 
-        .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-        .btn-action { padding: 0.5rem 0.75rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700; border: none; cursor: pointer; transition: all 0.2s; }
+        .actions { display: flex; gap: 0.5rem; flex-wrap: nowrap; }
+        .btn-action { padding: 0.4rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700; border: none; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
         .btn-action:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .btn-action:disabled { opacity: 0.5; cursor: not-allowed; }
         .btn-green { background: #16a34a; color: white; }
         .btn-red { background: #dc2626; color: white; }
+        .btn-delete-user { border: 1px solid #feb2b2; background: #fff5f5; color: #c53030; }
+        .btn-delete-user:hover:not(:disabled) { background: #dc2626; color: white; }
       `}</style>
     </div>
   );
