@@ -82,7 +82,7 @@ export default function AlpheryAccess() {
           position: relative;
           display: flex;
           flex-direction: column;
-          max-height: 90vh;
+          max-height: 90%;
           border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
@@ -615,55 +615,57 @@ function TenantsList({ tenants, users, allPlatformApps, onUpdate }: any) {
               <button className="close-btn" onClick={() => setShowCreate(false)}>×</button>
             </div>
 
-            <form onSubmit={handleCreate}>
-              <div className="form-group">
-                <label>Organization Name</label>
-                <input
-                  value={newTenant.name}
-                  onChange={e => setNewTenant({ ...newTenant, name: e.target.value })}
-                  placeholder="e.g. Acme Industries"
-                  required
-                  autoFocus
-                />
-                <small>The display name of the company.</small>
-              </div>
+            <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label>Organization Name</label>
+                  <input
+                    value={newTenant.name}
+                    onChange={e => setNewTenant({ ...newTenant, name: e.target.value })}
+                    placeholder="e.g. Acme Industries"
+                    required
+                    autoFocus
+                  />
+                  <small>The display name of the company.</small>
+                </div>
 
-              <div className="form-group">
-                <label>Organization Mail ID</label>
-                <input
-                  type="email"
-                  value={newTenant.organizationEmail}
-                  onChange={e => setNewTenant({ ...newTenant, organizationEmail: e.target.value.toLowerCase() })}
-                  placeholder="contact@company.com"
-                />
-              </div>
+                <div className="form-group">
+                  <label>Organization Mail ID</label>
+                  <input
+                    type="email"
+                    value={newTenant.organizationEmail}
+                    onChange={e => setNewTenant({ ...newTenant, organizationEmail: e.target.value.toLowerCase() })}
+                    placeholder="contact@company.com"
+                  />
+                </div>
 
-              <div className="form-group">
-                <label>Business Type</label>
-                <select
-                  value={newTenant.businessType}
-                  onChange={e => setNewTenant({ ...newTenant, businessType: e.target.value })}
-                >
-                  <option value="">Select Type</option>
-                  <option value="SaaS">SaaS</option>
-                  <option value="Service">Service Based</option>
-                  <option value="Manufacturing">Manufacturing</option>
-                  <option value="Retail">Retail</option>
-                  <option value="Healthcare">Healthcare</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
+                <div className="form-group">
+                  <label>Business Type</label>
+                  <select
+                    value={newTenant.businessType}
+                    onChange={e => setNewTenant({ ...newTenant, businessType: e.target.value })}
+                  >
+                    <option value="">Select Type</option>
+                    <option value="SaaS">SaaS</option>
+                    <option value="Service">Service Based</option>
+                    <option value="Manufacturing">Manufacturing</option>
+                    <option value="Retail">Retail</option>
+                    <option value="Healthcare">Healthcare</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
 
-              <div className="form-group">
-                <label>Owner Admin Email (Login ID)</label>
-                <input
-                  type="email"
-                  value={newTenant.ownerEmail}
-                  onChange={e => setNewTenant({ ...newTenant, ownerEmail: e.target.value.toLowerCase() })}
-                  placeholder="owner@gmail.com"
-                  required
-                />
-                <small>This user will be granted Tenant Admin status.</small>
+                <div className="form-group">
+                  <label>Owner Admin Email (Login ID)</label>
+                  <input
+                    type="email"
+                    value={newTenant.ownerEmail}
+                    onChange={e => setNewTenant({ ...newTenant, ownerEmail: e.target.value.toLowerCase() })}
+                    placeholder="owner@gmail.com"
+                    required
+                  />
+                  <small>This user will be granted Tenant Admin status.</small>
+                </div>
               </div>
 
               <div className="modal-actions">
@@ -687,77 +689,79 @@ function TenantsList({ tenants, users, allPlatformApps, onUpdate }: any) {
               <button className="close-btn" onClick={() => setEditingTenant(null)}>×</button>
             </div>
 
-            <form onSubmit={handleUpdate}>
-              <div className="form-group">
-                <label>Organization Name</label>
-                <input
-                  value={editingTenant.name}
-                  onChange={e => setEditingTenant({ ...editingTenant, name: e.target.value })}
-                  placeholder="Organization Name"
-                  required
-                />
-              </div>
-
-              <div className="form-grid">
+            <form onSubmit={handleUpdate} style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+              <div className="modal-body">
                 <div className="form-group">
-                  <label>Organization Mail</label>
+                  <label>Organization Name</label>
                   <input
-                    value={editingTenant.organizationEmail || ''}
-                    onChange={e => setEditingTenant({ ...editingTenant, organizationEmail: e.target.value })}
+                    value={editingTenant.name}
+                    onChange={e => setEditingTenant({ ...editingTenant, name: e.target.value })}
+                    placeholder="Organization Name"
+                    required
                   />
                 </div>
+
+                <div className="form-grid">
+                  <div className="form-group">
+                    <label>Organization Mail</label>
+                    <input
+                      value={editingTenant.organizationEmail || ''}
+                      onChange={e => setEditingTenant({ ...editingTenant, organizationEmail: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Business Type</label>
+                    <input
+                      value={editingTenant.businessType || ''}
+                      onChange={e => setEditingTenant({ ...editingTenant, businessType: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Mobile No</label>
+                    <input
+                      value={editingTenant.mobile || ''}
+                      onChange={e => setEditingTenant({ ...editingTenant, mobile: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Personal Mail</label>
+                    <input
+                      value={editingTenant.personalEmail || ''}
+                      onChange={e => setEditingTenant({ ...editingTenant, personalEmail: e.target.value })}
+                    />
+                  </div>
+                </div>
+
                 <div className="form-group">
-                  <label>Business Type</label>
-                  <input
-                    value={editingTenant.businessType || ''}
-                    onChange={e => setEditingTenant({ ...editingTenant, businessType: e.target.value })}
+                  <label>Office Address</label>
+                  <textarea
+                    value={editingTenant.address || ''}
+                    onChange={e => setEditingTenant({ ...editingTenant, address: e.target.value })}
+                    rows={2}
                   />
                 </div>
+
                 <div className="form-group">
-                  <label>Mobile No</label>
-                  <input
-                    value={editingTenant.mobile || ''}
-                    onChange={e => setEditingTenant({ ...editingTenant, mobile: e.target.value })}
-                  />
+                  <label>Subscription Plan</label>
+                  <select
+                    value={editingTenant.plan}
+                    onChange={e => setEditingTenant({ ...editingTenant, plan: e.target.value })}
+                  >
+                    <option value="free">Free</option>
+                    <option value="pro">Pro</option>
+                    <option value="enterprise">Enterprise</option>
+                  </select>
                 </div>
-                <div className="form-group">
-                  <label>Personal Mail</label>
-                  <input
-                    value={editingTenant.personalEmail || ''}
-                    onChange={e => setEditingTenant({ ...editingTenant, personalEmail: e.target.value })}
-                  />
-                </div>
-              </div>
 
-              <div className="form-group">
-                <label>Office Address</label>
-                <textarea
-                  value={editingTenant.address || ''}
-                  onChange={e => setEditingTenant({ ...editingTenant, address: e.target.value })}
-                  rows={2}
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Subscription Plan</label>
-                <select
-                  value={editingTenant.plan}
-                  onChange={e => setEditingTenant({ ...editingTenant, plan: e.target.value })}
-                >
-                  <option value="free">Free</option>
-                  <option value="pro">Pro</option>
-                  <option value="enterprise">Enterprise</option>
-                </select>
-              </div>
-
-              <div className="info-section">
-                <div className="info-row">
-                  <span className="label">Unique ID:</span>
-                  <span className="value code">{editingTenant.id}</span>
-                </div>
-                <div className="info-row">
-                  <span className="label">Subdomain:</span>
-                  <span className="value">{editingTenant.subdomain}.alphery.com</span>
+                <div className="info-section">
+                  <div className="info-row">
+                    <span className="label">Unique ID:</span>
+                    <span className="value code">{editingTenant.id}</span>
+                  </div>
+                  <div className="info-row">
+                    <span className="label">Subdomain:</span>
+                    <span className="value">{editingTenant.subdomain}.alphery.com</span>
+                  </div>
                 </div>
               </div>
 
@@ -1561,7 +1565,7 @@ function AppAccessModal({ app, onClose, onUpdate }: any) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal wider-modal animate-in" onClick={e => e.stopPropagation()}>
+      <div className="modal wider-modal animate-in" onClick={e => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', maxHeight: '90%' }}>
         <div className="modal-header">
           <div className="app-info">
             <span className="app-icon-large">📱</span>
@@ -1651,7 +1655,7 @@ function AppAccessModal({ app, onClose, onUpdate }: any) {
           .app-icon-large { font-size: 2rem; }
           .modal-search { padding: 1rem 2rem; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
           .search-input { width: 100%; border: 2px solid #e2e8f0; padding: 0.6rem 1rem; border-radius: 12px; font-size: 0.95rem; }
-          .modal-body { padding: 0; max-height: 60vh; overflow-y: auto; }
+          .modal-body { padding: 0; flex: 1; min-height: 0; overflow-y: auto; }
           
           .access-grid { display: grid; grid-template-columns: 1fr 1fr; divide-x: 1px solid #e2e8f0; }
           .access-section { padding: 1.5rem 2rem; border-right: 1px solid #f1f5f9; }
@@ -2013,7 +2017,7 @@ function ManageAppsModal({ tenant, allApps, onClose, onUpdate }: any) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal wide-modal animate-in" onClick={e => e.stopPropagation()}>
+      <div className="modal wide-modal animate-in" onClick={e => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', maxHeight: '90%' }}>
         <div className="modal-header">
           <div>
             <h3>📱 Manage App Permissions</h3>
@@ -2069,7 +2073,7 @@ function ManageAppsModal({ tenant, allApps, onClose, onUpdate }: any) {
         .modal-header { padding: 1.5rem 2rem; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc; }
         .modal-subtitle { color: #64748b; font-size: 0.9rem; margin: 0; }
         .close-btn { background: none; border: none; font-size: 1.5rem; color: #a0aec0; cursor: pointer; }
-        .modal-body { padding: 2rem; max-height: 500px; overflow-y: auto; }
+        .modal-body { padding: 2rem; flex: 1; min-height: 0; overflow-y: auto; }
         .loading-state { padding: 3rem; text-align: center; color: #64748b; font-style: italic; }
         .app-permission-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
         .app-perm-card { display: flex; align-items: center; gap: 1rem; padding: 1rem; border-radius: 12px; border: 1px solid #e2e8f0; transition: all 0.2s; background: #fff; }

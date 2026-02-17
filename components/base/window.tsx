@@ -24,30 +24,51 @@ interface WindowProps {
 }
 
 const Window: React.FC<WindowProps> = (props) => {
-    const [isMaximized, setIsMaximized] = useState(false);
+    // Utility for calculating initial dimensions
+    const getInitialDimensions = () => {
+        if (typeof window === 'undefined') return { width: 800, height: 600, x: 60, y: 30, isMax: false };
+
+        if (window.innerWidth < 640) {
+            return {
+                width: window.innerWidth,
+                height: window.innerHeight - 32,
+                x: 0,
+                y: 0,
+                isMax: true
+            };
+        } else {
+            // Larger default size for modern premium apps
+            const w = Math.min(1280, window.innerWidth * 0.85);
+            const h = Math.min(840, window.innerHeight * 0.8);
+            return {
+                width: w,
+                height: h,
+                x: (window.innerWidth - w) / 2,
+                y: (window.innerHeight - h) / 2,
+                isMax: false
+            };
+        }
+    };
+
+    const initial = getInitialDimensions();
+    const [isMaximized, setIsMaximized] = useState(initial.isMax);
     const [isClosed, setIsClosed] = useState(false);
-    const [size, setSize] = useState({ width: 800, height: 600 });
-    const [position, setPosition] = useState({ x: 60, y: 30 });
-    const [prevSize, setPrevSize] = useState({ width: 800, height: 600 });
-    const [prevPosition, setPrevPosition] = useState({ x: 60, y: 30 });
+    const [size, setSize] = useState({ width: initial.width, height: initial.height });
+    const [position, setPosition] = useState({ x: initial.x, y: initial.y });
+    const [prevSize, setPrevSize] = useState({ width: initial.width, height: initial.height });
+    const [prevPosition, setPrevPosition] = useState({ x: initial.x, y: initial.y });
     const [cursorType, setCursorType] = useState("cursor-default");
 
     const id = props.id;
     const windowRef = useRef<any>(null);
 
-    useEffect(() => {
-        // Initial size based on screen size
-        if (window.innerWidth < 640) {
-            // Mobile: Full screen always
-            setIsMaximized(true);
-            setSize({ width: window.innerWidth, height: window.innerHeight - 32 }); // Subtract navbar height
-            setPosition({ x: 0, y: 0 });
-        } else {
-            // Desktop: Default window-ed behavior
-            setSize({ width: Math.min(1000, window.innerWidth * 0.7), height: Math.min(700, window.innerHeight * 0.75) });
-            setPosition({ x: window.innerWidth * 0.15, y: 50 });
-        }
+    // Calculate content scale to prevent congestion
+    // Adaptive Scaling: Simulates a 1280px viewport minimum.
+    // If the window/screen is smaller than 1280px, we zoom out the content 
+    // so the layout (designed for desktop) fits perfectly without wrapping/congestion.
+    const contentScale = Math.max(0.5, Math.min(1, size.width / 1280));
 
+    useEffect(() => {
         const handleResize = () => {
             if (window.innerWidth < 640 && !isMaximized) {
                 maximizeWindow();
@@ -55,10 +76,9 @@ const Window: React.FC<WindowProps> = (props) => {
         }
 
         window.addEventListener('resize', handleResize);
-
         ReactGA.pageview(`/${id}`);
         return () => window.removeEventListener('resize', handleResize);
-    }, [id]);
+    }, [id, isMaximized]);
 
     const handleDragStart = () => {
         focusWindow();
@@ -156,8 +176,8 @@ const Window: React.FC<WindowProps> = (props) => {
             >
                 {/* Title Bar - Draggable Handle/Mobile Header */}
                 <div
-                    className={`window-title-bar relative bg-ub-title-bar flex justify-center items-center select-none text-sm font-bold text-white border-b border-white border-opacity-10 cursor-move z-10
-                    ${isMaximized && window.innerWidth < 640 ? 'h-12 text-base' : 'h-10'}`}
+                    className={`window-title-bar relative bg-white/10 backdrop-blur-xl flex justify-center items-center select-none text-sm font-semibold text-white/90 border-b border-white/5 cursor-move z-10 transition-colors
+                    ${isMaximized && window.innerWidth < 640 ? 'h-12 text-base' : 'h-10 hover:bg-white/20'}`}
                     onDoubleClick={maximizeWindow}
                 >
                     {/* Mobile Back Button - Only on mobile */}
@@ -170,31 +190,42 @@ const Window: React.FC<WindowProps> = (props) => {
                         </button>
                     )}
 
-                    {props.title}
+                    <span className="truncate max-w-[60%] tracking-tight">{props.title}</span>
 
-                    {/* Window Controls */}
-                    <div className={`window-controls absolute right-0 top-0 h-full flex items-center pr-3 gap-2 ${window.innerWidth < 640 ? 'hidden' : 'flex'}`}>
+                    {/* Windows 11 Style Window Controls */}
+                    <div className={`window-controls absolute right-0 top-0 h-full items-center ${window.innerWidth < 640 ? 'hidden' : 'flex'}`}>
+                        {/* Minimize */}
                         <button
-                            className="w-6 h-6 rounded-full hover:bg-white hover:bg-opacity-10 flex items-center justify-center focus:outline-none transition-colors"
+                            className="w-12 h-full flex items-center justify-center hover:bg-white/10 transition-colors group"
                             onClick={(e) => { e.stopPropagation(); minimizeWindow(); }}
                         >
-                            <img src="./themes/Yaru/window/window-minimize-symbolic.svg" alt="minimize" className="w-3.5 h-3.5" />
+                            <svg className="w-2.5 h-2.5 opacity-70 group-hover:opacity-100" viewBox="0 0 10 1"><rect width="10" height="1" fill="currentColor" /></svg>
                         </button>
+
+                        {/* Maximize / Restore */}
                         <button
-                            className="w-6 h-6 rounded-full hover:bg-white hover:bg-opacity-10 flex items-center justify-center focus:outline-none transition-colors"
+                            className="w-12 h-full flex items-center justify-center hover:bg-white/10 transition-colors group"
                             onClick={(e) => { e.stopPropagation(); maximizeWindow(); }}
                         >
                             {isMaximized ? (
-                                <img src="./themes/Yaru/window/window-restore-symbolic.svg" alt="restore" className="w-3.5 h-3.5" />
+                                <svg className="w-2.5 h-2.5 opacity-70 group-hover:opacity-100" viewBox="0 0 10 10">
+                                    <path d="M2.1,0v2H0v8.1h8.2v-2h2V0H2.1z M7.2,9.1H1.1V3.1h6.1V9.1z M9.1,7.1h-1V2.1H3.1v-1h6V7.1z" fill="currentColor" />
+                                </svg>
                             ) : (
-                                <img src="./themes/Yaru/window/window-maximize-symbolic.svg" alt="maximize" className="w-3.5 h-3.5" />
+                                <svg className="w-2.5 h-2.5 opacity-70 group-hover:opacity-100" viewBox="0 0 10 10">
+                                    <path d="M0,0v10h10V0H0z M9,9H1V1h8V9z" fill="currentColor" />
+                                </svg>
                             )}
                         </button>
+
+                        {/* Close */}
                         <button
-                            className="w-6 h-6 rounded-full bg-[#FF5D5B] hover:bg-[#FF8585] flex items-center justify-center focus:outline-none transition-colors"
+                            className="w-12 h-full flex items-center justify-center hover:bg-[#C42B1C] transition-colors group rounded-tr-lg"
                             onClick={(e) => { e.stopPropagation(); closeWindow(); }}
                         >
-                            <img src="./themes/Yaru/window/window-close-symbolic.svg" alt="close" className="w-3.5 h-3.5" style={{ filter: "brightness(0)" }} />
+                            <svg className="w-2.5 h-2.5 opacity-70 group-hover:opacity-100" viewBox="0 0 10 10">
+                                <path d="M10,0.7L9.3,0L5,4.3L0.7,0L0,0.7L4.3,5L0,9.3L0.7,10L5,5.7l4.3,4.3l0.7-0.7L5.7,5L10,0.7z" fill="currentColor" />
+                            </svg>
                         </button>
                     </div>
                 </div>
@@ -202,19 +233,30 @@ const Window: React.FC<WindowProps> = (props) => {
                 {/* Content Area - Memoized to prevent re-renders on drag */}
                 {React.useMemo(() => (
                     <div className="flex-1 relative w-full overflow-hidden bg-ub-cool-grey text-white select-text">
-                        {id === "settings" ? (
-                            <Settings changeBackgroundImage={props.changeBackgroundImage} currBgImgName={props.bg_image_name} />
-                        ) : (
-                            <WindowMainScreen
-                                appId={id}
-                                screen={props.screen}
-                                title={props.title}
-                                addFolder={props.id === "terminal" ? props.addFolder : null}
-                                openApp={props.openApp}
-                            />
-                        )}
+                        <div
+                            style={{
+                                transform: `scale(${contentScale})`,
+                                transformOrigin: 'top left',
+                                width: `${100 / contentScale}%`,
+                                height: `${100 / contentScale}%`,
+                                transition: 'transform 0.2s ease-out'
+                            }}
+                            className="absolute top-0 left-0"
+                        >
+                            {id === "settings" ? (
+                                <Settings changeBackgroundImage={props.changeBackgroundImage} currBgImgName={props.bg_image_name} />
+                            ) : (
+                                <WindowMainScreen
+                                    appId={id}
+                                    screen={props.screen}
+                                    title={props.title}
+                                    addFolder={props.id === "terminal" ? props.addFolder : null}
+                                    openApp={props.openApp}
+                                />
+                            )}
+                        </div>
                     </div>
-                ), [id, props.bg_image_name, props.screen, props.title, props.addFolder, props.screen, props.openApp])}
+                ), [id, props.bg_image_name, props.screen, props.title, props.addFolder, props.screen, props.openApp, contentScale])}
             </div>
         </Rnd>
     );

@@ -238,7 +238,7 @@ const apps = [
     {
         id: "alphery-docs",
         title: "Alphery Docs",
-        icon: './themes/Yaru/apps/gedit.png',
+        icon: './themes/Yaru/apps/A-Docs.jpeg',
         disabled: false,
         favourite: true,
         desktop_shortcut: true,
@@ -247,7 +247,7 @@ const apps = [
     {
         id: "alphery-sheets",
         title: "Alphery Sheets",
-        icon: './themes/Yaru/apps/calc.png',
+        icon: './themes/Yaru/apps/A-Sheets.png',
         disabled: false,
         favourite: true,
         desktop_shortcut: true,
@@ -256,7 +256,7 @@ const apps = [
     {
         id: "alphery-slides",
         title: "Alphery Slides",
-        icon: './themes/Yaru/apps/projects.png',
+        icon: './themes/Yaru/apps/A-Slides.jpeg',
         disabled: false,
         favourite: true,
         desktop_shortcut: true,
@@ -264,8 +264,8 @@ const apps = [
     },
     {
         id: "realtime-demo",
-        title: "Realtime Demo",
-        icon: './themes/Yaru/apps/spotify.png',
+        title: "Realtime Connect",
+        icon: './themes/Yaru/apps/Realtime Connect.png',
         disabled: false,
         favourite: true,
         desktop_shortcut: false,
