@@ -73,11 +73,14 @@ model Tenant {
   invitations Invitation[]
   auditLogs   AuditLog[]
 
+  // CRM Pro
+  crmConfig TenantCRMConfig?
+  crmActivities CRMActivity[]
+
   // Existing ERP data (keep for backward compatibility)
   clients           Client[]
   projects          Project[]
   tasks             Task[]
-  crmActivities     CRMActivity[]
   entityDefinitions EntityDefinition[]
   entityRecords     EntityRecord[]
   workflows         Workflow[]
@@ -580,4 +583,162 @@ model CustomRole {
 
   @@unique([tenantId, name])
   @@map("custom_roles")
+}
+
+// ═══════════════════════════════════════════════════════════
+// CRM PRO MODELS - Template-Driven Multi-Tenant CRM
+// ═══════════════════════════════════════════════════════════
+
+model CRMTemplate {
+  id                 String   @id @default(uuid())
+  name               String
+  slug               String   @unique
+  industryType       String   @map("industry_type")
+  description        String?
+  iconUrl            String?  @map("icon_url")
+  enabledModules     Json     @map("enabled_modules") // Array of module configs
+  fieldSchemas       Json     @map("field_schemas") // Per-module field definitions
+  workflowSchemas    Json     @map("workflow_schemas") // Automation rules
+  dashboardLayout    Json     @map("dashboard_layout") // Dashboard config
+  permissionsMatrix  Json     @map("permissions_matrix") // Role-based permissions
+  version            String   @default("1.0.0")
+  isActive           Boolean  @default(true) @map("is_active")
+  isSystem           Boolean  @default(false) @map("is_system") // Cannot be deleted
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenantConfigs TenantCRMConfig[]
+
+  @@map("crm_templates")
+}
+
+model TenantCRMConfig {
+  id                String      @id @default(uuid())
+  tenantId          String      @unique @map("tenant_id")
+  tenant            Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  templateId        String      @map("template_id")
+  template          CRMTemplate @relation(fields: [templateId], references: [id])
+  enabledModules    Json        @map("enabled_modules") // Template modules + tenant customizations
+  fieldOverrides    Json        @default("{}") @map("field_overrides") // Custom fields added by tenant
+  workflowConfig    Json        @map("workflow_config") // Workflow rules
+  dashboardLayout   Json        @map("dashboard_layout") // Dashboard config
+  permissionsMatrix Json        @map("permissions_matrix") // Role permissions
+  selectedByUserId  String      @map("selected_by_user_id")
+  templateVersion   String      @map("template_version")
+  canChangeTemplate Boolean     @default(true) @map("can_change_template") // Lock after data exists
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+
+  @@index([tenantId])
+  @@map("tenant_crm_configs")
+}
+
+model CRMModuleField {
+  id              String   @id @default(uuid())
+  tenantId        String   @map("tenant_id")
+  moduleSlug      String   @map("module_slug")
+  fieldKey        String   @map("field_key")
+  fieldLabel      String   @map("field_label")
+  fieldType       String   @map("field_type") // text, number, date, select, etc.
+  fieldOptions    Json     @default("{}") @map("field_options") // For select, multi-select, etc.
+  isRequired      Boolean  @default(false) @map("is_required")
+  isSearchable    Boolean  @default(true) @map("is_searchable")
+  isSystem        Boolean  @default(false) @map("is_system") // Template fields cannot be deleted
+  displayOrder    Int      @default(0) @map("display_order")
+  validationRules Json     @default("{}") @map("validation_rules")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, moduleSlug, fieldKey])
+  @@index([tenantId, moduleSlug])
+  @@map("crm_module_fields")
+}
+
+model CRMRecord {
+  id              String    @id @default(uuid())
+  tenantId        String    @map("tenant_id")
+  moduleSlug      String    @map("module_slug")
+  data            Json // All field data stored as JSON
+  recordNumber    String    @map("record_number") // Auto-generated: PAT-000123
+  ownerUserId     String?   @map("owner_user_id")
+  createdByUserId String    @map("created_by_user_id")
+  updatedByUserId String?   @map("updated_by_user_id")
+  deletedByUserId String?   @map("deleted_by_user_id")
+  isDeleted       Boolean   @default(false) @map("is_deleted")
+  deletedAt       DateTime? @map("deleted_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@unique([tenantId, recordNumber])
+  @@index([tenantId, moduleSlug])
+  @@index([tenantId, moduleSlug, isDeleted])
+  @@map("crm_records")
+}
+
+model CRMWorkflow {
+  id                 String   @id @default(uuid())
+  tenantId           String   @map("tenant_id")
+  moduleSlug         String   @map("module_slug")
+  name               String
+  triggerType        String   @map("trigger_type") // record_created, record_updated, scheduled
+  triggerConditions  Json     @map("trigger_conditions")
+  actions            Json // Array of actions to execute
+  isActive           Boolean  @default(true) @map("is_active")
+  executionOrder     Int      @default(0) @map("execution_order")
+  createdByUserId    String   @map("created_by_user_id")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  logs CRMWorkflowLog[]
+
+  @@index([tenantId, moduleSlug])
+  @@map("crm_workflows")
+}
+
+model CRMWorkflowLog {
+  id           String   @id @default(uuid())
+  workflowId   String   @map("workflow_id")
+  workflow     CRMWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  recordId     String   @map("record_id")
+  tenantId     String   @map("tenant_id")
+  status       String // success, failed, skipped
+  errorMessage String?  @map("error_message")
+  executionTime Int     @map("execution_time") // milliseconds
+  executedAt   DateTime @default(now()) @map("executed_at")
+
+  @@index([workflowId])
+  @@index([tenantId, recordId])
+  @@map("crm_workflow_logs")
+}
+
+model CRMDashboard {
+  id              String   @id @default(uuid())
+  tenantId        String   @map("tenant_id")
+  name            String
+  layout          Json // Widget positions and configs
+  isDefault       Boolean  @default(false) @map("is_default")
+  createdByUserId String   @map("created_by_user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@index([tenantId])
+  @@map("crm_dashboards")
+}
+
+model CRMActivity {
+  id         String   @id @default(uuid())
+  tenantId   String   @map("tenant_id")
+  recordId   String   @map("record_id")
+  moduleSlug String   @map("module_slug")
+  userId     String   @map("user_id")
+  actionType String   @map("action_type") // created, updated, deleted, status_changed
+  changes    Json // What changed
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([tenantId])
+  @@index([tenantId, recordId])
+  @@index([tenantId, moduleSlug])
+  @@map("crm_activities")
 }

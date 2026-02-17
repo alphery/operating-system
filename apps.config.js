@@ -11,6 +11,7 @@ import { displayGedit } from './components/apps/gedit';
 import { displayAboutAjith } from './components/apps/anurag';
 import { displayCalculator } from './components/apps/calc';
 import { displayProject } from './components/apps/crm_odoo';
+import { displayCRMPro } from './components/apps/crm-pro'; // NEW CRM PRO
 import { displayUserManager } from './components/apps/user_manager';
 import displayAlpheryAccess from './components/apps/alphery_access.tsx';
 import { displayMessenger } from './components/apps/messenger';
@@ -57,12 +58,21 @@ const apps = [
     },
     {
         id: "projects",
+        title: "CRM Pro (Old)",
+        icon: './themes/Yaru/apps/projects.png',
+        disabled: false,
+        favourite: false,
+        desktop_shortcut: false,
+        screen: displayProject,
+    },
+    {
+        id: "crm-pro",
         title: "CRM Pro",
         icon: './themes/Yaru/apps/projects.png',
         disabled: false,
         favourite: true,
         desktop_shortcut: false,
-        screen: displayProject,
+        screen: displayCRMPro,
     },
     {
         id: "files",

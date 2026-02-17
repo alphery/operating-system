@@ -1,0 +1,301 @@
+// ═══════════════════════════════════════════════════════════
+// CRM PRO - TEMPLATE-DRIVEN MULTI-TENANT SCHEMA
+// Add these models to your main schema.prisma file
+// ═══════════════════════════════════════════════════════════
+
+// 1. CRM TEMPLATE DEFINITIONS (Industry-Specific Configurations)
+model CRMTemplate {
+  id          String   @id @default(uuid())
+  name        String   // "Hospital CRM", "Real Estate CRM"
+  slug        String   @unique // "hospital-crm", "real-estate-crm"
+  industryType String  @map("industry_type") // "healthcare", "real-estate"
+  description String?
+  iconUrl     String?  @map("icon_url")
+  
+  // Template Configuration (JSON)
+  enabledModules  Json    @map("enabled_modules") @db.JsonB
+  // [{ slug: "patients", label: "Patients", icon: "user-md", order: 1 }]
+  
+  moduleConfigs   Json    @map("module_configs") @default("{}") @db.JsonB
+  // { "patients": { "default_fields": [...], "default_statuses": [...] } }
+  
+  fieldSchemas    Json    @map("field_schemas") @default("{}") @db.JsonB
+  // { "patients": [{ key: "blood_group", label: "Blood Group", type: "select" }] }
+  
+  workflowSchemas Json    @map("workflow_schemas") @default("{}") @db.JsonB
+  // { "patients": [{ name: "Welcome Email", trigger: "record_created", actions: [...] }] }
+  
+  dashboardLayout Json    @map("dashboard_layout") @default("{}") @db.JsonB
+  // { "default": { widgets: [...] } }
+  
+  permissionsMatrix Json  @map("permissions_matrix") @default("{}") @db.JsonB
+  // { "owner": { "patients": ["*"] }, "admin": { "patients": ["read", "update"] } }
+  
+  version    String   @default("1.0.0")
+  isActive   Boolean  @default(true) @map("is_active")
+  isSystem   Boolean  @default(true) @map("is_system") // System templates cannot be deleted
+  
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  tenantConfigs TenantCRMConfig[]
+  
+  @@index([slug])
+  @@index([isActive])
+  @@index([industryType])
+  @@map("crm_templates")
+}
+
+// 2. TENANT CRM CONFIGURATION (Each Tenant's CRM State)
+model TenantCRMConfig {
+  id              String       @id @default(uuid())
+  tenantId        String       @unique @map("tenant_id")
+  tenant          Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  templateId      String       @map("template_id")
+  template        CRMTemplate  @relation(fields: [templateId], references: [id])
+  
+  // Tenant-Specific Overrides (Deep merge with template)
+  enabledModules    Json       @map("enabled_modules") @db.JsonB
+  // Can toggle modules on/off from template's enabled_modules
+  
+  fieldOverrides    Json       @default("{}") @map("field_overrides") @db.JsonB
+  // Additional custom fields: { "patients": [{ key: "custom_field", label: "...", type: "..." }] }
+  
+  workflowConfig    Json       @default("{}") @map("workflow_config") @db.JsonB
+  // Additional/modified workflows
+  
+  dashboardLayout   Json       @default("{}") @map("dashboard_layout") @db.JsonB
+  // Custom dashboard layout
+  
+  permissionsMatrix Json       @default("{}") @map("permissions_matrix") @db.JsonB
+  // Tenant-specific role permissions
+  
+  // Metadata
+  selectedAt         DateTime   @default(now()) @map("selected_at")
+  selectedByUserId   String?    @map("selected_by_user_id")
+  selectedBy         PlatformUser? @relation(fields: [selectedByUserId], references: [id], onDelete: SetNull)
+  templateVersion    String     @map("template_version") // Track which template version was used
+  canChangeTemplate  Boolean    @default(true) @map("can_change_template") // Lock after data exists
+  
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  
+  @@index([tenantId])
+  @@index([templateId])
+  @@map("tenant_crm_configs")
+}
+
+// 3. CRM MODULE FIELD DEFINITIONS (Runtime Field Schema)
+model CRMModuleField {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  moduleSlug  String   @map("module_slug") // "patients", "leads", "properties"
+  
+  fieldKey    String   @map("field_key") // "blood_group", "insurance_no"
+  fieldLabel  String   @map("field_label") // "Blood Group"
+  fieldType   String   @map("field_type") // "text", "select", "date", "relationship", "file"
+  
+  fieldOptions Json    @default("{}") @map("field_options") @db.JsonB
+  // For select: { options: ["A+", "B+"] }
+  // For relationship: { related_module: "doctors", display_field: "name" }
+  
+  isRequired   Boolean  @default(false) @map("is_required")
+  isSearchable Boolean  @default(true) @map("is_searchable")
+  isSystem     Boolean  @default(false) @map("is_system") // System fields cannot be deleted
+  displayOrder Int      @default(0) @map("display_order")
+  
+  validationRules Json @default("{}") @map("validation_rules") @db.JsonB
+  // { min_length: 5, max_length: 20, pattern: "^[A-Z]+$" }
+  
+  createdByUserId String?  @map("created_by_user_id")
+  createdBy       PlatformUser? @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+  
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  
+  @@unique([tenantId, moduleSlug, fieldKey], map: "unique_tenant_module_field")
+  @@index([tenantId, moduleSlug])
+  @@index([moduleSlug])
+  @@map("crm_module_fields")
+}
+
+// 4. CRM RECORDS (Universal Data Storage - JSON-based like Salesforce)
+model CRMRecord {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  moduleSlug  String   @map("module_slug") // "leads", "patients", "properties"
+  
+  // JSON storage for maximum flexibility
+  data        Json     @db.JsonB
+  // { name: "John Doe", email: "john@example.com", status: "New", blood_group: "A+" }
+  
+  // Metadata
+  recordNumber String? @unique @map("record_number") // Auto-generated: PAT-000001, LEAD-000123
+  
+  ownerUserId       String?       @map("owner_user_id")
+  owner             PlatformUser? @relation("CRMRecordOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  
+  createdByUserId   String?       @map("created_by_user_id")
+  createdBy         PlatformUser? @relation("CRMRecordCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  
+  updatedByUserId   String?       @map("updated_by_user_id")
+  updatedBy         PlatformUser? @relation("CRMRecordUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+  
+  // Soft delete
+  isDeleted         Boolean       @default(false) @map("is_deleted")
+  deletedAt         DateTime?     @map("deleted_at")
+  deletedByUserId   String?       @map("deleted_by_user_id")
+  deletedBy         PlatformUser? @relation("CRMRecordDeletedBy", fields: [deletedByUserId], references: [id], onDelete: SetNull)
+  
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  workflowLogs CRMWorkflowLog[]
+  
+  @@index([tenantId, moduleSlug])
+  @@index([tenantId, moduleSlug, isDeleted])
+  @@index([ownerUserId])
+  @@index([recordNumber])
+  @@index([data], type: Gin) // GIN index for fast JSON queries
+  @@map("crm_records")
+}
+
+// 5. CRM WORKFLOWS (Automation Engine)
+model CRMWorkflow {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  moduleSlug  String   @map("module_slug")
+  
+  name        String   // "Send Welcome Email"
+  description String?
+  
+  // Trigger configuration
+  triggerType       String @map("trigger_type") // "record_created", "field_updated", "status_changed", "scheduled"
+  triggerConditions Json   @default("{}") @map("trigger_conditions") @db.JsonB
+  // { field: "status", operator: "equals", value: "New" }
+  
+  // Actions to execute
+  actions     Json     @db.JsonB
+  // [{ type: "send_email", template: "patient_welcome", to: "{{data.email}}" }]
+  
+  isActive       Boolean  @default(true) @map("is_active")
+  executionOrder Int      @default(0) @map("execution_order") // For multiple workflows on same trigger
+  
+  createdByUserId String?       @map("created_by_user_id")
+  createdBy       PlatformUser? @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+  
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  logs CRMWorkflowLog[]
+  
+  @@index([tenantId, moduleSlug])
+  @@index([tenantId, moduleSlug, isActive])
+  @@index([triggerType])
+  @@map("crm_workflows")
+}
+
+// 6. CRM WORKFLOW EXECUTION LOGS (Audit Trail)
+model CRMWorkflowLog {
+  id          String   @id @default(uuid())
+  workflowId  String   @map("workflow_id")
+  workflow    CRMWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  recordId    String   @map("record_id")
+  record      CRMRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  
+  executionStatus    String  @map("execution_status") // "success", "failed", "partial"
+  executedActions    Json?   @map("executed_actions") @db.JsonB // Which actions ran
+  errorMessage       String? @map("error_message") @db.Text
+  executionDurationMs Int?   @map("execution_duration_ms")
+  
+  executedAt DateTime @default(now()) @map("executed_at")
+  
+  @@index([workflowId])
+  @@index([recordId])
+  @@index([executedAt])
+  @@map("crm_workflow_logs")
+}
+
+// 7. CRM DASHBOARDS (Dashboard Layouts)
+model CRMDashboard {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name        String
+  
+  roleRestriction String? @map("role_restriction") // NULL = all roles, "admin" = admin only
+  
+  layout      Json     @db.JsonB
+  // { grid: "12-column", widgets: [{ id: "widget-1", type: "metric_card", ... }] }
+  
+  isDefault   Boolean  @default(false) @map("is_default")
+  
+  createdByUserId String?       @map("created_by_user_id")
+  createdBy       PlatformUser? @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+  
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  
+  @@unique([tenantId, name], map: "unique_tenant_dashboard_name")
+  @@index([tenantId])
+  @@index([tenantId, isDefault])
+  @@map("crm_dashboards")
+}
+
+// 8. CRM ACTIVITY TIMELINE (Track all changes)
+model CRMActivity {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  recordId    String?  @map("record_id") // NULL for module-level activities
+  moduleSlug  String   @map("module_slug")
+  
+  activityType String  @map("activity_type") // "created", "updated", "deleted", "status_changed", "comment_added"
+  description  String  @db.Text // "Status changed from New to Active"
+  
+  oldValue     Json?   @map("old_value") @db.JsonB
+  newValue     Json?   @map("new_value") @db.JsonB
+  
+  performedByUserId String       @map("performed_by_user_id")
+  performedBy       PlatformUser @relation(fields: [performedByUserId], references: [id], onDelete: Cascade)
+  
+  metadata     Json?   @db.JsonB // Additional context
+  
+  createdAt  DateTime @default(now()) @map("created_at")
+  
+  @@index([tenantId, recordId])
+  @@index([tenantId, moduleSlug])
+  @@index([performedByUserId])
+  @@index([createdAt])
+  @@map("crm_activities")
+}
+
+// ═══════════════════════════════════════════════════════════
+// EXTEND EXISTING MODELS WITH CRM RELATIONS
+// Add these relations to existing models in your schema
+// ═══════════════════════════════════════════════════════════
+
+// Add to PlatformUser model:
+// crmConfigsSelected  TenantCRMConfig[]      @relation
+// crmFieldsCreated    CRMModuleField[]
+// crmRecordsOwned     CRMRecord[]            @relation("CRMRecordOwner")
+// crmRecordsCreated   CRMRecord[]            @relation("CRMRecordCreatedBy")
+// crmRecordsUpdated   CRMRecord[]            @relation("CRMRecordUpdatedBy")
+// crmRecordsDeleted   CRMRecord[]            @relation("CRMRecordDeletedBy")
+// crmWorkflowsCreated CRMWorkflow[]
+// crmDashboardsCreated CRMDashboard[]
+// crmActivities       CRMActivity[]
+
+// Add to Tenant model:
+// crmConfig       TenantCRMConfig?
+// crmFields       CRMModuleField[]
+// crmRecords      CRMRecord[]
+// crmWorkflows    CRMWorkflow[]
+// crmDashboards   CRMDashboard[]
+// crmActivities   CRMActivity[]
