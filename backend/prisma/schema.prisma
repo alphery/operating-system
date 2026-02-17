@@ -74,13 +74,18 @@ model Tenant {
   auditLogs   AuditLog[]
 
   // CRM Pro
-  crmConfig TenantCRMConfig?
-  crmActivities CRMActivity[]
+  crmConfig      TenantCRMConfig?
+  crmActivities  CRMProActivity[]
+  crmDashboards  CRMProDashboard[]
+  crmRecords     CRMRecord[]
+  crmWorkflows   CRMWorkflow[]
+  crmModuleFields CRMModuleField[]
 
   // Existing ERP data (keep for backward compatibility)
   clients           Client[]
   projects          Project[]
   tasks             Task[]
+  oldCrmActivities  CRMActivity[]
   entityDefinitions EntityDefinition[]
   entityRecords     EntityRecord[]
   workflows         Workflow[]
@@ -637,6 +642,7 @@ model TenantCRMConfig {
 model CRMModuleField {
   id              String   @id @default(uuid())
   tenantId        String   @map("tenant_id")
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   moduleSlug      String   @map("module_slug")
   fieldKey        String   @map("field_key")
   fieldLabel      String   @map("field_label")
@@ -658,6 +664,7 @@ model CRMModuleField {
 model CRMRecord {
   id              String    @id @default(uuid())
   tenantId        String    @map("tenant_id")
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   moduleSlug      String    @map("module_slug")
   data            Json // All field data stored as JSON
   recordNumber    String    @map("record_number") // Auto-generated: PAT-000123
@@ -679,6 +686,7 @@ model CRMRecord {
 model CRMWorkflow {
   id                 String   @id @default(uuid())
   tenantId           String   @map("tenant_id")
+  tenant             Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   moduleSlug         String   @map("module_slug")
   name               String
   triggerType        String   @map("trigger_type") // record_created, record_updated, scheduled
@@ -713,9 +721,10 @@ model CRMWorkflowLog {
   @@map("crm_workflow_logs")
 }
 
-model CRMDashboard {
+model CRMProDashboard {
   id              String   @id @default(uuid())
   tenantId        String   @map("tenant_id")
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name            String
   layout          Json // Widget positions and configs
   isDefault       Boolean  @default(false) @map("is_default")
@@ -724,12 +733,13 @@ model CRMDashboard {
   updatedAt       DateTime @updatedAt @map("updated_at")
 
   @@index([tenantId])
-  @@map("crm_dashboards")
+  @@map("crm_pro_dashboards")
 }
 
-model CRMActivity {
+model CRMProActivity {
   id         String   @id @default(uuid())
   tenantId   String   @map("tenant_id")
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   recordId   String   @map("record_id")
   moduleSlug String   @map("module_slug")
   userId     String   @map("user_id")
@@ -740,5 +750,5 @@ model CRMActivity {
   @@index([tenantId])
   @@index([tenantId, recordId])
   @@index([tenantId, moduleSlug])
-  @@map("crm_activities")
+  @@map("crm_pro_activities")
 }
